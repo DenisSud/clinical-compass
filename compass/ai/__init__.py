@@ -1,22 +1,24 @@
-"""compass_ai — everything that touches a model, behind one Protocol.
+"""compass.ai — everything that touches a model, behind one Protocol.
 
-Nothing in this package performs a clinical action. It classifies, retrieves,
-extracts and drafts. A doctor confirms.
+Nothing here performs a clinical action. It classifies, retrieves, extracts and
+drafts. A doctor confirms.
 
 Entry point for the clinical app::
 
-    from compass_ai import LocalAssistant, ModelRoles
+    from compass import LocalAssistant, ModelRoles, load_dir
 
     assistant = LocalAssistant(ModelRoles.from_env())
-    assistant.load_corpus(passages)
+    assistant.load_corpus(load_dir()[0])
     candidates = assistant.triage(score=phq9_score, text=patient_note)
 """
+
+from compass.knowledge.passage import Passage
 
 from .assistant import Assistant, Extraction, LocalAssistant
 from .drafting import Draft, DraftRejected, Proposal
 from .models import DEFAULT_HOST, TARGET_REASONING_MODEL, ModelRoles
 from .ollama import Decision, Ollama, OllamaError
-from .retrieval import Hit, Index, Passage
+from .retrieval import Hit, Index
 from .triage import SCREENS, Candidate, Rank, merge
 
 __all__ = [

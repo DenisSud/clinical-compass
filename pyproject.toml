@@ -13,12 +13,12 @@ dependencies = ["Django==5.2.18", "httpx>=0.27", "waitress==3.0.2", "psycopg==3.
 dev = ["pytest>=8.0"]
 
 [tool.setuptools]
-# The workspace is a plain source tree: `packages/` goes on sys.path, there is
-# nothing to build or install. Listing packages keeps `pip install -e .` honest.
-packages = ["instruments", "compass_ai", "knowledge"]
+# One package, on sys.path as `.`. There is nothing to build or install;
+# listing it keeps `pip install -e .` honest.
+packages = ["compass"]
 
 [tool.pytest.ini_options]
-pythonpath = ["packages"]
+pythonpath = ["."]
 testpaths = ["tests"]
 addopts = "-q --strict-markers"
 markers = ["live: needs a running Ollama and installed models; skipped by default"]
@@ -26,7 +26,7 @@ markers = ["live: needs a running Ollama and installed models; skipped by defaul
 [tool.ruff]
 line-length = 130
 target-version = "py312"
-src = ["packages", "apps"]
+src = ["compass", "apps"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]

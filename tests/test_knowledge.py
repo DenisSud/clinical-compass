@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import re
 
-from compass_ai.retrieval import Index, Passage
-from knowledge import load_dir, passages
+from compass.ai.retrieval import Index, Passage
+from compass.knowledge import load_dir, passages
 
 BUNDLES, ERRORS = load_dir()
 

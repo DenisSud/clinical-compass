@@ -18,11 +18,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Protocol, Sequence
 
+from compass.instruments import Score
+
 from .drafting import Draft, DraftRejected, draft
 from .models import ModelRoles
 from .ollama import Decision, Ollama, OllamaError
 from .retrieval import Hit, Index, Passage
-from .triage import Candidate, categorise, merge, screen_text, urgency
+from .triage import Candidate, categorise, from_instrument, merge, screen_text, urgency
 
 
 @dataclass(frozen=True)
@@ -125,13 +127,11 @@ class LocalAssistant:
             missing=tuple(k for k, v in values.items() if not v),
         )
 
-    def triage(self, *, score: object | None = None, text: str = "") -> list[Candidate]:
+    def triage(self, *, score: Score | None = None, text: str = "") -> list[Candidate]:
         """Merge deterministic instrument findings with model screens."""
         groups: list[list[Candidate]] = []
         if score is not None:
-            from .triage import from_instrument
-
-            groups.append(from_instrument(score))  # type: ignore[arg-type]
+            groups.append(from_instrument(score))
         groups.append(self.screen(text))
         return merge(*groups)
 

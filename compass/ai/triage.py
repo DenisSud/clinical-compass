@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from enum import IntEnum
 from typing import Iterable, Sequence
 
-from instruments import Score
+from compass.instruments import Score
 
 from .ollama import Decision, Ollama, OllamaError
 

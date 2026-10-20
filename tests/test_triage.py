@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 
-from compass_ai.drafting import DraftRejected, draft
-from compass_ai.retrieval import Hit, Passage
-from compass_ai.triage import Candidate, Rank, from_instrument, merge
-from instruments import load_strict, score
+from compass.ai.drafting import DraftRejected, draft
+from compass.ai.retrieval import Hit, Passage
+from compass.ai.triage import Candidate, Rank, from_instrument, merge
+from compass.instruments import load_strict, score
 
 REGISTRY = load_strict()
 
@@ -58,7 +58,7 @@ class FakeOllama:
     """Stands in for the model server so the gate can be tested without one."""
 
     def __init__(self, payload):
-        from compass_ai.models import ModelRoles
+        from compass.ai.models import ModelRoles
 
         self._payload = payload
         self.roles = ModelRoles()

@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from compass_ai.retrieval import Passage
+from .passage import Passage
 
 DEFAULT_DIR = Path(__file__).parent / "bundles"
 

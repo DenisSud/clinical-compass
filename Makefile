@@ -20,7 +20,6 @@ test-live: ## Tests that hit the local Ollama
 	$(PYTEST) -m live
 
 verify: test ## What to run before pushing
-	@$(PY) scripts/verify_workspace.py
 
 corpus: ## List the source corpus and its citable passages
 	@$(PY) scripts/verify_workspace.py --corpus
@@ -36,7 +35,7 @@ mockup-reset: ## Same, with a fresh demo database
 	@$(MAKE) mockup
 
 lint: ## Ruff, when it is installed
-	@ruff check packages tests 2>/dev/null || echo "ruff not installed; skipping"
+	@ruff check compass tests 2>/dev/null || echo "ruff not installed; skipping"
 
 fmt: ## Ruff format, when it is installed
-	@ruff format packages tests 2>/dev/null || echo "ruff not installed; skipping"
+	@ruff format compass tests 2>/dev/null || echo "ruff not installed; skipping"

@@ -18,6 +18,8 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import Iterable, Sequence
 
+from compass.knowledge.passage import Passage
+
 from .ollama import Ollama
 
 _WORD = re.compile(r"\w+", re.UNICODE)
@@ -27,27 +29,6 @@ def tokenize(text: str) -> list[str]:
     """Lowercase word tokens. No stemming: Russian morphology here is a project
     of its own, and BM25 over stems would be a lie about how it was tuned."""
     return _WORD.findall(text.lower())
-
-
-@dataclass(frozen=True)
-class Passage:
-    """A citable span of a source document.
-
-    ``start``/``end`` are character offsets into the source text, so a citation
-    can be rendered as the exact quote rather than a paraphrase.
-    """
-
-    key: str
-    source_id: str
-    source_title: str
-    locator: str
-    text: str
-    start: int = 0
-    end: int = 0
-
-    @property
-    def citation(self) -> str:
-        return f"{self.source_title} · {self.locator}"
 
 
 @dataclass(frozen=True)

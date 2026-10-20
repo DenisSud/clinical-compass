@@ -6,7 +6,7 @@ import json
 
 import pytest
 
-from instruments import DefinitionError, Instrument, load_strict, score
+from compass.instruments import DefinitionError, Instrument, load_strict, score
 
 REGISTRY = load_strict()
 
@@ -152,7 +152,7 @@ def test_a_new_scale_is_data_not_code(tmp_path):
 
 def test_invalid_definition_is_reported_not_raised(tmp_path):
     (tmp_path / "broken.json").write_text('{"code": "X"}', encoding="utf-8")
-    from instruments import load
+    from compass.instruments import load
 
     report = load(tmp_path)
     assert not report.ok

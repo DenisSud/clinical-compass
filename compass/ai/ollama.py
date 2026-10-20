@@ -43,7 +43,7 @@ class Decision:
 
     ``confidence`` is the model's own percentage. It is **not** a calibrated
     probability and must never be the sole trigger for a clinical action — see
-    :mod:`compass_ai.triage`.
+    :mod:`compass.ai.triage`.
     """
 
     label: str

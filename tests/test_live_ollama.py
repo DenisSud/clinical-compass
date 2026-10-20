@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 
-from compass_ai import LocalAssistant, ModelRoles, Ollama, OllamaError, TARGET_REASONING_MODEL
+from compass.ai import LocalAssistant, ModelRoles, Ollama, OllamaError, TARGET_REASONING_MODEL
 
 pytestmark = pytest.mark.live
 
