@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Django
+db.sqlite3
+data/
+/staticfiles/
+media/
+
+# Mockup heavyweight artifacts (rebuilt by `import_knowledge`)
+reference/mockup/clinical_compass_app/knowledge_assets/
+
+# Secrets / env
+.env
+.env.*
+!.env.example
+
+# Node
+node_modules/
+dist/
+.next/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Local scratch
+tmp/
