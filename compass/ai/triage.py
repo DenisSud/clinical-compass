@@ -92,6 +92,9 @@ SEVERITY_BY_SIGNAL: dict[str, Severity] = {
     "suicide_risk_unanswered": Severity.CRITICAL,
     "suicide_risk": Severity.CRITICAL,
     "self_harm_plan": Severity.CRITICAL,
+    # A direct report on the daily check. Not a scale, but the patient's own words
+    # about today — the most actionable thing on the screen.
+    "self_harm_today": Severity.CRITICAL,
     "severe_side_effect": Severity.DANGER,
     "contraindication": Severity.DANGER,
     "serotonin_syndrome_risk": Severity.DANGER,
@@ -136,9 +139,12 @@ class Candidate:
             "suicide_risk_unanswered": "Пункт 9 PHQ-9 без ответа",
             "suicide_risk": "Возможны суицидальные мысли (модель)",
             "self_harm_plan": "Возможен план самоповреждения (модель)",
+            "self_harm_today": "Сегодня были мысли навредить себе",
             "severe_side_effect": "Возможна тяжёлая нежелательная реакция (модель)",
             "stopped_medication": "Возможен пропуск приёма препарата (модель)",
             "worsening": "Возможное ухудшение состояния (модель)",
+            "severe_score": "Тяжёлый балл по шкале",
+            "definition_changed": "Шкала изменилась после заполнения",
         }.get(self.signal, self.signal)
 
 
@@ -146,7 +152,8 @@ def from_instrument(score: Score) -> list[Candidate]:
     """Deterministic findings. These are authoritative."""
     out: list[Candidate] = []
     for finding in score.findings:
-        rank = Rank.URGENT if finding.signal.startswith("suicide") else Rank.SOON
+        urgent = finding.signal.startswith(("suicide", "self_harm"))
+        rank = Rank.URGENT if urgent else Rank.SOON
         reason = finding.reason
         severity: Severity | None = None
 

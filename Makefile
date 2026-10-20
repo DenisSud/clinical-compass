@@ -39,3 +39,10 @@ lint: ## Ruff, when it is installed
 
 fmt: ## Ruff format, when it is installed
 	@ruff format compass tests 2>/dev/null || echo "ruff not installed; skipping"
+
+seed: ## демонстрационные данные (пересоздаёт var/compass.db)
+	python scripts/seed.py --reset
+
+web: ## приложение: врач и пациент на :8030
+	python scripts/seed.py --reset
+	uvicorn apps.web.app:app --host 0.0.0.0 --port 8030

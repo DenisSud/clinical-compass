@@ -293,3 +293,64 @@ def test_answers_must_name_every_item_and_submission_is_idempotent(app):
     second = clinical.submit_response(patient, "a1", dict(ITEMS), submission_key="s1")
     assert first.response_id == second.response_id
     assert len(store.patient_state("p1").responses) == 1
+
+
+# ------------------------------------------------- safety is an event, not state
+
+def test_a_safety_signal_is_not_hidden_by_a_later_answer(app):
+    """A band describes now; a reported thought describes an event.
+
+    The first version read only the newest response, so today's self-harm tick
+    disappeared behind the same day's questionnaire. This test is that bug.
+    """
+    from datetime import timedelta
+
+    from apps.api.clinic import Assignment, Response
+    from compass.instruments import load_strict
+
+    clinical, store = app()
+    add_patient(store, "p1")
+    add_assignment(store, "a1", "p1")
+    clinical.submit_response(Actor("p1", Role.PATIENT), "a1", dict(ITEMS, q9=2),
+                             submission_key="s1")
+
+    daily = load_strict().get("WELLBEING-DAILY")
+    store.add_assignment(Assignment(id="a2", patient_id="p1",
+                                    instrument_code="WELLBEING-DAILY",
+                                    created_at=FIXED, due_on=FIXED.date()))
+    store.append_response(Response(
+        id="r2", assignment_id="a2", patient_id="p1",
+        instrument_code="WELLBEING-DAILY", definition_sha256=daily.sha256,
+        answers={"mood": 0, "sleep": 0, "anxiety": 0, "energy": 0, "harm": 0},
+        submitted_at=FIXED + timedelta(hours=5),
+    ))
+
+    board = clinical.dashboard(doctor, "p1")
+    assert any(s.signal == "suicide_risk_item" for s in board.signals)
+
+
+def test_a_totals_signal_does_not_accumulate_from_history(app):
+    """Two severe answers are one current state, not two rows."""
+    from datetime import timedelta
+
+    from apps.api.clinic import Assignment, Response
+    from compass.instruments import load_strict
+
+    clinical, store = app()
+    add_patient(store, "p1")
+    instrument = load_strict().get("PHQ9-RU")
+    for index, when in enumerate((FIXED - timedelta(days=7), FIXED)):
+        store.add_assignment(Assignment(id=f"a{index}", patient_id="p1",
+                                        instrument_code="PHQ9-RU",
+                                        created_at=when, due_on=when.date()))
+        store.append_response(Response(
+            id=f"r{index}", assignment_id=f"a{index}", patient_id="p1",
+            instrument_code="PHQ9-RU", definition_sha256=instrument.sha256,
+            answers=dict(ITEMS, **{f"q{i}": 3 for i in range(1, 9)}),
+            submitted_at=when,
+        ))
+
+    # read through the card, which keeps every candidate; the dashboard filters
+    # the score out on purpose, because it is already printed as a number
+    case = clinical.card(doctor, "p1")
+    assert sum(1 for s in case.signals if s.key.signal == "severe_score") == 1

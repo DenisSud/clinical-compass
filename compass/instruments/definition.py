@@ -17,6 +17,8 @@ class DefinitionError(ValueError):
 
 
 _ALLOWED_TOP = {
+    "kind",
+    "short_title",
     "code",
     "version",
     "title",
@@ -30,6 +32,14 @@ _ALLOWED_TOP = {
     "safety",
     "validation",
 }
+
+
+#: ``kind`` is the one optional top-level key: older definitions predate it.
+_REQUIRED_TOP = _ALLOWED_TOP - {"kind", "short_title"}
+
+#: A validated scale measures what its instruction says it measures. A daily
+#: check does not, and must never be allowed to print a band.
+KINDS = ("validated_scale", "daily_check")
 
 
 def _require(cond: bool, message: str) -> None:
@@ -104,6 +114,14 @@ class Instrument:
     subscales: tuple[Subscale, ...]
     safety: tuple[SafetySignal, ...]
     validation: Validation
+    #: "validated_scale" or "daily_check". Only the first may carry bands.
+    kind: str = "validated_scale"
+    #: For tables and headings; falls back to the full title.
+    short_title: str = ""
+
+    @property
+    def short(self) -> str:
+        return self.short_title or self.title
     raw: Mapping[str, Any] = field(repr=False, compare=False, default_factory=dict)
 
     # -- identity ---------------------------------------------------------
@@ -128,8 +146,11 @@ class Instrument:
         _require(isinstance(data, Mapping), "definition: expected an object")
         extra = set(data) - _ALLOWED_TOP
         _require(not extra, f"definition: unknown keys {sorted(extra)}")
-        missing = _ALLOWED_TOP - set(data)
+        missing = _REQUIRED_TOP - set(data)
         _require(not missing, f"definition: missing keys {sorted(missing)}")
+
+        kind = data.get("kind", "validated_scale")
+        _require(kind in KINDS, f"kind: expected one of {KINDS}")
 
         code = _text(data["code"], "code", max_len=40)
         version = _text(data["version"], "version", max_len=100)
@@ -186,6 +207,8 @@ class Instrument:
             items=tuple(items),
             subscales=subscales,
             safety=safety,
+            kind=kind,
+            short_title=data.get("short_title", ""),
             validation=Validation(
                 source=_text(validation.get("source"), "validation.source", max_len=1000),
                 usage_rights=_text(validation.get("usage_rights"), "validation.usage_rights", max_len=1000),
@@ -226,14 +249,15 @@ def _subscales(scoring: Mapping[str, Any], item_keys: set[str]) -> tuple[Subscal
             _require(not unknown, f"scoring.subscales[{index}].items: unknown items {sorted(unknown)}")
             selected = tuple(keys)
         bands_raw = sub.get("bands")
-        _require(isinstance(bands_raw, list) and bands_raw, f"scoring.subscales[{index}].bands: expected a list")
+        _require(bands_raw is None or (isinstance(bands_raw, list) and bands_raw),
+                 f"scoring.subscales[{index}].bands: expected a non-empty list or omission")
         bands = tuple(
             Band(
                 maximum=_non_negative(b.get("maximum"), f"scoring.subscales[{index}].bands.maximum"),
                 label=_text(b.get("label"), f"scoring.subscales[{index}].bands.label", max_len=200),
                 severity=_text(b.get("severity"), f"scoring.subscales[{index}].bands.severity", max_len=40),
             )
-            for b in bands_raw
+            for b in (bands_raw or ())
         )
         maxima = [b.maximum for b in bands]
         _require(maxima == sorted(maxima), f"scoring.subscales[{index}].bands: maximum must ascend")

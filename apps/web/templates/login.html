@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Вход{% endblock %}
+{% block content %}
+<h1>Вход</h1>
+<p class="sub">Для врача — почта и пароль. Пациент входит по ссылке от врача.</p>
+
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<form method="post" action="/login" class="panel" style="max-width:380px">
+  <label class="field">Почта
+    <input type="email" name="email" required autocomplete="username">
+  </label>
+  <label class="field" style="margin-top:var(--s3)">Пароль
+    <input type="password" name="password" required autocomplete="current-password">
+  </label>
+  <p style="margin-top:var(--s4)"><button class="btn primary" type="submit">Войти</button></p>
+</form>
+
+<p class="hint" style="margin-top:var(--s5)">Демонстрационный вход: doctor@clinic.ru / compass</p>
+{% endblock %}

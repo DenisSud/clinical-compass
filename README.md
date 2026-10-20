@@ -95,3 +95,12 @@ COMPASS_PORT=9000 compass-mockup
 Читать дальше: `docs/architecture.md` (как устроено) →
 `docs/code-tour.md` (в каком порядке читать код) → `docs/case/brief.md`
 (что требуют) → `docs/team/open-questions.md` (что не решено).
+
+## Быстрый старт приложения
+
+```bash
+make web        # демо-данные + приложение на http://127.0.0.1:8030
+```
+
+Вход врача: `doctor@clinic.ru` / `compass`. Ссылки для пациентов печатает
+`make seed`. Что построено и что намеренно не построено — `docs/app.md`.

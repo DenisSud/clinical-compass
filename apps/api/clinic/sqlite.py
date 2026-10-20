@@ -12,8 +12,9 @@ from __future__ import annotations
 
 import json
 import sqlite3
+import threading
 from contextlib import contextmanager
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Iterator
 
 from compass.ai.triage import Candidate, Rank, Severity
@@ -21,7 +22,7 @@ from compass.ai.triage import Candidate, Rank, Severity
 from .ports import PatientBundle, PatientState
 from .types import (
     Alert, AlertState, Appointment, Assignment, AuditEntry, Message, Obligation,
-    Patient, Plan, Prescription, Referral, Response, SignalKey,
+    Patient, Plan, Prescription, Referral, Response, SignalKey, Visit,
 )
 
 SCHEMA = """
@@ -31,8 +32,16 @@ CREATE TABLE IF NOT EXISTS patients (
 );
 CREATE TABLE IF NOT EXISTS assignments (
   id TEXT PRIMARY KEY, patient_id TEXT NOT NULL, instrument_code TEXT NOT NULL,
-  created_at TEXT NOT NULL
+  created_at TEXT NOT NULL, due_on TEXT
 );
+CREATE UNIQUE INDEX IF NOT EXISTS ux_assignments_day
+  ON assignments(patient_id, instrument_code, due_on);
+CREATE TABLE IF NOT EXISTS visits (
+  id TEXT PRIMARY KEY, patient_id TEXT NOT NULL, doctor_id TEXT,
+  scheduled_at TEXT NOT NULL, kind TEXT NOT NULL, note TEXT NOT NULL,
+  status TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_visits_doctor ON visits(doctor_id, scheduled_at);
 CREATE TABLE IF NOT EXISTS responses (
   id TEXT PRIMARY KEY, assignment_id TEXT NOT NULL, patient_id TEXT NOT NULL,
   instrument_code TEXT NOT NULL, definition_sha256 TEXT NOT NULL,
@@ -143,12 +152,51 @@ def _plan_load(raw: str) -> Plan:
 
 class SqliteStore:
     def __init__(self, path: str = ":memory:") -> None:
+        self._path = path
+        self._local = threading.local()
+        self._memory = (
+            self._connect(":memory:") if path == ":memory:" else None
+        )
+        self._connection()  # create the schema up front, so a typo fails here
+
+    def _connect(self, path: str) -> sqlite3.Connection:
         # isolation_level=None: transactions are opened explicitly, so a unit of
         # work is visible in the code rather than implied by the driver.
-        self._db = sqlite3.connect(path, isolation_level=None)
-        self._db.row_factory = sqlite3.Row
-        self._db.execute("PRAGMA foreign_keys = ON")
-        self._db.executescript(SCHEMA)
+        connection = sqlite3.connect(path, isolation_level=None, timeout=10)
+        connection.row_factory = sqlite3.Row
+        connection.execute("PRAGMA foreign_keys = ON")
+        connection.executescript(SCHEMA)
+        self._migrate(connection)
+        return connection
+
+    def _connection(self) -> sqlite3.Connection:
+        """One connection per thread.
+
+        A web server calls this from a pool of worker threads, and SQLite refuses
+        to share a connection across them. Per-thread connections also mean each
+        transaction belongs to exactly one thread, which is what makes
+        ``unit_of_work`` mean what it says.
+        """
+        if self._memory is not None:
+            return self._memory
+        connection = getattr(self._local, "connection", None)
+        if connection is None:
+            connection = self._local.connection = self._connect(self._path)
+        return connection
+
+    @property
+    def _db(self) -> sqlite3.Connection:
+        return self._connection()
+
+    def _migrate(self, connection: sqlite3.Connection) -> None:
+        """Add columns introduced after a database was first created.
+
+        Cheap and explicit beats a migration framework for one file and one demo;
+        a Postgres adapter would use real migrations instead.
+        """
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(assignments)")}
+        if "due_on" not in columns:
+            connection.execute("ALTER TABLE assignments ADD COLUMN due_on TEXT")
 
     # ------------------------------------------------------- transactions
 
@@ -184,11 +232,7 @@ class SqliteStore:
         )
 
     def add_assignment(self, assignment: Assignment) -> None:
-        self._db.execute(
-            "INSERT OR REPLACE INTO assignments VALUES (?,?,?,?)",
-            (assignment.id, assignment.patient_id, assignment.instrument_code,
-             _iso(assignment.created_at)),
-        )
+        self.append_assignment(assignment)
 
     # -------------------------------------------------------------- reads
 
@@ -264,6 +308,11 @@ class SqliteStore:
                 PatientBundle(
                     patient=patient,
                     latest_response=self._response(latest) if latest else None,
+                    responses=tuple(
+                        self._response(r) for r in self._db.execute(
+                            "SELECT * FROM responses WHERE patient_id = ? "
+                            "ORDER BY submitted_at", (patient.id,))
+                    ),
                     messages=messages,
                     alerts=alerts,
                     last_contact_at=max(contacts) if contacts else None,
@@ -296,16 +345,51 @@ class SqliteStore:
                     "SELECT * FROM alerts WHERE patient_id = ?", (patient_id,))
             ),
             audit=self.audit_of(patient_id),
+            visits=self.visits_of_patient(patient_id),
+        )
+
+    @staticmethod
+    def _assignment(row: sqlite3.Row) -> Assignment:
+        return Assignment(
+            id=row["id"], patient_id=row["patient_id"],
+            instrument_code=row["instrument_code"], created_at=_dt(row["created_at"]),
+            due_on=date.fromisoformat(row["due_on"]) if row["due_on"] else None,
         )
 
     def assignment(self, assignment_id: str) -> Assignment | None:
         row = self._db.execute(
             "SELECT * FROM assignments WHERE id = ?", (assignment_id,)
         ).fetchone()
-        if row is None:
-            return None
-        return Assignment(row["id"], row["patient_id"], row["instrument_code"],
-                          _dt(row["created_at"]))
+        return self._assignment(row) if row else None
+
+    def assignments_of(self, patient_id: str) -> tuple[Assignment, ...]:
+        return tuple(
+            self._assignment(r) for r in self._db.execute(
+                "SELECT * FROM assignments WHERE patient_id = ? ORDER BY created_at",
+                (patient_id,))
+        )
+
+    @staticmethod
+    def _visit(row: sqlite3.Row) -> Visit:
+        return Visit(
+            id=row["id"], patient_id=row["patient_id"], doctor_id=row["doctor_id"],
+            scheduled_at=_dt(row["scheduled_at"]), kind=row["kind"],
+            note=row["note"], status=row["status"],
+        )
+
+    def visits_of_patient(self, patient_id: str) -> tuple[Visit, ...]:
+        return tuple(
+            self._visit(r) for r in self._db.execute(
+                "SELECT * FROM visits WHERE patient_id = ? ORDER BY scheduled_at",
+                (patient_id,))
+        )
+
+    def visits_of_doctor(self, doctor_id: str) -> tuple[Visit, ...]:
+        return tuple(
+            self._visit(r) for r in self._db.execute(
+                "SELECT * FROM visits WHERE doctor_id = ? ORDER BY scheduled_at",
+                (doctor_id,))
+        )
 
     def appointment(self, appointment_id: str) -> Appointment | None:
         row = self._db.execute(
@@ -350,6 +434,21 @@ class SqliteStore:
             (response.id, response.assignment_id, response.patient_id,
              response.instrument_code, response.definition_sha256,
              json.dumps(dict(response.answers)), _iso(response.submitted_at)),
+        )
+
+    def append_assignment(self, assignment: Assignment) -> None:
+        self._db.execute(
+            "INSERT OR IGNORE INTO assignments VALUES (?,?,?,?,?)",
+            (assignment.id, assignment.patient_id, assignment.instrument_code,
+             _iso(assignment.created_at),
+             assignment.due_on.isoformat() if assignment.due_on else None),
+        )
+
+    def append_visit(self, visit: Visit) -> None:
+        self._db.execute(
+            "INSERT OR REPLACE INTO visits VALUES (?,?,?,?,?,?,?)",
+            (visit.id, visit.patient_id, visit.doctor_id, _iso(visit.scheduled_at),
+             visit.kind, visit.note, visit.status),
         )
 
     def append_message(self, message: Message) -> None:

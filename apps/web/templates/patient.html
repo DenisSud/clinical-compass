@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% block title %}{{ board.patient.display }}{% endblock %}
+{% block content %}
+<h1>{{ board.patient.display }}</h1>
+<p class="sub">{{ board.age }} лет<span class="dot">·</span>дневник {{ board.adherence.filled }} из {{ board.adherence.expected }} дней<span class="dot">·</span>последняя отметка {{ board.last_contact_at|dt }}</p>
+
+<div class="stack" style="margin-top:var(--s5)">
+
+  <section>
+    <div class="section-title">Что видно по данным</div>
+    {% if board.signals %}
+    <div class="findings" style="margin-bottom:var(--s3)">
+      {% for sig in board.signals %}
+      <div class="finding{% if sig.severity.name == 'ATTENTION' %} attn{% endif %}">
+        <div class="t-title">{{ sig.label }}</div>
+        <div class="hint">{{ sig.reason }}</div>
+        <span class="src">{{ sig.origin }}<span class="dot">·</span>{{ 'проверено' if sig.authoritative else 'подозрение' }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if board.findings %}
+    <div class="findings">
+      {% for f in board.findings %}
+      <div class="finding{% if f.severity.name == 'ATTENTION' %} attn{% endif %}">
+        <div class="t-title">{{ f.title }}</div>
+        <div class="hint">{{ f.detail }}</div>
+        <span class="src">{{ f.source }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="hint">Отклонений нет: баллы в пределах полос, дневник заполняется.</p>
+    {% endif %}
+  </section>
+
+  <section>
+    <div class="section-title">Ежедневная отметка</div>
+    {% if chart %}
+    <div class="chart">
+      <svg viewBox="0 0 {{ chart_width }} {{ chart_height }}" role="img"
+           aria-label="Динамика ежедневной отметки">
+        <polyline points="{{ chart }}" fill="none" stroke="var(--ink)" stroke-width="1.5"/>
+      </svg>
+      <p class="hint" style="margin-top:var(--s2)">Сумма четырёх пунктов за день, 0–{{ daily.maximum }}. Не шкала: полос нет.</p>
+    </div>
+    {% else %}
+    <p class="hint">Точек мало для графика.</p>
+    {% endif %}
+    {% if points %}
+    <p class="hint" style="margin-top:var(--s2)">
+      {% for day, value in points[-7:] %}{{ day.strftime('%d.%m') }} — {{ value }}{% if not loop.last %}<span class="dot">·</span>{% endif %}{% endfor %}
+    </p>
+    {% endif %}
+  </section>
+
+  <section>
+    <div class="section-title">Шкалы</div>
+    {% if board.series %}
+      {% for s in board.series %}
+        {% if s.kind == 'validated_scale' %}
+        <p class="lede">{{ s.title }}: {{ s.points|length }} ответ(ов), последний {{ s.latest.total }} из {{ s.latest.maximum }}{% if s.latest.band_label %} — {{ s.latest.band_label }}{% endif %}.</p>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+    <div class="panel" style="margin-top:var(--s3)">
+      <table class="t">
+        <thead><tr><th>Когда</th><th>Опросник</th><th>Балл</th><th>Полоса</th></tr></thead>
+        <tbody>
+          {% for r in board.responses %}
+          <tr>
+            <td class="muted">{{ r.at|dt }}</td>
+            <td>{{ r.title }}</td>
+            <td class="num">{% if r.total is none %}—{% else %}{{ r.total }} из {{ r.maximum }}{% endif %}</td>
+            <td>{% if r.band_label %}{{ r.band_label }}{% elif not r.complete %}<span class="hint">неполный ответ</span>{% else %}<span class="muted">без полосы</span>{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="4" class="muted">Ответов пока нет.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-title">Приёмы</div>
+    {% for v in board.visits %}
+    <div class="visit">
+      <span>{{ v.scheduled_at|dt }}<span class="dot">·</span><span class="muted">{{ v.kind }}</span></span>
+      <span class="muted">{{ v.status }}</span>
+    </div>
+    {% else %}
+    <p class="hint">Приёмов нет.</p>
+    {% endfor %}
+    <form method="post" action="/panel/{{ board.patient.id }}/visits" class="form-row" style="margin-top:var(--s3)">
+      <label class="field">Когда
+        <input type="datetime-local" name="when" required>
+      </label>
+      <label class="field">Тип
+        <input type="text" name="kind" value="консультация">
+      </label>
+      <button class="btn" type="submit">Назначить приём</button>
+    </form>
+  </section>
+
+</div>
+{% endblock %}

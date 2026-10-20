@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Пациенты{% endblock %}
+{% block content %}
+<h1>Пациенты</h1>
+<p class="sub">{{ rows|length }} человек<span class="dot">·</span>сначала те, кому хуже<span class="dot">·</span>без языковой модели, только арифметика по шкалам</p>
+
+<div class="panel">
+  <table class="t">
+    <thead>
+      <tr>
+        <th>Пациент</th>
+        <th>Дневник</th>
+        <th>PHQ-9</th>
+        <th>Последняя отметка</th>
+        <th>Следующий приём</th>
+        <th>Что требует внимания</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td><a href="/panel/{{ r.patient.id }}">{{ r.patient.display }}</a><span class="dot">·</span><span class="hint">{{ r.age }}</span></td>
+        <td class="num">{{ r.adherence.filled }} из {{ r.adherence.expected }}</td>
+        <td>
+          {% if r.latest_total is none %}<span class="muted">нет данных</span>
+          {% else %}<span class="num">{{ r.latest_total }}</span> из {{ r.latest_maximum }}{% if r.latest_band %}<span class="hint"> · {{ r.latest_band }}</span>{% endif %}
+          {% endif %}
+        </td>
+        <td class="muted">{{ r.last_contact_at|dt }}</td>
+        <td class="muted">{{ r.next_visit_at|dt }}</td>
+        <td>
+          {% if r.headline %}<span class="flag flag-{{ (r.signals[0].severity if r.signals else r.findings[0].severity).name|lower }}">{{ r.headline }}</span>
+          {% else %}<span class="muted">—</span>{% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

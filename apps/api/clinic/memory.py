@@ -14,7 +14,7 @@ from typing import Iterator
 
 from .ports import PatientBundle, PatientState
 from .types import (
-    Alert, Appointment, Assignment, AuditEntry, Message, Patient, Response,
+    Alert, Appointment, Assignment, AuditEntry, Message, Patient, Response, Visit,
 )
 
 
@@ -28,6 +28,7 @@ class MemoryStore:
         self.alerts: dict[tuple, Alert] = {}
         self.audit: list[AuditEntry] = []
         self.idem: dict[str, tuple[str, dict]] = {}
+        self.visits: dict[str, Visit] = {}
         self._seq = 0
 
     # ---------------------------------------------------------- setup
@@ -49,13 +50,15 @@ class MemoryStore:
         cheap at demo scale and keeps one contract for both adapters.
         """
         boxes = (self.patients, self.assignments, self.responses, self.appointments,
-                 self.messages, self.alerts, self.audit, self.idem, self._seq)
+                 self.messages, self.alerts, self.audit, self.idem, self.visits,
+                 self._seq)
         snapshot = copy.deepcopy(boxes)
         try:
             yield
         except BaseException:
             (self.patients, self.assignments, self.responses, self.appointments,
-             self.messages, self.alerts, self.audit, self.idem, self._seq) = snapshot
+             self.messages, self.alerts, self.audit, self.idem, self.visits,
+             self._seq) = snapshot
             raise
 
     def doctor_patients(self, doctor_id: str) -> tuple[PatientBundle, ...]:
@@ -72,6 +75,7 @@ class MemoryStore:
                 PatientBundle(
                     patient=patient,
                     latest_response=latest,
+                    responses=tuple(sorted(mine, key=lambda r: r.submitted_at)),
                     messages=msgs,
                     alerts=alerts,
                     last_contact_at=max(contacts) if contacts else None,
@@ -90,10 +94,26 @@ class MemoryStore:
             messages=tuple(m for m in self.messages if m.patient_id == patient_id),
             alerts=tuple(a for a in self.alerts.values() if a.key.patient_id == patient_id),
             audit=tuple(e for e in self.audit if e.patient_id == patient_id),
+            visits=self.visits_of_patient(patient_id),
         )
 
     def assignment(self, assignment_id: str) -> Assignment | None:
         return self.assignments.get(assignment_id)
+
+    def assignments_of(self, patient_id: str) -> tuple[Assignment, ...]:
+        return tuple(a for a in self.assignments.values() if a.patient_id == patient_id)
+
+    def visits_of_patient(self, patient_id: str) -> tuple[Visit, ...]:
+        return tuple(sorted(
+            (v for v in self.visits.values() if v.patient_id == patient_id),
+            key=lambda v: v.scheduled_at,
+        ))
+
+    def visits_of_doctor(self, doctor_id: str) -> tuple[Visit, ...]:
+        return tuple(sorted(
+            (v for v in self.visits.values() if v.doctor_id == doctor_id),
+            key=lambda v: v.scheduled_at,
+        ))
 
     def appointment(self, appointment_id: str) -> Appointment | None:
         return self.appointments.get(appointment_id)
@@ -120,6 +140,12 @@ class MemoryStore:
 
     def append_message(self, message: Message) -> None:
         self.messages.append(message)
+
+    def append_assignment(self, assignment: Assignment) -> None:
+        self.assignments[assignment.id] = assignment
+
+    def append_visit(self, visit: Visit) -> None:
+        self.visits[visit.id] = visit
 
     def save_alert(self, alert: Alert) -> None:
         self.alerts[(alert.key.patient_id, alert.key.signal, alert.key.source, alert.key.item)] = alert

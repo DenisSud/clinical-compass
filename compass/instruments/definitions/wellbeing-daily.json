@@ -1,0 +1,93 @@
+{
+  "kind": "daily_check",
+  "code": "WELLBEING-DAILY",
+  "short_title": "Дневник",
+  "version": "ru-internal-2026-10-20-v1",
+  "title": "Ежедневная отметка самочувствия",
+  "respondent": "patient",
+  "language": "ru",
+  "instruction": "Ответьте про сегодняшний день.",
+  "recall": {
+    "days": 0
+  },
+  "scale": {
+    "options": [
+      {
+        "label": "Нисколько",
+        "points": 0
+      },
+      {
+        "label": "Немного",
+        "points": 1
+      },
+      {
+        "label": "Заметно",
+        "points": 2
+      },
+      {
+        "label": "Очень",
+        "points": 3
+      }
+    ]
+  },
+  "items": [
+    {
+      "key": "mood",
+      "text": "Настроение было подавленным"
+    },
+    {
+      "key": "sleep",
+      "text": "Я плохо спал(а)"
+    },
+    {
+      "key": "anxiety",
+      "text": "Я чувствовал(а) тревогу"
+    },
+    {
+      "key": "energy",
+      "text": "У меня не было сил"
+    },
+    {
+      "key": "harm",
+      "text": "Были мысли о том, чтобы навредить себе",
+      "options": [
+        {
+          "label": "Нет",
+          "points": 0
+        },
+        {
+          "label": "Да",
+          "points": 1
+        }
+      ]
+    }
+  ],
+  "scoring": {
+    "kind": "sum",
+    "subscales": [
+      {
+        "key": "total",
+        "label": "Сумма за день",
+        "items": [
+          "mood",
+          "sleep",
+          "anxiety",
+          "energy"
+        ]
+      }
+    ]
+  },
+  "safety": [
+    {
+      "item": "harm",
+      "operator": "eq",
+      "threshold": 1,
+      "signal": "self_harm_today",
+      "reason": "Пациент сообщил о мыслях навредить себе сегодня"
+    }
+  ],
+  "validation": {
+    "source": "Внутренняя разработка команды. Не является валидированной шкалой и не измеряет депрессию.",
+    "usage_rights": "Собственная методика"
+  }
+}

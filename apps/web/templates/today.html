@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Сегодня{% endblock %}
+{% block content %}
+<h1>Сегодня</h1>
+<p class="sub">{{ name }}<span class="dot">·</span>отметьте самочувствие и заполните то, что подошло по сроку</p>
+
+{% if saved %}
+<p class="notice" style="margin-top:var(--s4)">Ответ отправлен. Врач увидит его в карточке.</p>
+{% endif %}
+
+{% if view.next_visit %}
+<div class="visit" style="margin-top:var(--s4)">
+  <span>Ближайший приём<span class="dot">·</span><span class="muted">{{ view.next_visit.kind }}</span></span>
+  <b>{{ view.next_visit.scheduled_at|dt }}</b>
+</div>
+{% endif %}
+
+<div class="stack" style="margin-top:var(--s5)">
+  <section>
+    <div class="section-title">К заполнению</div>
+    {% for t in view.due %}
+    <div class="q">
+      <div class="q-text">{{ t.title }}</div>
+      <div class="hint">{{ t.cadence }}<span class="dot">·</span>{{ t.instruction }}</div>
+      <p style="margin:var(--s3) 0 0"><a class="btn" href="/tests/{{ t.assignment_id }}">Заполнить</a></p>
+    </div>
+    {% else %}
+    <p class="hint">На сегодня всё заполнено.</p>
+    {% endfor %}
+  </section>
+
+  <section>
+    <div class="section-title">Мои последние ответы</div>
+    <ul class="list-plain">
+      {% for r in view.recent %}
+      <li>{{ r.at|dt }}<span class="dot">·</span><span class="muted">{{ r.title }}</span></li>
+      {% else %}
+      <li class="muted">Пока пусто.</li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+{% endblock %}

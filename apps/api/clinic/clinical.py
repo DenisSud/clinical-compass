@@ -15,20 +15,24 @@ runs once, at write time, and is stored with the message.
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
 from typing import Callable, Iterable, Mapping
 from uuid import uuid4
 
 from compass.ai.triage import Candidate, Rank, Severity, from_instrument, merge
+from compass.insights import adherence, analyse, build, maximum_of
 from compass.instruments import Registry, score
 
+from .cadence import Cadence, load_cadences
 from .errors import ErrorKind, Rejected
 from .ports import Catalog, Drafter, PatientBundle, PatientState, Screener, Store
 from .types import (
     Actor, Advice, Alert, AlertState, Appointment, AppointmentDraft, Assessment,
-    Assignment, AuditEntry, Card, CaseFile, Feed, Message, Obligation, PatientRow,
-    Queue, Response, Role, ScoreView, SignalKey, SignalRow,
+    Assignment, AuditEntry, Card, CaseFile, Dashboard, DueTest, Feed, Message,
+    Obligation, PatientRow, PatientSummary, Question,
+    Queue, Response, ResponseRow, Role, ScoreView, SignalKey, SignalRow,
+    Submitted, Today, Visit,
 )
 
 
@@ -47,6 +51,7 @@ class Clinical:
         drafter: Drafter | None = None,
         clock: Callable[[], datetime] = _utcnow,
         new_id: Callable[[], str] | None = None,
+        cadences: Mapping[str, Cadence] | None = None,
     ) -> None:
         self._store = store
         self._registry = registry
@@ -55,6 +60,7 @@ class Clinical:
         self._drafter = drafter
         self._clock = clock
         self._new_id = new_id or (lambda: uuid4().hex[:12])
+        self._cadences = cadences if cadences is not None else load_cadences()
 
     # ------------------------------------------------------------ queue
 
@@ -66,7 +72,7 @@ class Clinical:
         best: list[tuple[PatientBundle, Candidate, int]] = []
         others: list[PatientRow] = []
         for bundle in bundles:
-            candidates = self._candidates(bundle.latest_response, bundle.messages)
+            candidates = self._candidates(bundle.responses, bundle.messages)
             if candidates:
                 best.append((bundle, candidates[0], len(candidates) - 1))
             else:
@@ -117,9 +123,7 @@ class Clinical:
 
     def card(self, actor: Actor, patient_id: str) -> CaseFile:
         state = self._state(actor, patient_id)
-        candidates = self._candidates(
-            self._latest(state.responses), state.messages
-        )
+        candidates = self._candidates(state.responses, state.messages)
         signals = tuple(
             SignalRow(
                 key=SignalKey(patient_id, c.signal, c.origin, ""),
@@ -200,7 +204,7 @@ class Clinical:
         for line in draft.prescriptions:
             self._catalog.validate(line.drug_code, line.dose)
 
-        candidates = self._candidates(self._latest(state.responses), state.messages)
+        candidates = self._candidates(state.responses, state.messages)
         critical = {SignalKey(draft.patient_id, c.signal, c.origin, "")
                     for c in candidates if c.severity is Severity.CRITICAL}
         unexamined = critical - set(draft.acknowledged)
@@ -383,8 +387,222 @@ class Clinical:
         if actor.role is not Role.DOCTOR:
             raise Rejected(ErrorKind.ROLE, "only a doctor acknowledges")
         state = self._state(actor, signal_key.patient_id)
-        candidates = self._candidates(self._latest(state.responses), state.messages)
+        candidates = self._candidates(state.responses, state.messages)
         return self._materialise(actor, signal_key, action, note, candidates, state.alerts)
+
+    # --------------------------------------------------- the patient's day
+
+    def today(self, actor: Actor) -> Today:
+        """What a patient is expected to do today, plus their next visit.
+
+        Assignment creation happens here, lazily. There is no scheduler process:
+        a cadence is a pure predicate over the last due date, so "what is due" is
+        answered on read and testable with a fixed clock.
+        """
+        if actor.role is not Role.PATIENT:
+            raise Rejected(ErrorKind.ROLE, "today is a patient view")
+        state = self._state(actor, actor.id)
+        now = self._clock()
+        self._ensure_assignments(actor.id, now)
+
+        answered = {r.assignment_id for r in state.responses}
+        due: list[DueTest] = []
+        for assignment in self._store.assignments_of(actor.id):
+            if assignment.due_on != now.date() or assignment.id in answered:
+                continue
+            if assignment.instrument_code not in self._registry:
+                continue
+            instrument = self._registry.get(assignment.instrument_code)
+            cadence = self._cadences.get(assignment.instrument_code)
+            due.append(
+                DueTest(
+                    assignment_id=assignment.id,
+                    instrument_code=instrument.code,
+                    title=instrument.title,
+                    instruction=instrument.instruction,
+                    cadence=cadence.label if cadence else "",
+                    items=tuple(
+                        Question(
+                            key=item.key,
+                            text=item.text,
+                            options=tuple((o.points, o.label) for o in item.options),
+                        )
+                        for item in instrument.items
+                    ),
+                    due_on=now.date(),
+                )
+            )
+
+        planned = [
+            v for v in state.visits
+            if v.status == "planned" and v.scheduled_at >= now - timedelta(hours=6)
+        ]
+        titles = {code: self._registry.get(code).short for code in self._registry.codes()}
+        recent = tuple(
+            Submitted(r.submitted_at, titles.get(r.instrument_code, r.instrument_code))
+            for r in sorted(state.responses, key=lambda r: r.submitted_at, reverse=True)[:5]
+        )
+        return Today(
+            next_visit=min(planned, key=lambda v: v.scheduled_at) if planned else None,
+            due=tuple(due),
+            recent=recent,
+        )
+
+    # ------------------------------------------------- the doctor's panel
+
+    def patients(self, actor: Actor) -> tuple[PatientSummary, ...]:
+        """The panel: one row per patient, worst state first.
+
+        Ordered by the severity of the worst deterministic finding, then by rank,
+        then by name — the same two axes as the queue, so a doctor does not have
+        to learn a second ordering.
+        """
+        if actor.role is not Role.DOCTOR:
+            raise Rejected(ErrorKind.ROLE, "the panel is a doctor view")
+        now = self._clock()
+        rows: list[PatientSummary] = []
+        for bundle in self._store.doctor_patients(actor.id):
+            state = self._store.patient_state(bundle.patient.id)
+            if state is None:
+                continue
+            series = build(state.responses, self._registry)
+            report, findings = self._insight(state, series, now)
+            signals = self._safety_only(self._candidates(state.responses, state.messages))
+            weekly = next((s for s in series if s.kind == "validated_scale"), None)
+            latest = weekly.latest if weekly else None
+            upcoming = [
+                v for v in state.visits
+                if v.status == "planned" and v.scheduled_at >= now
+            ]
+            rows.append(
+                PatientSummary(
+                    patient=state.patient,
+                    age=self._age(state.patient.birth_year),
+                    last_contact_at=bundle.last_contact_at,
+                    adherence=report,
+                    latest_total=latest.total if latest else None,
+                    latest_maximum=latest.maximum if latest else 0,
+                    latest_band=latest.band_label if latest else None,
+                    signals=signals,
+                    findings=findings,
+                    headline=self._headline(signals, findings),
+                    next_visit_at=(
+                        min(v.scheduled_at for v in upcoming) if upcoming else None
+                    ),
+                )
+            )
+        rows.sort(key=self._panel_key)
+        return tuple(rows)
+
+    @staticmethod
+    def _safety_only(candidates: Iterable[Candidate]) -> tuple[Candidate, ...]:
+        """Safety signals for display.
+
+        ``severe_score`` is deliberately dropped: the score and its band are
+        printed two columns to the left, and a card that repeats them teaches the
+        doctor to skim the section that must never be skimmed.
+        """
+        return tuple(c for c in candidates if c.signal != "severe_score")
+
+    @staticmethod
+    def _headline(signals: Iterable[Candidate], findings: Iterable[Finding]) -> str:
+        """Pick the row's one-line reason for attention.
+
+        Priority is deliberate: a safety signal, then an insight that the score
+        column cannot show (trend, staleness, adherence), then the score itself.
+        Without the middle step every severe patient would read «тяжёлый балл»,
+        which the next column already says.
+        """
+        signals = list(signals)
+        if signals:
+            return signals[0].label
+        findings = list(findings)
+        informative = [f for f in findings if f.code not in {"notable_band"}]
+        if informative:
+            return informative[0].title
+        if findings:
+            return findings[0].title
+        return ""
+
+    @staticmethod
+    def _panel_key(row: PatientSummary) -> tuple:
+        """Worst safety signal first, then worst finding, then name.
+
+        A reported thought of self-harm must never sit below a questionnaire band
+        just because the band happens to be the more recent row.
+        """
+        if row.signals:
+            worst = row.signals[0]
+            return (int(worst.severity), -int(worst.rank), 0, row.patient.display)
+        return (
+            min((int(f.severity) for f in row.findings), default=int(Severity.INFO)),
+            -max((int(f.rank) for f in row.findings), default=0),
+            1,
+            row.patient.display,
+        )
+
+    def dashboard(self, actor: Actor, patient_id: str) -> Dashboard:
+        """One patient, read for a doctor: series, deterministic findings, visits."""
+        state = self._state(actor, patient_id)
+        now = self._clock()
+        series = build(state.responses, self._registry)
+        report, findings = self._insight(state, series, now)
+
+        rows: list[ResponseRow] = []
+        for response in sorted(state.responses, key=lambda r: r.submitted_at, reverse=True):
+            view = self._score_view(response)
+            if view is None:
+                continue
+            rows.append(
+                ResponseRow(
+                    at=view.at,
+                    instrument_code=view.instrument_code,
+                    title=view.title,
+                    total=view.total,
+                    maximum=view.maximum,
+                    band_label=view.band_label,
+                    complete=view.completed == view.required,
+                )
+            )
+        return Dashboard(
+            patient=state.patient,
+            age=self._age(state.patient.birth_year),
+            series=series,
+            signals=self._safety_only(self._candidates(state.responses, state.messages)),
+            findings=findings,
+            adherence=report,
+            visits=state.visits,
+            responses=tuple(rows),
+            last_contact_at=max(
+                (r.submitted_at for r in state.responses), default=None
+            ),
+        )
+
+    # ------------------------------------------------------------ schedule
+
+    def visits(self, actor: Actor) -> tuple[Visit, ...]:
+        if actor.role is Role.DOCTOR:
+            return self._store.visits_of_doctor(actor.id)
+        return self._store.visits_of_patient(actor.id)
+
+    def schedule_visit(
+        self, actor: Actor, patient_id: str, at: datetime,
+        kind: str = "консультация", note: str = "",
+    ) -> Visit:
+        if actor.role is not Role.DOCTOR:
+            raise Rejected(ErrorKind.ROLE, "only a doctor schedules a visit")
+        self._state(actor, patient_id)
+        if at <= self._clock():
+            raise Rejected(ErrorKind.INCOMPLETE, "визит нельзя назначить в прошлое",
+                           field="scheduled_at")
+        visit = Visit(
+            id=self._new_id(), patient_id=patient_id, doctor_id=actor.id,
+            scheduled_at=at, kind=kind, note=note,
+        )
+        with self._store.unit_of_work():
+            self._store.append_visit(visit)
+            self._audit(actor, patient_id, "visit.scheduled", at.isoformat())
+        return visit
 
     # -------------------------------------------------------------- advice
 
@@ -415,22 +633,59 @@ class Clinical:
         return state
 
     def _candidates(
-        self, response: Response | None, messages: Iterable[Message]
+        self, responses: Iterable[Response] | Response | None,
+        messages: Iterable[Message],
     ) -> tuple[Candidate, ...]:
+        """Candidates from every answer, newest first.
+
+        Which answers count depends on the signal:
+
+        * a total or a band describes *now*, so only the latest answer per
+          instrument may produce one — an old score is history, not state;
+        * a safety finding describes *an event*, and an event does not stop
+          mattering because the patient filled in something else afterwards.
+
+        Reading only the most recent response was a real bug: today's self-harm
+        tick disappeared behind the same day's questionnaire.
+        """
+        if isinstance(responses, Response) or responses is None:
+            responses = () if responses is None else (responses,)
+        ordered = sorted(responses, key=lambda r: r.submitted_at, reverse=True)
+        latest: dict[str, str] = {}
+        for response in ordered:
+            latest.setdefault(response.instrument_code, response.id)
+
         groups: list[list[Candidate]] = []
-        if response is not None:
-            if response.instrument_code not in self._registry:
-                groups.append([self._definition_changed("шкала не загружена")])
-            else:
-                instrument = self._registry.get(response.instrument_code)
-                if instrument.sha256 != response.definition_sha256:
-                    groups.append([self._definition_changed("версия шкалы изменилась")])
-                else:
-                    groups.append(from_instrument(score(instrument, response.answers)))
+        seen: set[tuple[str, str]] = set()
+        for response in ordered:
+            candidates = self._instrument_candidates(response)
+            if response.id != latest[response.instrument_code]:
+                candidates = [c for c in candidates if c.signal != "severe_score"]
+            fresh = []
+            for candidate in candidates:
+                key = (candidate.signal, candidate.origin)
+                if key in seen:
+                    continue
+                seen.add(key)
+                fresh.append(candidate)
+            if fresh:
+                groups.append(fresh)
         for message in messages:
-            if message.screened:
-                groups.append(list(message.screened))
+            for candidate in message.screened:
+                key = (candidate.signal, candidate.origin)
+                if key in seen:
+                    continue
+                seen.add(key)
+                groups.append([candidate])
         return tuple(merge(*groups))
+
+    def _instrument_candidates(self, response: Response) -> list[Candidate]:
+        if response.instrument_code not in self._registry:
+            return [self._definition_changed("шкала не загружена")]
+        instrument = self._registry.get(response.instrument_code)
+        if instrument.sha256 != response.definition_sha256:
+            return [self._definition_changed("версия шкалы изменилась")]
+        return from_instrument(score(instrument, response.answers))
 
     @staticmethod
     def _definition_changed(reason: str) -> Candidate:
@@ -481,6 +736,8 @@ class Clinical:
         return ScoreView(
             instrument_code=result.code,
             version=result.version,
+            title=instrument.title,
+            maximum=maximum_of(instrument),
             total=primary.total,
             band_label=primary.band_label,
             severity=primary.severity,
@@ -488,6 +745,38 @@ class Clinical:
             required=result.required,
             at=response.submitted_at,
         )
+
+    def _ensure_assignments(self, patient_id: str, now: datetime) -> None:
+        """Make today's assignments exist, once.
+
+        Write-on-read is a compromise, taken deliberately: it removes a scheduler
+        process from a ten-day demo. It is idempotent because the predicate is
+        "days since the last due date", and the adapter enforces one assignment
+        per (patient, instrument, day).
+        """
+        today = now.date()
+        last: dict[str, date] = {}
+        for assignment in self._store.assignments_of(patient_id):
+            day = assignment.due_on or assignment.created_at.date()
+            code = assignment.instrument_code
+            if code not in last or day > last[code]:
+                last[code] = day
+        for code, cadence in self._cadences.items():
+            if code not in self._registry:
+                continue
+            if not cadence.is_due(last.get(code), today):
+                continue
+            self._store.append_assignment(
+                Assignment(
+                    id=self._new_id(), patient_id=patient_id, instrument_code=code,
+                    created_at=now, due_on=today,
+                )
+            )
+
+    def _insight(self, state: PatientState, series, now: datetime):
+        daily = next((s for s in series if s.kind == "daily_check"), None)
+        report = adherence(daily, now)
+        return report, analyse(series, daily_adherence=report, now=now)
 
     @staticmethod
     def _latest(responses: Iterable[Response]) -> Response | None:

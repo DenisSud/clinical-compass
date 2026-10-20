@@ -15,6 +15,7 @@ from enum import Enum
 from typing import Mapping
 
 from compass.ai.triage import Candidate, Rank, Severity
+from compass.insights import Adherence, Finding, Series
 
 
 class Role(str, Enum):
@@ -68,6 +69,9 @@ class Assignment:
     patient_id: str
     instrument_code: str
     created_at: datetime
+    #: Which day this assignment belongs to. The cadence is policy, not inference
+    #: from the instrument's recall window — see cadences.json.
+    due_on: date | None = None
 
 
 @dataclass(frozen=True)
@@ -178,6 +182,8 @@ class ScoreView:
     completed: int
     required: int
     at: datetime
+    title: str = ""
+    maximum: int = 0
 
 
 @dataclass(frozen=True)
@@ -280,9 +286,117 @@ class AuditEntry:
     detail: str = ""
 
 
+# ------------------------------------------------------- the schedule
+
+
+@dataclass(frozen=True)
+class Visit:
+    """A planned appointment. Not the same thing as ``Appointment``.
+
+    ``Appointment`` is what happened and was signed. ``Visit`` is what is on the
+    calendar — the only thing a patient monitors, and the only thing a doctor
+    needs before the encounter exists.
+    """
+
+    id: str
+    patient_id: str
+    doctor_id: str | None
+    scheduled_at: datetime
+    kind: str = "консультация"
+    note: str = ""
+    status: str = "planned"  # planned | done | cancelled
+
+
+@dataclass(frozen=True)
+class Question:
+    """One item, shaped for a form. No scoring knowledge reaches the template."""
+
+    key: str
+    text: str
+    options: tuple[tuple[int, str], ...]
+
+
+@dataclass(frozen=True)
+class DueTest:
+    """What a patient is expected to fill today. Procedural: no total, no band."""
+
+    assignment_id: str
+    instrument_code: str
+    title: str
+    instruction: str
+    cadence: str
+    items: tuple[Question, ...]
+    due_on: date
+
+
+@dataclass(frozen=True)
+class Submitted:
+    at: datetime
+    title: str
+
+
+@dataclass(frozen=True)
+class Today:
+    """The patient's own screen. Cannot carry a score by construction."""
+
+    next_visit: Visit | None
+    due: tuple[DueTest, ...]
+    recent: tuple[Submitted, ...]
+
+
+# ------------------------------------------------------ the doctor's reads
+
+
+@dataclass(frozen=True)
+class ResponseRow:
+    at: datetime
+    instrument_code: str
+    title: str
+    total: int | None
+    maximum: int
+    band_label: str | None
+    complete: bool
+
+
+@dataclass(frozen=True)
+class Dashboard:
+    """One patient, read for a doctor. Deterministic insight, no model."""
+
+    patient: Patient
+    age: int
+    series: tuple[Series, ...]
+    #: Safety signals first: a reported thought of self-harm outranks a band.
+    signals: tuple[Candidate, ...]
+    findings: tuple[Finding, ...]
+    adherence: Adherence
+    visits: tuple[Visit, ...]
+    responses: tuple[ResponseRow, ...]
+    last_contact_at: datetime | None
+
+
+@dataclass(frozen=True)
+class PatientSummary:
+    """One row of the panel. Enough to decide whom to open first."""
+
+    patient: Patient
+    age: int
+    last_contact_at: datetime | None
+    adherence: Adherence
+    latest_total: int | None
+    latest_maximum: int
+    latest_band: str | None
+    signals: tuple[Candidate, ...]
+    findings: tuple[Finding, ...]
+    #: The one thing to read first. Chosen so it does not repeat the score column.
+    headline: str
+    next_visit_at: datetime | None
+
+
 __all__ = [
     "Actor", "Advice", "Alert", "AlertState", "Appointment", "AppointmentDraft",
     "Assessment", "Assignment", "AuditEntry", "Card", "CaseFile", "Feed", "Message",
     "Obligation", "Patient", "PatientRow", "Plan", "Prescription", "Queue", "Referral",
-    "Response", "Role", "ScoreView", "SignalKey", "SignalRow",
+    "Dashboard", "DueTest", "PatientSummary", "Question", "Response",
+    "ResponseRow", "Role", "ScoreView", "SignalKey", "SignalRow", "Submitted",
+    "Today", "Visit",
 ]
