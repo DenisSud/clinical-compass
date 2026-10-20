@@ -38,3 +38,7 @@ tmp/
 devenv.local.nix
 devenv.local.yaml
 .direnv/
+
+# pytest / ruff
+.pytest_cache/
+.ruff_cache/
