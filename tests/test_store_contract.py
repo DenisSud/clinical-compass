@@ -1,8 +1,8 @@
 """The store port has one contract, and every adapter must pass it.
 
-Currently one adapter (memory). The Postgres adapter will be added as a second
-parameter here — that is what turns the seam from indirection into a real seam,
-so this file is the reason the port exists at all.
+Two adapters — memory and SQLite — and one contract. A Postgres adapter joins
+the same parameter list later. This file is the reason the port is a seam rather
+than indirection.
 """
 
 from __future__ import annotations
@@ -121,3 +121,24 @@ def test_a_nested_unit_of_work_rolls_back_only_the_inner_scope(store):
         except RuntimeError:
             pass
     assert [e.action for e in store.audit_of("p1")] == ["outer"]
+
+
+def test_one_assignment_per_patient_instrument_and_day(store):
+    """The module's idempotency claim must hold in both adapters, not just SQL.
+
+    `today()` creates assignments on read and relies on this rule; when the memory
+    adapter ignored it, two concurrent reads produced two assignments for the day
+    and the demo quietly showed the same questionnaire twice.
+    """
+    from apps.api.clinic import Assignment
+
+    day = AT.date()
+    first = Assignment(id="a1", patient_id="p1", instrument_code="PHQ9-RU",
+                       created_at=AT, due_on=day)
+    second = Assignment(id="a2", patient_id="p1", instrument_code="PHQ9-RU",
+                        created_at=AT, due_on=day)
+    store.add_patient(Patient(id="p1", display="A", birth_year=1980, doctor_id="d1"))
+    store.append_assignment(first)
+    store.append_assignment(second)
+
+    assert [a.id for a in store.assignments_of("p1")] == ["a1"]

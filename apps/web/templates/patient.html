@@ -4,6 +4,8 @@
 <h1>{{ board.patient.display }}</h1>
 <p class="sub">{{ board.age }} лет<span class="dot">·</span>дневник {{ board.adherence.filled }} из {{ board.adherence.expected }} дней<span class="dot">·</span>последняя отметка {{ board.last_contact_at|dt }}</p>
 
+{% if error %}<p class="error" style="margin-top:var(--s4)">{{ error }}</p>{% endif %}
+
 <div class="stack" style="margin-top:var(--s5)">
 
   <section>

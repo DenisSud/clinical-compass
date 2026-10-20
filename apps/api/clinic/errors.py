@@ -15,7 +15,11 @@ class ErrorKind(str, Enum):
     NOT_YOUR_PATIENT = "not_your_patient"  # no live link between actor and patient
     NOT_FOUND = "not_found"
     UNSIGNED = "unsigned"  # a clinical write without a signature
-    INCOMPLETE = "incomplete"  # answers do not name every item exactly once
+    INCOMPLETE = "incomplete"
+    #: A field arrived with a value the domain cannot accept: a point value that
+    #: is not on the scale, a field name that is not publishable, a time without
+    #: a zone. Distinct from INCOMPLETE, which means "something is missing".
+    INVALID = "invalid"  # answers do not name every item exactly once
     UNKNOWN_DRUG = "unknown_drug"
     DOSE_NOT_IN_LABEL = "dose_not_in_label"
     CONTRAINDICATED = "contraindicated"

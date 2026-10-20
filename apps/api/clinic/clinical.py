@@ -16,6 +16,7 @@ runs once, at write time, and is stored with the message.
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 from hashlib import sha256
 from typing import Callable, Iterable, Mapping
 from uuid import uuid4
@@ -52,6 +53,7 @@ class Clinical:
         clock: Callable[[], datetime] = _utcnow,
         new_id: Callable[[], str] | None = None,
         cadences: Mapping[str, Cadence] | None = None,
+        zone: ZoneInfo | None = None,
     ) -> None:
         self._store = store
         self._registry = registry
@@ -61,6 +63,9 @@ class Clinical:
         self._clock = clock
         self._new_id = new_id or (lambda: uuid4().hex[:12])
         self._cadences = cadences if cadences is not None else load_cadences()
+        #: The clinic's day, not UTC's: a tick at 01:00 Moscow must not be filed
+        #: against yesterday.
+        self._zone = zone or ZoneInfo("Europe/Moscow")
 
     # ------------------------------------------------------------ queue
 
@@ -215,6 +220,14 @@ class Clinical:
                 f"критическая находка не разобрана: {key.signal}",
                 field="acknowledged",
             )
+        invented = set(draft.acknowledged) - critical
+        if invented:
+            key = sorted(invented, key=lambda k: k.signal)[0]
+            raise Rejected(
+                ErrorKind.NOT_FOUND,
+                f"такой находки у пациента нет: {key.signal}",
+                field="acknowledged",
+            )
 
         if draft.referral is not None:
             required = (
@@ -277,16 +290,19 @@ class Clinical:
             raise Rejected(ErrorKind.NOT_FOUND, "no such appointment")
         self._state(actor, appointment.patient_id)
 
-        allowed = {"plan", "referral", "prescriptions", "complaint"}
+        # Only what the patient's feed actually renders. Publishing a field that
+        # no screen shows would report success and deliver nothing, while D5 says
+        # this is the one path to the patient.
+        allowed = {"plan"}
         chosen = frozenset(fields) & allowed
         if not chosen:
-            raise Rejected(ErrorKind.ROLE, "nothing publishable in fields", field="fields")
+            raise Rejected(ErrorKind.INVALID, "nothing publishable in fields", field="fields")
 
         with self._store.unit_of_work():
-            self._store.replace_appointment(
-                Appointment(**{**appointment.__dict__,
-                               "published": appointment.published | chosen})
-            )
+            # One column, not a whole-row rewrite: a signed appointment is
+            # immutable except for this, and a read-modify-write over it loses
+            # concurrent publishes without anyone noticing.
+            self._store.set_published(appointment_id, appointment.published | chosen)
             self._audit(actor, appointment.patient_id, "appointment.published",
                         ",".join(sorted(chosen)))
 
@@ -310,6 +326,14 @@ class Clinical:
         if set(answers) != set(instrument.item_keys):
             raise Rejected(ErrorKind.INCOMPLETE, "answers must name every item exactly once",
                            field="answers")
+        # Naming every item is not enough: the values must be on the scale.
+        # Without this, one patient post stores an answer that the read path can
+        # never score, and every doctor screen for that patient fails for good —
+        # responses are append-only, so there is no way to take it back.
+        try:
+            score(instrument, answers)
+        except ValueError as invalid:
+            raise Rejected(ErrorKind.INVALID, str(invalid), field="answers") from None
 
         fingerprint = sha256(
             repr(sorted(answers.items(), key=lambda kv: kv[0])).encode()
@@ -404,11 +428,12 @@ class Clinical:
         state = self._state(actor, actor.id)
         now = self._clock()
         self._ensure_assignments(actor.id, now)
+        today = self._clinic_day(now)
 
         answered = {r.assignment_id for r in state.responses}
         due: list[DueTest] = []
         for assignment in self._store.assignments_of(actor.id):
-            if assignment.due_on != now.date() or assignment.id in answered:
+            if assignment.due_on != today or assignment.id in answered:
                 continue
             if assignment.instrument_code not in self._registry:
                 continue
@@ -429,7 +454,7 @@ class Clinical:
                         )
                         for item in instrument.items
                     ),
-                    due_on=now.date(),
+                    due_on=today,
                 )
             )
 
@@ -462,22 +487,21 @@ class Clinical:
         now = self._clock()
         rows: list[PatientSummary] = []
         for bundle in self._store.doctor_patients(actor.id):
-            state = self._store.patient_state(bundle.patient.id)
-            if state is None:
-                continue
-            series = build(state.responses, self._registry)
-            report, findings = self._insight(state, series, now)
-            signals = self._safety_only(self._candidates(state.responses, state.messages))
+            series = build(bundle.responses, self._registry)
+            report, findings = self._insight(series, now)
+            signals = self._safety_only(
+                self._candidates(bundle.responses, bundle.messages)
+            )
             weekly = next((s for s in series if s.kind == "validated_scale"), None)
             latest = weekly.latest if weekly else None
             upcoming = [
-                v for v in state.visits
+                v for v in self._store.visits_of_patient(bundle.patient.id)
                 if v.status == "planned" and v.scheduled_at >= now
             ]
             rows.append(
                 PatientSummary(
-                    patient=state.patient,
-                    age=self._age(state.patient.birth_year),
+                    patient=bundle.patient,
+                    age=self._age(bundle.patient.birth_year),
                     last_contact_at=bundle.last_contact_at,
                     adherence=report,
                     latest_total=latest.total if latest else None,
@@ -546,7 +570,7 @@ class Clinical:
         state = self._state(actor, patient_id)
         now = self._clock()
         series = build(state.responses, self._registry)
-        report, findings = self._insight(state, series, now)
+        report, findings = self._insight(series, now)
 
         rows: list[ResponseRow] = []
         for response in sorted(state.responses, key=lambda r: r.submitted_at, reverse=True):
@@ -592,8 +616,11 @@ class Clinical:
         if actor.role is not Role.DOCTOR:
             raise Rejected(ErrorKind.ROLE, "only a doctor schedules a visit")
         self._state(actor, patient_id)
+        if at.tzinfo is None or at.utcoffset() is None:
+            raise Rejected(ErrorKind.INVALID, "время приёма без часового пояса",
+                           field="scheduled_at")
         if at <= self._clock():
-            raise Rejected(ErrorKind.INCOMPLETE, "визит нельзя назначить в прошлое",
+            raise Rejected(ErrorKind.INVALID, "визит нельзя назначить в прошлое",
                            field="scheduled_at")
         visit = Visit(
             id=self._new_id(), patient_id=patient_id, doctor_id=actor.id,
@@ -607,6 +634,8 @@ class Clinical:
     # -------------------------------------------------------------- advice
 
     def advise(self, actor: Actor, patient_id: str, question: str) -> Advice:
+        if actor.role is not Role.DOCTOR:
+            raise Rejected(ErrorKind.ROLE, "advice is a doctor view")
         state = self._state(actor, patient_id)
         if self._drafter is None:
             return Advice(answer=None, citations=(), degraded=True,
@@ -709,6 +738,12 @@ class Clinical:
              and a.key.item == key.item),
             None,
         )
+        if found is None and previous is None:
+            # Writing this form would put "a critical finding was resolved" into
+            # an append-only audit log for a finding that never existed. A wrong
+            # entry in a clinical record is worse than a missing one.
+            raise Rejected(ErrorKind.NOT_FOUND, "такого сигнала у пациента нет",
+                           field="signal_key")
         alert = Alert(
             key=key,
             state=action,
@@ -754,7 +789,7 @@ class Clinical:
         "days since the last due date", and the adapter enforces one assignment
         per (patient, instrument, day).
         """
-        today = now.date()
+        today = self._clinic_day(now)
         last: dict[str, date] = {}
         for assignment in self._store.assignments_of(patient_id):
             day = assignment.due_on or assignment.created_at.date()
@@ -766,25 +801,21 @@ class Clinical:
                 continue
             if not cadence.is_due(last.get(code), today):
                 continue
-            self._store.append_assignment(
-                Assignment(
-                    id=self._new_id(), patient_id=patient_id, instrument_code=code,
-                    created_at=now, due_on=today,
-                )
+            assignment = Assignment(
+                id=self._new_id(), patient_id=patient_id, instrument_code=code,
+                created_at=now, due_on=today,
             )
+            with self._store.unit_of_work():
+                self._store.append_assignment(assignment)
+                self._audit(None, patient_id, "assignment.created", code)
 
-    def _insight(self, state: PatientState, series, now: datetime):
+    def _insight(self, series, now: datetime):
         daily = next((s for s in series if s.kind == "daily_check"), None)
-        report = adherence(daily, now)
+        report = adherence(daily, now, zone=self._zone)
         return report, analyse(series, daily_adherence=report, now=now)
 
-    @staticmethod
-    def _latest(responses: Iterable[Response]) -> Response | None:
-        latest = None
-        for response in responses:
-            if latest is None or response.submitted_at > latest.submitted_at:
-                latest = response
-        return latest
+    def _clinic_day(self, now: datetime) -> date:
+        return now.astimezone(self._zone).date()
 
     def _patient_row(self, bundle: PatientBundle) -> PatientRow:
         age = self._age(bundle.patient.birth_year)
@@ -818,9 +849,14 @@ class Clinical:
         ] + [f"P|{p.patient_id}" for p in others]
         return sha256("\n".join(material).encode("utf-8")).hexdigest()[:12]
 
-    def _audit(self, actor: Actor, patient_id: str, action: str, detail: str = "") -> None:
+    def _audit(
+        self, actor: Actor | None, patient_id: str, action: str, detail: str = ""
+    ) -> None:
         self._store.append_audit(
-            AuditEntry(seq=0, at=self._clock(), actor_id=actor.id,
+            AuditEntry(seq=0, at=self._clock(),
+                       # "system" is a fact about who acted, not a placeholder for
+                       # a person we forgot to pass.
+                       actor_id=actor.id if actor is not None else "system",
                        patient_id=patient_id, action=action, detail=detail)
         )
 

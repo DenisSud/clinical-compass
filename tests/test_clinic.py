@@ -13,8 +13,8 @@ from datetime import datetime, timezone
 import pytest
 
 from apps.api.clinic import (
-    Actor, AppointmentDraft, Assessment, Card, Clinical, ErrorKind, Feed,
-    MemoryStore, Obligation, Patient, Plan, Prescription, Referral, Rejected,
+    Actor, AlertState, AppointmentDraft, Assessment, Card, Clinical, ErrorKind,
+    Feed, MemoryStore, Obligation, Patient, Plan, Prescription, Referral, Rejected,
     Role, SignalKey, SqliteStore,
 )
 from compass.ai.triage import Candidate, Rank, Severity
@@ -354,3 +354,33 @@ def test_a_totals_signal_does_not_accumulate_from_history(app):
     # the score out on purpose, because it is already printed as a number
     case = clinical.card(doctor, "p1")
     assert sum(1 for s in case.signals if s.key.signal == "severe_score") == 1
+
+
+# ------------------------------------------------- an alert needs evidence
+
+def test_acknowledging_a_signal_that_was_never_raised_is_refused(app):
+    """An audit trail saying "a critical finding was resolved" is worse than an
+    empty one when no such finding ever existed."""
+    clinical, store = app()
+    add_patient(store, "p1")
+    with pytest.raises(Rejected) as err:
+        clinical.acknowledge(
+            doctor, SignalKey("p1", "suicide_risk_item", "instrument", ""),
+            AlertState.RESOLVED,
+        )
+    assert err.value.kind is ErrorKind.NOT_FOUND
+    assert store.patient_state("p1").alerts == ()
+
+
+def test_an_appointment_cannot_acknowledge_a_finding_that_does_not_exist(app):
+    clinical, store = app()
+    add_patient(store, "p1")
+    with pytest.raises(Rejected) as err:
+        clinical.commit_appointment(
+            doctor,
+            AppointmentDraft(patient_id="p1", signature="Тестова",
+                             acknowledged=(SignalKey("p1", "suicide_risk_item",
+                                                     "instrument", ""),)),
+            submission_key="k1",
+        )
+    assert err.value.kind is ErrorKind.NOT_FOUND

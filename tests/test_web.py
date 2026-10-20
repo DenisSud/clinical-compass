@@ -188,13 +188,70 @@ def test_a_patient_cannot_submit_another_patients_assignment(client):
               "q7": "0", "q8": "0", "q9": "0"},
         follow_redirects=False,
     )
-    # not theirs to fill, so the form is not offered at all
-    assert response.status_code in (303, 422)
-    if response.status_code == 303:
-        assert response.headers["location"] == "/today"
+    # not theirs to fill, so the form is not offered — and now the page says so
+    # instead of dropping the submission on a bare redirect
+    assert response.status_code == 200
+    assert "недоступна" in response.text
+
+    as_doctor(client)
+    # nothing was written for p2: their dashboard still has no answers at all
+    card = client.get("/panel/p2").text
+    assert "Второва Мария" in card
+    assert "Ответов пока нет." in card
 
 
 def test_the_doctor_sees_visits_and_can_read_one_patient(client):
     as_doctor(client)
     assert "Тестова Анна" in client.get("/visits").text
     assert "Что видно по данным" in client.get("/panel/p1").text
+
+
+# --------------------------------- errors the patient can cause must not be fatal
+
+def test_a_value_off_the_scale_is_refused_and_nothing_is_stored(client):
+    """One out-of-range point used to poison every later read of that patient.
+
+    The write path checked which items arrived, not what values they carried, so
+    `q_harm=99` was stored, and then every doctor screen for that patient raised
+    inside scoring — permanently, because responses are append-only.
+    """
+    as_patient(client)
+    page = client.get("/today").text
+    match = re.search(r"Ежедневная отметка самочувствия.*?/tests/([0-9a-f]+)", page, re.S)
+    assert match
+
+    response = client.post(
+        f"/tests/{match.group(1)}",
+        data={"q_mood": "1", "q_sleep": "1", "q_anxiety": "1", "q_energy": "1",
+              "q_harm": "99"},
+    )
+    assert response.status_code == 200
+    assert "не сохранён" in response.text or "Ответ не" in response.text or "99" in response.text
+
+    as_doctor(client)
+    assert client.get("/panel").status_code == 200
+    assert client.get("/panel/p1").status_code == 200
+
+
+def test_a_visit_can_be_scheduled_from_the_form(client):
+    """The form posted a datetime-local value and the naive/aware comparison
+    raised TypeError, so the only scheduling path returned 500 every time."""
+    as_doctor(client)
+    when = (NOW + timedelta(days=9)).strftime("%Y-%m-%dT%H:%M")
+    response = client.post(f"/panel/p1/visits", data={"when": when,
+                                                     "kind": "контрольный"},
+                           follow_redirects=False)
+    assert response.status_code == 303
+    assert "error=" not in response.headers["location"]
+    page = client.get("/panel/p1").text
+    assert (NOW + timedelta(days=9)).strftime("%d.%m.%Y") in page
+
+
+def test_a_visit_in_the_past_is_refused_with_a_reason(client):
+    as_doctor(client)
+    when = (NOW - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M")
+    response = client.post("/panel/p1/visits", data={"when": when},
+                           follow_redirects=False)
+    assert response.status_code == 303
+    assert "error=" in response.headers["location"]
+    assert "прошлое" in client.get(response.headers["location"]).text

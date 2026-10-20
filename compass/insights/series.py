@@ -7,7 +7,7 @@ no clock it does not pass in.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Iterable, Mapping, Sequence
 
 from compass.ai.triage import Rank, Severity
@@ -145,13 +145,18 @@ def maximum_of(instrument: Instrument) -> int:
 
 
 def adherence(
-    daily: Series | None, now: datetime, window_days: int = 14
+    daily: Series | None, now: datetime, window_days: int = 14,
+    zone: timezone | object = timezone.utc,
 ) -> Adherence:
-    """Count distinct days with an entry, against the days the window expects."""
+    """Count distinct days with an entry, against the days the window expects.
+
+    ``zone`` matters: a tick at 01:00 in Moscow is the previous day in UTC, and
+    counting it against the wrong day would quietly shrink the denominator.
+    """
     if daily is None:
         return Adherence(0, window_days)
     since = now - timedelta(days=window_days)
-    days = {p.at.date() for p in daily.points if p.at >= since}
+    days = {p.at.astimezone(zone).date() for p in daily.points if p.at >= since}
     return Adherence(len(days), window_days)
 
 

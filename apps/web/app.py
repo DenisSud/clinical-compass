@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from datetime import date, datetime, timedelta
 from pathlib import Path
+from urllib.parse import quote
+from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -22,6 +24,10 @@ from . import auth, db
 from .charts import HEIGHT, WIDTH, sparkline
 
 ROOT = Path(__file__).resolve().parents[2]
+
+#: A datetime-local field carries no zone. The clinic's zone is the only sane
+#: reading, and guessing UTC silently moves every appointment by three hours.
+CLINIC_ZONE = ZoneInfo("Europe/Moscow")
 TEMPLATES = Jinja2Templates(directory=str(Path(__file__).parent / "templates"))
 
 
@@ -146,7 +152,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
                       visits=clinical.visits(Actor(user.id, Role.DOCTOR)))
 
     @app.get("/panel/{patient_id}", response_class=HTMLResponse)
-    def patient_card(request: Request, patient_id: str):
+    def patient_card(request: Request, patient_id: str, error: str = ""):
         user = doctor_or_login(request)
         if isinstance(user, RedirectResponse):
             return user
@@ -159,7 +165,7 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         points = [(p.at.date(), p.total) for p in daily.points if p.total is not None] if daily else []
         chart = sparkline(points, daily.maximum if daily else 0)
         return render(request, "patient.html", board=board, daily=daily,
-                      chart=chart, points=points)
+                      chart=chart, points=points, error=error)
 
     @app.post("/panel/{patient_id}/visits")
     def schedule(request: Request, patient_id: str, when: str = Form(""),
@@ -168,16 +174,24 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         if isinstance(user, RedirectResponse):
             return user
         try:
-            scheduled = datetime.fromisoformat(when)
+            scheduled = datetime.fromisoformat(when).replace(tzinfo=CLINIC_ZONE)
         except ValueError:
-            return RedirectResponse(f"/panel/{patient_id}", status_code=303)
-        try:
-            request.app.state.clinical.schedule_visit(
-                Actor(user.id, Role.DOCTOR), patient_id, scheduled, kind
-            )
-        except Rejected:
-            pass
-        return RedirectResponse(f"/panel/{patient_id}", status_code=303)
+            message = "не удалось прочитать время приёма"
+        else:
+            try:
+                request.app.state.clinical.schedule_visit(
+                    Actor(user.id, Role.DOCTOR), patient_id, scheduled, kind
+                )
+            except Rejected as refused:
+                message = refused.message
+            else:
+                message = ""
+        target = f"/panel/{patient_id}"
+        if message:
+            # The design says a refusal carries its reason to the screen.
+            # Swallowing it here is how a UI bug starts to look like a click.
+            return RedirectResponse(f"{target}?error={quote(message)}", status_code=303)
+        return RedirectResponse(target, status_code=303)
 
     @app.get("/visits", response_class=HTMLResponse)
     def visits(request: Request):
@@ -231,7 +245,11 @@ def create_app(db_path: Path | None = None) -> FastAPI:
         view = clinical.today(actor)
         due = next((d for d in view.due if d.assignment_id == assignment_id), None)
         if due is None:
-            return RedirectResponse("/today", status_code=303)
+            return render(
+                request, "expired.html",
+                message="Эта анкета уже отправлена или её срок вышел. "
+                        "Ответ не сохранён.",
+            )
         missing = [q.key for q in due.items if q.key not in answers]
         if missing:
             return render(request, "test.html", test=due,

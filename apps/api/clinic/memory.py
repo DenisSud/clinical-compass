@@ -142,7 +142,23 @@ class MemoryStore:
         self.messages.append(message)
 
     def append_assignment(self, assignment: Assignment) -> None:
+        # Same uniqueness rule as the SQL adapter. Without it the module's claim
+        # that "the adapter enforces one assignment per patient, instrument and
+        # day" was true for exactly one of the two adapters.
+        for existing in self.assignments.values():
+            if (existing.patient_id, existing.instrument_code, existing.due_on) == (
+                assignment.patient_id, assignment.instrument_code, assignment.due_on
+            ):
+                return
         self.assignments[assignment.id] = assignment
+
+    def set_published(self, appointment_id: str, fields: frozenset[str]) -> None:
+        import dataclasses
+
+        appointment = self.appointments[appointment_id]
+        self.appointments[appointment_id] = dataclasses.replace(
+            appointment, published=fields
+        )
 
     def append_visit(self, visit: Visit) -> None:
         self.visits[visit.id] = visit

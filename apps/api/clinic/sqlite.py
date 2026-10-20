@@ -418,6 +418,12 @@ class SqliteStore:
     def replace_appointment(self, appointment: Appointment) -> None:
         self.append_appointment(appointment)
 
+    def set_published(self, appointment_id: str, fields: frozenset[str]) -> None:
+        self._db.execute(
+            "UPDATE appointments SET published = ? WHERE id = ?",
+            (json.dumps(sorted(fields)), appointment_id),
+        )
+
     def append_appointment(self, appointment: Appointment) -> None:
         self._db.execute(
             "INSERT OR REPLACE INTO appointments VALUES (?,?,?,?,?,?,?,?,?,?,?)",
