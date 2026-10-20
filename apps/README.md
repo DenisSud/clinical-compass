@@ -1,54 +1,58 @@
 # apps/
 
-Deployable applications live here. Libraries live in `../packages/`.
+Deployable applications live here. Libraries live in `../packages/` (now `../../compass/`).
 
-## Status: one decision pending
+## `apps/api/clinic` — the clinical application module
 
-`apps/api` — the clinical web application (roles, care relationship, scales,
-alerts, care plan) — has not been created yet. There are two ways to get it, and
-the choice belongs to the tech lead after he has walked the mockup.
+One module, nine methods, one seam. Design and rejected alternatives:
+`docs/api-design.md`. Decisions: `docs/decisions.md` D9–D11.
 
-### Option A — adopt `reference/mockup/` (recommended)
-
-The vendored mockup is 868 KB of working Django: 17 models, 30 routes, 14
-templates. What it already gets right is exactly what a code review probes:
-
-| Already implemented | Why it matters |
-|---|---|
-| Append-only audit enforced in the ORM (`update`/`delete` raise) | Mandatory condition: no silent history edits |
-| One-time invitations stored as a hash, 48 h TTL, revocable | Care relationship without a third party |
-| Versioned scale definitions pinned by SHA-256 into each assessment | Criterion 1: provable source version |
-| Idempotent submissions via `submission_key` | Double-tap and replay safety |
-| Incomplete ≠ zero (`completed_count`, `total = NULL`) | Clinical correctness |
-| `require_role()` in every service function | Mandatory condition: role separation |
-| `PrivateResponseMiddleware` (no-store) | Confidentiality |
-
-Adopting it is a move, not a rewrite:
-
-```bash
-git mv reference/mockup/clinical_compass_app apps/api
-rm -rf apps/api/data
+```
+types.py      value types; patient-facing ones cannot hold a score
+errors.py     closed refusal vocabulary — a reason, not a status code
+ports.py      Store, Catalog, Screener, Drafter
+memory.py     adapter: dicts, deepcopy rollback
+sqlite.py     adapter: schema, JSON codecs, explicit transactions
+clinical.py   Clinical — the nine methods
 ```
 
-Then the work is purely additive: a `pharmacology` app (Авиандр and its label
-rules), a `rules` app (deterministic engine + alert delivery), an `assistant`
-app (thin views over `packages/compass_ai`), `routing` (referral
-"обязательно"/"желательно"), and `adherence`.
+Two adapters exist for `Store`, and **one contract suite runs against both**. That
+is what makes the port a seam rather than indirection. `Clinical` never names an
+adapter.
 
-### Option B — build fresh
+### What the tests pin, at the interface
 
-Better only if the team agrees the mockup's data model is wrong. It is not
-obviously wrong; the parts that are missing are additive, not load-bearing. A
-rewrite costs days and scores no rubric points — the criteria grade clinical
-justification and data model coverage, not framework novelty.
+| Law | Test |
+|---|---|
+| Signature gates every clinical write | refusal writes nothing; audit empty |
+| A critical finding must be reviewed | `NEEDS_ACKNOWLEDGEMENT` before signing |
+| Obligatory escalation cannot be downgraded | `OBLIGATION_DOWNGRADED` |
+| Severity first, provenance second | suspected critical beats verified moderate |
+| Screening is a write-time fact | model called once across three reads |
+| Advice degrades, never raises | `Advice(degraded=True)` |
+| Nothing reaches the patient before publish | feed empty, then one card |
+| Patient types cannot hold a score | asserted by reflection over fields |
+| One idempotency key, one outcome | same id; different content is a conflict |
+| Authority comes from the care link | `NOT_YOUR_PATIENT` |
 
-## What is *not* in doubt
+```
+devenv shell -- python -m pytest -m "not live" -q     # 88 green
+```
 
-`packages/` is already usable and independent of this decision:
+### Deliberately not here yet
 
-- `packages/instruments` — versioned scale definitions, scoring, safety signals
-- `packages/compass_ai` — the model boundary (`Assistant` Protocol), triage,
-  retrieval, citation-gated drafting
-- `packages/knowledge` — the source corpus with exact passage offsets
+- **Rules engine** (Авиандр, nine label rules, interactions). The `Catalog` port
+  exists and is faked in tests; real values wait on a clinician reading the
+  instruction. Putting unverified doses in code would be the one mistake that
+  matters.
+- **Creating an assignment** — a doctor action, not one of the nine.
+- **HTTP layer.** Five UX surfaces are not yet served by anything.
+- **Postgres adapter.** Schema shape is already compatible (D11).
 
-Whichever app is chosen imports these; nothing in them assumes Django.
+### Why this is not the mockup
+
+`reference/mockup/` was read as a behaviour reference, not imported. It already
+had audit, invitations, versioning and idempotency — and D9 chose to re-earn
+those deliberately rather than inherit a Django monolith. The cost is real; the
+return is an application layer with no framework in it and tests that need
+neither Postgres nor a model.

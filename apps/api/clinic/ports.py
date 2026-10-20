@@ -4,14 +4,15 @@ Coarse on purpose: two projections aligned to the two hot methods, plus one writ
 per fact. Fine-grained repositories would push transaction boundaries out into
 callers and multiply round trips on exactly the read that cannot afford them.
 
-Two adapters are required for each of these to be a real seam: production and
-in-memory. Where only one exists, it is indirection, and it is not here.
+Two adapters exist for ``Store`` — SQLite and in-memory — and one contract suite
+runs against both. That is what makes it a seam rather than indirection.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
+from contextlib import AbstractContextManager
 from typing import Protocol
 
 from compass.ai.triage import Candidate
@@ -45,10 +46,19 @@ class PatientState:
 
 
 class Store(Protocol):
+    def unit_of_work(self) -> AbstractContextManager[None]:
+        """One atomic unit. The signature gate covers six writes, not one.
+
+        Nothing outside this block is rolled back, so validation must finish
+        before entering it.
+        """
+        ...
+
     def doctor_patients(self, doctor_id: str) -> tuple[PatientBundle, ...]: ...
     def patient_state(self, patient_id: str) -> PatientState | None: ...
     def assignment(self, assignment_id: str) -> Assignment | None: ...
     def appointment(self, appointment_id: str) -> Appointment | None: ...
+    def message(self, message_id: str) -> Message | None: ...
     def replace_appointment(self, appointment: Appointment) -> None: ...
     def append_response(self, response: Response) -> None: ...
     def append_appointment(self, appointment: Appointment) -> None: ...
@@ -56,8 +66,13 @@ class Store(Protocol):
     def save_alert(self, alert: Alert) -> None: ...
     def append_audit(self, entry: AuditEntry) -> int: ...
     def audit_of(self, patient_id: str) -> tuple[AuditEntry, ...]: ...
-    def idem_get(self, key: str) -> object | None: ...
-    def idem_put(self, key: str, value: object) -> None: ...
+    def idem_get(self, key: str) -> tuple[str, dict] | None:
+        """Return (content fingerprint, JSON-safe receipt payload)."""
+        ...
+
+    def idem_put(self, key: str, fingerprint: str, payload: dict) -> None:
+        """Store a receipt, not a domain object — a database can hold this."""
+        ...
 
 
 class Catalog(Protocol):

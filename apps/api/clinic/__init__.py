@@ -9,6 +9,7 @@ rejected.
 from .clinical import Clinical
 from .errors import ErrorKind, Rejected
 from .memory import MemoryStore
+from .sqlite import SqliteStore
 from .ports import Catalog, Drafter, PatientBundle, PatientState, Screener, Store
 from .types import (
     Actor, Advice, Alert, AlertState, Appointment, AppointmentDraft, Assessment,
@@ -23,5 +24,5 @@ __all__ = [
     "Clinical", "Drafter", "ErrorKind", "Feed", "MemoryStore", "Message",
     "Obligation", "Patient", "PatientBundle", "PatientRow", "PatientState", "Plan",
     "Prescription", "Queue", "Referral", "Rejected", "Response", "Role", "ScoreView",
-    "Screener", "SignalKey", "SignalRow", "Store",
+    "Screener", "SignalKey", "SignalRow", "SqliteStore", "Store",
 ]

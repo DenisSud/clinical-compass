@@ -10,7 +10,7 @@ Two rules govern this file and are enforced by the shapes rather than by reviews
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from enum import Enum
 from typing import Mapping
 
@@ -250,11 +250,13 @@ class Appointment:
     doctor_id: str
     revision: int
     signature: str
-    complaint: str
-    prescriptions: tuple[Prescription, ...]
-    referral: Referral | None
-    plan: Plan
-    signed_at: datetime
+    # A follow-up with no complaint and no change of therapy is the normal case,
+    # not an edge case; make the type say so.
+    complaint: str = ""
+    prescriptions: tuple[Prescription, ...] = ()
+    referral: Referral | None = None
+    plan: Plan = field(default_factory=Plan)
+    signed_at: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     published: frozenset[str] = frozenset()
 
 

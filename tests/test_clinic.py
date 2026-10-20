@@ -15,7 +15,7 @@ import pytest
 from apps.api.clinic import (
     Actor, AppointmentDraft, Assessment, Card, Clinical, ErrorKind, Feed,
     MemoryStore, Obligation, Patient, Plan, Prescription, Referral, Rejected,
-    Role, SignalKey,
+    Role, SignalKey, SqliteStore,
 )
 from compass.ai.triage import Candidate, Rank, Severity
 from compass.instruments import load_strict
@@ -34,16 +34,24 @@ class FakeCatalog:
             raise Rejected(ErrorKind.DOSE_NOT_IN_LABEL, dose)
 
 
-def make(*, screener=None):
-    store = MemoryStore()
-    counter = iter(range(1, 10_000))
-    clinical = Clinical(
-        store, load_strict(), FakeCatalog(),
-        screener=screener,
-        clock=lambda: FIXED,
-        new_id=lambda: f"id{next(counter)}",
-    )
-    return clinical, store
+@pytest.fixture(params=["memory", "sqlite"])
+def app(request):
+    """Every behaviour test runs twice: once against dicts, once against SQL.
+
+    The point is not coverage — it is that a divergence between the adapters
+    becomes a failing test rather than a bug found in the demo.
+    """
+    def build(*, screener=None, path=":memory:"):
+        store = MemoryStore() if request.param == "memory" else SqliteStore(path)
+        counter = iter(range(1, 10_000))
+        clinical = Clinical(
+            store, load_strict(), FakeCatalog(),
+            screener=screener,
+            clock=lambda: FIXED,
+            new_id=lambda: f"id{next(counter)}",
+        )
+        return clinical, store
+    return build
 
 
 def add_patient(store, pid, doctor_id="d1", birth_year=1975, display="Тестова А. А."):
@@ -61,20 +69,20 @@ doctor = Actor("d1", Role.DOCTOR)
 
 # --------------------------------------------------------------- the gate
 
-def test_a_clinical_write_without_a_signature_is_refused_and_writes_nothing():
-    clinical, store = make()
+def test_a_clinical_write_without_a_signature_is_refused_and_writes_nothing(app):
+    clinical, store = app()
     add_patient(store, "p1")
     with pytest.raises(Rejected) as err:
         clinical.commit_appointment(
             doctor, AppointmentDraft(patient_id="p1", signature="   "), submission_key="k1"
         )
     assert err.value.kind is ErrorKind.UNSIGNED
-    assert store.appointments == {}
-    assert store.audit == []
+    assert store.patient_state("p1").appointments == ()
+    assert store.audit_of("p1") == ()
 
 
-def test_a_critical_finding_must_be_reviewed_before_the_appointment_is_signed():
-    clinical, store = make()
+def test_a_critical_finding_must_be_reviewed_before_the_appointment_is_signed(app):
+    clinical, store = app()
     add_patient(store, "p1")
     add_assignment(store, "a1", "p1")
     answers = dict(ITEMS, q9=2)
@@ -94,8 +102,8 @@ def test_a_critical_finding_must_be_reviewed_before_the_appointment_is_signed():
     assert signed.signature == "Тестова"
 
 
-def test_an_obligatory_referral_cannot_be_downgraded_silently():
-    clinical, store = make()
+def test_an_obligatory_referral_cannot_be_downgraded_silently(app):
+    clinical, store = app()
     add_patient(store, "p1")
     add_assignment(store, "a1", "p1")
     clinical.submit_response(Actor("p1", Role.PATIENT), "a1", dict(ITEMS, q9=1),
@@ -113,13 +121,13 @@ def test_an_obligatory_referral_cannot_be_downgraded_silently():
 
 # ------------------------------------------------------- ordering law
 
-def test_a_suspected_critical_outranks_a_verified_moderate_score():
+def test_a_suspected_critical_outranks_a_verified_moderate_score(app):
     """Severity is the first axis, provenance only breaks ties."""
     def suicide_screen(text):
         return (Candidate("suicide_risk", "decision_model", Rank.URGENT, False,
                           "модель: «нет смысла продолжать»", 74),)
 
-    clinical, store = make(screener=suicide_screen)
+    clinical, store = app(screener=suicide_screen)
     add_patient(store, "p1", display="Пирогова А. М.")
     add_patient(store, "p2", display="Ковалёв Д. С.")
     add_assignment(store, "a1", "p1")
@@ -136,11 +144,11 @@ def test_a_suspected_critical_outranks_a_verified_moderate_score():
     assert queue.attention[1].authoritative is True
 
 
-def test_a_verified_critical_leads_a_suspected_one():
+def test_a_verified_critical_leads_a_suspected_one(app):
     def suicide_screen(text):
         return (Candidate("suicide_risk", "decision_model", Rank.URGENT, False, "модель", 74),)
 
-    clinical, store = make(screener=suicide_screen)
+    clinical, store = app(screener=suicide_screen)
     add_patient(store, "p1")
     add_patient(store, "p2")
     add_assignment(store, "a1", "p1")
@@ -155,8 +163,8 @@ def test_a_verified_critical_leads_a_suspected_one():
     assert clinical.queue(doctor, since_revision=queue.revision).stable is True
 
 
-def test_the_queue_is_a_snapshot_with_a_stable_revision():
-    clinical, store = make()
+def test_the_queue_is_a_snapshot_with_a_stable_revision(app):
+    clinical, store = app()
     add_patient(store, "p1")
     add_assignment(store, "a1", "p1")
     clinical.submit_response(Actor("p1", Role.PATIENT), "a1", dict(ITEMS, q1=1),
@@ -170,14 +178,14 @@ def test_the_queue_is_a_snapshot_with_a_stable_revision():
 
 # ------------------------------------------------------------ the model
 
-def test_screening_runs_once_at_write_and_is_not_recomputed_on_read():
+def test_screening_runs_once_at_write_and_is_not_recomputed_on_read(app):
     calls = []
 
     def counting_screen(text):
         calls.append(text)
         return (Candidate("worsening", "decision_model", Rank.SOON, False, "модель", 61),)
 
-    clinical, store = make(screener=counting_screen)
+    clinical, store = app(screener=counting_screen)
     add_patient(store, "p1")
     clinical.send_message(Actor("p1", Role.PATIENT), "p1", "стало хуже, чем было",
                           submission_key="m1")
@@ -187,8 +195,8 @@ def test_screening_runs_once_at_write_and_is_not_recomputed_on_read():
     assert len(calls) == 1
 
 
-def test_advice_degrades_instead_of_failing_when_there_is_no_model():
-    clinical, store = make()
+def test_advice_degrades_instead_of_failing_when_there_is_no_model(app):
+    clinical, store = app()
     add_patient(store, "p1")
     advice = clinical.advise(doctor, "p1", "Есть ли противопоказания?")
     assert advice.degraded is True
@@ -198,8 +206,8 @@ def test_advice_degrades_instead_of_failing_when_there_is_no_model():
 
 # ------------------------------------------------------------- the feed
 
-def test_nothing_reaches_the_patient_until_the_doctor_publishes_it():
-    clinical, store = make()
+def test_nothing_reaches_the_patient_until_the_doctor_publishes_it(app):
+    clinical, store = app()
     add_patient(store, "p1")
     appointment = clinical.commit_appointment(
         doctor,
@@ -216,7 +224,7 @@ def test_nothing_reaches_the_patient_until_the_doctor_publishes_it():
     assert "Авиандр" in cards[0].body
 
 
-def test_patient_facing_types_have_no_field_able_to_hold_a_score():
+def test_patient_facing_types_have_no_field_able_to_hold_a_score(app):
     for cls in (Card, Feed, Assessment):
         names = {f.name for f in dataclasses.fields(cls)}
         assert not names & {"total", "band", "band_label", "severity", "score", "signals"}
@@ -224,16 +232,16 @@ def test_patient_facing_types_have_no_field_able_to_hold_a_score():
 
 # ---------------------------------------------------------- entitlement
 
-def test_a_doctor_cannot_read_a_patient_they_are_not_linked_to():
-    clinical, store = make()
+def test_a_doctor_cannot_read_a_patient_they_are_not_linked_to(app):
+    clinical, store = app()
     add_patient(store, "p1", doctor_id="d2")
     with pytest.raises(Rejected) as err:
         clinical.card(doctor, "p1")
     assert err.value.kind is ErrorKind.NOT_YOUR_PATIENT
 
 
-def test_a_patient_cannot_read_the_queue_or_another_patients_record():
-    clinical, store = make()
+def test_a_patient_cannot_read_the_queue_or_another_patients_record(app):
+    clinical, store = app()
     add_patient(store, "p1")
     add_patient(store, "p2")
     with pytest.raises(Rejected) as err:
@@ -246,18 +254,18 @@ def test_a_patient_cannot_read_the_queue_or_another_patients_record():
 
 # --------------------------------------------------------- idempotency
 
-def test_the_same_submission_key_returns_the_same_appointment():
-    clinical, store = make()
+def test_the_same_submission_key_returns_the_same_appointment(app):
+    clinical, store = app()
     add_patient(store, "p1")
     draft = AppointmentDraft(patient_id="p1", signature="Тестова")
     first = clinical.commit_appointment(doctor, draft, submission_key="k1")
     second = clinical.commit_appointment(doctor, draft, submission_key="k1")
     assert first.id == second.id
-    assert len(store.appointments) == 1
+    assert len(store.patient_state("p1").appointments) == 1
 
 
-def test_a_reused_key_with_different_content_is_a_conflict():
-    clinical, store = make()
+def test_a_reused_key_with_different_content_is_a_conflict(app):
+    clinical, store = app()
     add_patient(store, "p1")
     clinical.commit_appointment(
         doctor, AppointmentDraft(patient_id="p1", signature="Тестова"), submission_key="k1"
@@ -271,8 +279,8 @@ def test_a_reused_key_with_different_content_is_a_conflict():
     assert err.value.kind is ErrorKind.CONFLICT
 
 
-def test_answers_must_name_every_item_and_submission_is_idempotent():
-    clinical, store = make()
+def test_answers_must_name_every_item_and_submission_is_idempotent(app):
+    clinical, store = app()
     add_patient(store, "p1")
     add_assignment(store, "a1", "p1")
     patient = Actor("p1", Role.PATIENT)
@@ -284,4 +292,4 @@ def test_answers_must_name_every_item_and_submission_is_idempotent():
     first = clinical.submit_response(patient, "a1", dict(ITEMS), submission_key="s1")
     second = clinical.submit_response(patient, "a1", dict(ITEMS), submission_key="s1")
     assert first.response_id == second.response_id
-    assert len(store.responses) == 1
+    assert len(store.patient_state("p1").responses) == 1

@@ -7,7 +7,10 @@ Postgres adapter, which is what makes the seam real rather than hypothetical.
 
 from __future__ import annotations
 
+import copy
+from contextlib import contextmanager
 from datetime import datetime
+from typing import Iterator
 
 from .ports import PatientBundle, PatientState
 from .types import (
@@ -24,7 +27,7 @@ class MemoryStore:
         self.messages: list[Message] = []
         self.alerts: dict[tuple, Alert] = {}
         self.audit: list[AuditEntry] = []
-        self.idem: dict[str, object] = {}
+        self.idem: dict[str, tuple[str, dict]] = {}
         self._seq = 0
 
     # ---------------------------------------------------------- setup
@@ -36,6 +39,24 @@ class MemoryStore:
         self.assignments[assignment.id] = assignment
 
     # ---------------------------------------------------------- reads
+
+    @contextmanager
+    def unit_of_work(self) -> Iterator[None]:
+        """Snapshot and restore, so rollback is real here too.
+
+        A test double that silently ignores rollback would let the suite pass on
+        behaviour that production cannot honour. Deepcopy of eight containers is
+        cheap at demo scale and keeps one contract for both adapters.
+        """
+        boxes = (self.patients, self.assignments, self.responses, self.appointments,
+                 self.messages, self.alerts, self.audit, self.idem, self._seq)
+        snapshot = copy.deepcopy(boxes)
+        try:
+            yield
+        except BaseException:
+            (self.patients, self.assignments, self.responses, self.appointments,
+             self.messages, self.alerts, self.audit, self.idem, self._seq) = snapshot
+            raise
 
     def doctor_patients(self, doctor_id: str) -> tuple[PatientBundle, ...]:
         out = []
@@ -77,10 +98,13 @@ class MemoryStore:
     def appointment(self, appointment_id: str) -> Appointment | None:
         return self.appointments.get(appointment_id)
 
+    def message(self, message_id: str) -> Message | None:
+        return next((m for m in self.messages if m.id == message_id), None)
+
     def audit_of(self, patient_id: str) -> tuple[AuditEntry, ...]:
         return tuple(e for e in self.audit if e.patient_id == patient_id)
 
-    def idem_get(self, key: str) -> object | None:
+    def idem_get(self, key: str) -> tuple[str, dict] | None:
         return self.idem.get(key)
 
     # ---------------------------------------------------------- writes
@@ -114,8 +138,8 @@ class MemoryStore:
         )
         return self._seq
 
-    def idem_put(self, key: str, value: object) -> None:
-        self.idem[key] = value
+    def idem_put(self, key: str, fingerprint: str, payload: dict) -> None:
+        self.idem[key] = (fingerprint, payload)
 
 
 __all__ = ["MemoryStore"]

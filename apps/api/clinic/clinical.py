@@ -232,10 +232,13 @@ class Clinical:
         fingerprint = sha256(repr(draft).encode("utf-8")).hexdigest()
         previous = self._store.idem_get(submission_key)
         if previous is not None:
-            stored_key, appointment = previous  # type: ignore[misc]
-            if stored_key != fingerprint:
+            stored, payload = previous
+            if stored != fingerprint:
                 raise Rejected(ErrorKind.CONFLICT, "ключ повтора использован с другим содержанием")
-            return appointment
+            existing = self._store.appointment(payload["id"])
+            if existing is None:
+                raise Rejected(ErrorKind.NOT_FOUND, "повтор ссылается на пропавший приём")
+            return existing
 
         appointment = Appointment(
             id=self._new_id(),
@@ -249,13 +252,17 @@ class Clinical:
             plan=draft.plan,
             signed_at=self._clock(),
         )
-        self._store.append_appointment(appointment)
-        for key in draft.acknowledged:
-            self._materialise(actor, key, AlertState.RESOLVED, "закрыто приёмом",
-                              candidates, state.alerts)
-        self._store.idem_put(submission_key, (fingerprint, appointment))
-        self._audit(actor, draft.patient_id, "appointment.signed",
-                    f"revision={revision} lines={len(draft.prescriptions)}")
+        # One transaction: the appointment, the alerts it closes, the receipt and
+        # the audit entry. A half-signed encounter is the failure worth excluding,
+        # so this is the one place where the seam must be atomic.
+        with self._store.unit_of_work():
+            self._store.append_appointment(appointment)
+            for key in draft.acknowledged:
+                self._materialise(actor, key, AlertState.RESOLVED, "закрыто приёмом",
+                                  candidates, state.alerts)
+            self._store.idem_put(submission_key, fingerprint, {"id": appointment.id})
+            self._audit(actor, draft.patient_id, "appointment.signed",
+                        f"revision={revision} lines={len(draft.prescriptions)}")
         return appointment
 
     def publish(self, actor: Actor, appointment_id: str, fields: Iterable[str]) -> None:
@@ -271,10 +278,13 @@ class Clinical:
         if not chosen:
             raise Rejected(ErrorKind.ROLE, "nothing publishable in fields", field="fields")
 
-        self._store.replace_appointment(
-            Appointment(**{**appointment.__dict__, "published": appointment.published | chosen})
-        )
-        self._audit(actor, appointment.patient_id, "appointment.published", ",".join(sorted(chosen)))
+        with self._store.unit_of_work():
+            self._store.replace_appointment(
+                Appointment(**{**appointment.__dict__,
+                               "published": appointment.published | chosen})
+            )
+            self._audit(actor, appointment.patient_id, "appointment.published",
+                        ",".join(sorted(chosen)))
 
     # ------------------------------------------------ write: intake, talk
 
@@ -297,12 +307,19 @@ class Clinical:
             raise Rejected(ErrorKind.INCOMPLETE, "answers must name every item exactly once",
                            field="answers")
 
+        fingerprint = sha256(
+            repr(sorted(answers.items(), key=lambda kv: kv[0])).encode()
+        ).hexdigest()
         previous = self._store.idem_get(submission_key)
         if previous is not None:
-            stored, assessment = previous  # type: ignore[misc]
-            if stored != sha256(repr(sorted(answers.items(), key=lambda kv: kv[0])).encode()).hexdigest():
+            stored, payload = previous
+            if stored != fingerprint:
                 raise Rejected(ErrorKind.CONFLICT, "ключ повтора использован с другими ответами")
-            return assessment
+            return Assessment(
+                accepted=True,
+                response_id=payload["response_id"],
+                submitted_at=datetime.fromisoformat(payload["submitted_at"]),
+            )
 
         response = Response(
             id=self._new_id(),
@@ -313,15 +330,17 @@ class Clinical:
             answers=dict(answers),
             submitted_at=self._clock(),
         )
-        self._store.append_response(response)
         assessment = Assessment(accepted=True, response_id=response.id,
                                 submitted_at=response.submitted_at)
-        self._store.idem_put(
-            submission_key,
-            (sha256(repr(sorted(answers.items(), key=lambda kv: kv[0])).encode()).hexdigest(),
-             assessment),
-        )
-        self._audit(actor, actor.id, "response.submitted", instrument.code)
+        with self._store.unit_of_work():
+            self._store.append_response(response)
+            self._store.idem_put(
+                submission_key,
+                fingerprint,
+                {"response_id": assessment.response_id,
+                 "submitted_at": assessment.submitted_at.isoformat()},
+            )
+            self._audit(actor, actor.id, "response.submitted", instrument.code)
         return assessment
 
     def send_message(
@@ -330,12 +349,16 @@ class Clinical:
         state = self._state(actor, patient_id)
         direction = "to_doctor" if actor.role is Role.PATIENT else "to_patient"
 
+        fingerprint = sha256(text.encode()).hexdigest()
         previous = self._store.idem_get(submission_key)
         if previous is not None:
-            stored, message = previous  # type: ignore[misc]
-            if stored != sha256(text.encode()).hexdigest():
+            stored, payload = previous
+            if stored != fingerprint:
                 raise Rejected(ErrorKind.CONFLICT, "ключ повтора использован с другим текстом")
-            return message
+            existing = self._store.message(payload["id"])
+            if existing is None:
+                raise Rejected(ErrorKind.NOT_FOUND, "повтор ссылается на пропавшее сообщение")
+            return existing
 
         screened: tuple[Candidate, ...] = ()
         if direction == "to_doctor" and self._screen is not None:
@@ -346,9 +369,10 @@ class Clinical:
             id=self._new_id(), patient_id=patient_id, author_id=actor.id,
             direction=direction, text=text, at=self._clock(), screened=screened,
         )
-        self._store.append_message(message)
-        self._store.idem_put(submission_key, (sha256(text.encode()).hexdigest(), message))
-        self._audit(actor, patient_id, "message.sent", direction)
+        with self._store.unit_of_work():
+            self._store.append_message(message)
+            self._store.idem_put(submission_key, fingerprint, {"id": message.id})
+            self._audit(actor, patient_id, "message.sent", direction)
         return message
 
     # -------------------------------------------------------------- alerts

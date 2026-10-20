@@ -12,18 +12,17 @@ from datetime import datetime, timezone
 import pytest
 
 from apps.api.clinic import (
-    Alert, AlertState, Assignment, AuditEntry, MemoryStore, Message, Patient,
-    Response, SignalKey,
+    Alert, AlertState, Appointment, Assignment, AuditEntry, MemoryStore, Message,
+    Patient, Plan, Response, SignalKey, SqliteStore,
 )
 from compass.ai.triage import Severity
 
 AT = datetime(2026, 10, 20, 9, 0, tzinfo=timezone.utc)
 
 
-@pytest.fixture(params=["memory"])
+@pytest.fixture(params=["memory", "sqlite"])
 def store(request):
-    assert request.param == "memory"
-    return MemoryStore()
+    return MemoryStore() if request.param == "memory" else SqliteStore(":memory:")
 
 
 def response(pid: str, at: datetime, total: int = 0) -> Response:
@@ -62,8 +61,8 @@ def test_patient_state_is_none_for_an_unknown_patient(store):
 
 def test_idempotency_round_trips(store):
     assert store.idem_get("k") is None
-    store.idem_put("k", ("fingerprint", 42))
-    assert store.idem_get("k") == ("fingerprint", 42)
+    store.idem_put("k", "fingerprint", {"id": "x"})
+    assert store.idem_get("k") == ("fingerprint", {"id": "x"})
 
 
 def test_saving_an_alert_replaces_by_key_rather_than_appending(store):
@@ -85,3 +84,40 @@ def test_messages_and_assignments_are_scoped_by_patient(store):
     state = store.patient_state("p1")
     assert len(state.messages) == 1
     assert store.assignment("a1").patient_id == "p1"
+
+
+def test_a_failed_unit_of_work_leaves_nothing_behind(store):
+    """The signature gate covers six writes. Half of them surviving is the
+    failure mode the transaction exists to exclude."""
+    store.add_patient(Patient(id="p1", display="A", birth_year=1980, doctor_id="d1"))
+    appointment = Appointment(
+        id="ap1", patient_id="p1", doctor_id="d1", revision=1, signature="Тестова",
+        plan=Plan(None, "продолжаем"), signed_at=AT,
+    )
+    with pytest.raises(RuntimeError):
+        with store.unit_of_work():
+            store.append_appointment(appointment)
+            store.append_audit(
+                AuditEntry(seq=0, at=AT, actor_id="d1", patient_id="p1", action="signed")
+            )
+            raise RuntimeError("модель упала на полпути")
+
+    assert store.patient_state("p1").appointments == ()
+    assert store.audit_of("p1") == ()
+
+
+def test_a_nested_unit_of_work_rolls_back_only_the_inner_scope(store):
+    store.add_patient(Patient(id="p1", display="A", birth_year=1980, doctor_id="d1"))
+    with store.unit_of_work():
+        store.append_audit(
+            AuditEntry(seq=0, at=AT, actor_id="d1", patient_id="p1", action="outer")
+        )
+        try:
+            with store.unit_of_work():
+                store.append_audit(
+                    AuditEntry(seq=0, at=AT, actor_id="d1", patient_id="p1", action="inner")
+                )
+                raise RuntimeError
+        except RuntimeError:
+            pass
+    assert [e.action for e in store.audit_of("p1")] == ["outer"]
