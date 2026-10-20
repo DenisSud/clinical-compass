@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Прототип очереди врача — две оси</title>
+<link rel="stylesheet" href="tokens.css">
+<style>
+  /* только специфичное для этой страницы; токены и сигналы — в tokens.css */
+
+  .screen{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .screen-head{padding:18px var(--s5) 14px;border-bottom:1px solid var(--line)}
+  .screen-head h2{margin-top:var(--s1)}
+
+  .order-rule{padding:10px var(--s5);font-size:12.5px;color:var(--muted);
+              border-bottom:1px solid var(--line);background:var(--bg-sunken)}
+  .order-rule b{color:var(--ink);font-weight:600}
+
+  .cols{display:grid;grid-template-columns:4px 240px 1fr 200px;
+        padding:0 var(--s5) 0 0;
+        font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
+        border-bottom:1px solid var(--line);background:var(--surface)}
+  .cols span{padding:9px 0 9px 14px}
+  .cols span:first-child{padding:0}
+
+  .row{display:grid;grid-template-columns:4px 240px 1fr 200px;align-items:center;
+       min-height:var(--row);border-bottom:1px solid var(--line);cursor:pointer;background:var(--surface)}
+  .row:last-child{border-bottom:none}
+  .row:hover{background:#fcfcfb}
+  .row:focus-visible{outline:2px solid var(--focus);outline-offset:-2px}
+
+  .who{padding:var(--s3) 0 var(--s3) 14px;min-width:0}
+  .who .name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .who .sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+
+  .sig{padding:var(--s3) var(--s4) var(--s3) 0;min-width:0}
+  .sig .line{display:flex;align-items:baseline;gap:var(--s2);margin-bottom:5px}
+  .sig .line:last-child{margin-bottom:0}
+
+  .when{padding:var(--s3) var(--s5) var(--s3) var(--s2);text-align:right;
+        font-size:12.5px;color:var(--muted);font-variant-numeric:var(--tabnum);white-space:nowrap}
+  .when .pill{margin-top:4px}
+
+  .legend{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:var(--s5)}
+  .legend .card h3{margin-bottom:var(--s1)}
+  .legend .card p{margin:0 0 10px;font-size:12.5px;color:var(--muted)}
+  .spec{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted);
+        padding:5px 0;border-top:1px dashed var(--line)}
+  .spec:first-of-type{border-top:none}
+  .spec .k{width:112px;flex:0 0 auto;color:var(--faint);font-size:11.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="meta">
+    <h1>Прототип: очередь врача, две независимые оси</h1>
+    <p>Проверяет один вопрос: различит ли врач <b>проверенное</b> и <b>подозреваемое</b> за одну секунду,
+       не читая подписей. Порядок — по тяжести сигнала; происхождение влияет на формулировку и вид,
+       но не на позицию.</p>
+    <ol>
+      <li>Включите серый режим и посмотрите, остаётся ли различие.</li>
+      <li>Строка 4 (тяжёлая реакция, <i>подозрение</i>) стоит выше строки 5 (тяжёлая сумма, <i>проверено</i>). Так и должно быть: тяжесть старше происхождения.</li>
+      <li>Строка 3 — подозрение модели, и оно всё равно выше проверенной суммы: последствие другое.</li>
+      <li>Красный есть только у проверенной критической находки. У подозрения цвета нет вообще.</li>
+      <li>Порядок совпадает с <code>triage.merge()</code>: тяжесть → проверенность → ранг → имя. Время в очереди ничего не сортирует и показано как справка.</li>
+    </ol>
+    <label class="toggle"><input type="checkbox" id="grey"> Серый режим (тест приёмки)</label>
+  </div>
+
+  <div class="screen">
+    <div class="screen-head">
+      <div class="eyebrow">Очередь · вторник, 20 октября</div>
+      <h2>Требует вашего решения — 7</h2>
+    </div>
+
+    <div class="order-rule">
+      Порядок: <b>тяжесть</b> → проверенность → ранг → имя. Время ожидания показано, но не сортирует. Очередь не пересортировывается сама.
+    </div>
+
+    <div class="cols" aria-hidden="true">
+      <span></span><span>Пациент</span><span>Сигнал</span><span>Ожидает</span>
+    </div>
+
+    <div class="row" tabindex="0">
+      <div class="rail solid"></div>
+      <div class="who"><div class="name">Пирогова А. М.</div><div class="sub">42 года · наблюдается 3 мес.</div></div>
+      <div class="sig">
+        <div class="line"><span class="mark square"></span><span class="t-verified">Пункт 9 PHQ-9 — 2 балла</span><span class="src auth">шкала · PHQ-9 v1</span></div>
+        <div class="line"><span class="src">Отмечено «более недели». Сумму не снимает.</span></div>
+      </div>
+      <div class="when">18 мин<div><span class="pill critical">сегодня</span></div></div>
+    </div>
+
+    <div class="row" tabindex="0">
+      <div class="rail solid"></div>
+      <div class="who"><div class="name">Титова Н. К.</div><div class="sub">33 года · наблюдается 1 нед.</div></div>
+      <div class="sig">
+        <div class="line"><span class="mark square"></span><span class="t-verified">Пункт 9 без ответа — отвечены 8 из 9</span><span class="src auth">шкала · PHQ-9 v1</span></div>
+        <div class="line"><span class="src">Пациент дошёл до последнего пункта и не ответил. Это решение, а не обрыв. Сумма не рассчитана.</span></div>
+      </div>
+      <div class="when">вчера, 09:05<div><span class="pill critical">сегодня</span></div></div>
+    </div>
+    <div class="row" tabindex="0">
+      <div class="rail dashed"></div>
+      <div class="who"><div class="name">Ковалёв Д. С.</div><div class="sub">29 лет · наблюдается 1 мес.</div></div>
+      <div class="sig">
+        <div class="line"><span class="mark circle"></span><span class="t-suspected"><span class="lead">Возможно:</span> суицидальные мысли</span><span class="conf">≈ 76 % · не калибрована</span></div>
+        <div class="line"><span class="src">Модель по тексту обращения: «нет смысла продолжать»</span></div>
+      </div>
+      <div class="when">1 ч 05 мин<div><span class="pill critical">сегодня</span></div></div>
+    </div>
+
+    <div class="row" tabindex="0">
+      <div class="rail dashed"></div>
+      <div class="who"><div class="name">Соколова М. И.</div><div class="sub">35 лет · наблюдается 6 мес.</div></div>
+      <div class="sig">
+        <div class="line"><span class="mark circle"></span><span class="t-suspected"><span class="lead">Возможно:</span> тяжёлая нежелательная реакция</span><span class="conf">≈ 88 % · не калибрована</span></div>
+        <div class="line"><span class="src">Модель по тексту: «температура 39, мышцы сводит»</span></div>
+      </div>
+      <div class="when">2 ч 20 мин<div><span class="pill await">сегодня</span></div></div>
+    </div>
+
+    <div class="row" tabindex="0">
+      <div class="rail solid attn"></div>
+      <div class="who"><div class="name">Гусев П. А.</div><div class="sub">51 год · наблюдается 11 мес.</div></div>
+      <div class="sig">
+        <div class="line"><span class="mark square attn"></span><span class="t-verified">PHQ-9 = 22 — тяжёлая полоса</span><span class="src auth">шкала · PHQ-9 v1</span></div>
+        <div class="line"><span class="src">Было 17 месяц назад. Пункт 9 — 0.</span></div>
+      </div>
+      <div class="when">3 ч 40 мин<div><span class="pill await">сегодня</span></div></div>
+    </div>
+
+    <div class="row" tabindex="0">
+      <div class="rail dashed"></div>
+      <div class="who"><div class="name">Лебедева О. В.</div><div class="sub">38 лет · наблюдается 2 мес.</div></div>
+      <div class="sig">
+        <div class="line"><span class="mark circle"></span><span class="t-suspected"><span class="lead">Возможно:</span> пропуск приёма препарата</span><span class="conf">≈ 70 % · не калибрована</span></div>
+        <div class="line"><span class="src">Модель по тексту: «таблетки не пью уже неделю»</span></div>
+      </div>
+      <div class="when">5 ч 12 мин</div>
+    </div>
+
+    <div class="row" tabindex="0">
+      <div class="rail dashed"></div>
+      <div class="who"><div class="name">Никитин Р. Э.</div><div class="sub">44 года · наблюдается 8 мес.</div></div>
+      <div class="sig">
+        <div class="line"><span class="mark circle"></span><span class="t-suspected"><span class="lead">Возможно:</span> ухудшение состояния</span><span class="conf">≈ 61 % · не калибрована</span></div>
+        <div class="line"><span class="src">Модель по тексту: «стало хуже, чем было»</span></div>
+      </div>
+      <div class="when">вчера, 17:20</div>
+    </div>
+
+  </div>
+
+  <div class="legend">
+    <div class="card">
+      <h3>Проверено</h3>
+      <p>Воспроизводится детерминированно из шкалы или инструкции. Авторитетно.</p>
+      <div class="spec"><span class="k">форма</span><span class="mark square"></span> залитый квадрат</div>
+      <div class="spec"><span class="k">рельс</span><span style="width:26px;height:14px;background:var(--critical)"></span> сплошной, красный — только для критического</div>
+      <div class="spec"><span class="k">текст</span><span class="t-verified" style="font-size:14px">Пункт 9 PHQ-9 — 2 балла</span></div>
+      <div class="spec"><span class="k">числа</span><span class="src auth">единица и источник</span></div>
+    </div>
+    <div class="card">
+      <h3>Подозрение</h3>
+      <p>Оценка модели на 2.7B. Не откалибрована. Может ошибаться на отрицании и сарказме.</p>
+      <div class="spec"><span class="k">форма</span><span class="mark circle"></span> контурный пунктирный круг</div>
+      <div class="spec"><span class="k">рельс</span><span style="width:26px;height:14px;background-image:repeating-linear-gradient(to right,#9a9a9a 0 5px,transparent 5px 9px)"></span> пунктир</div>
+      <div class="spec"><span class="k">текст</span><span class="t-suspected" style="font-size:13px"><span class="lead">Возможно:</span> пропуск приёма</span></div>
+      <div class="spec"><span class="k">числа</span><span class="conf">≈ 70 % · не калибрована</span></div>
+    </div>
+  </div>
+
+  <p class="note">
+    <b>Запрещено:</b> красный для подозрений (он зарезервирован за проверенной критической находкой); циклическая анимация на подозрении
+    (пульсация фабрикует срочность у некалиброванного выхода); единый индекс риска.
+    <b>Проверка:</b> если в сером режиме различие исчезает — каналов недостаточно и дизайн не принят.
+  </p>
+
+</div>
+<script>
+  document.getElementById('grey').addEventListener('change', function () {
+    document.body.classList.toggle('grey', this.checked);
+  });
+</script>
+</body>
+</html>

@@ -19,11 +19,12 @@ from .drafting import Draft, DraftRejected, Proposal
 from .models import DEFAULT_HOST, TARGET_REASONING_MODEL, ModelRoles
 from .ollama import Decision, Ollama, OllamaError
 from .retrieval import Hit, Index
-from .triage import SCREENS, Candidate, Rank, merge
+from .triage import SCREENS, SEVERITY_BY_SIGNAL, Candidate, Rank, Severity, merge, severity_of
 
 __all__ = [
     "DEFAULT_HOST",
     "SCREENS",
+    "SEVERITY_BY_SIGNAL",
     "TARGET_REASONING_MODEL",
     "Assistant",
     "Candidate",
@@ -40,5 +41,7 @@ __all__ = [
     "Passage",
     "Proposal",
     "Rank",
+    "Severity",
     "merge",
+    "severity_of",
 ]

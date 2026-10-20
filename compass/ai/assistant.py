@@ -49,7 +49,7 @@ class Assistant(Protocol):
 
     def retrieve(self, query: str, *, limit: int = 5) -> list[Hit]: ...
 
-    def draft(self, *, question: str, hits: Sequence[Hit], context: str = "") -> Draft | None: ...
+    def draft(self, *, question: str, hits: Sequence[Hit], context: str = "") -> Draft: ...
 
     def extract(self, document: str, fields: Sequence[str]) -> Extraction | None: ...
 
@@ -92,11 +92,34 @@ class LocalAssistant:
     def retrieve(self, query: str, *, limit: int = 5) -> list[Hit]:
         return self.index.search(query, ollama=self.ollama if self.index.dense_ready else None, limit=limit)
 
-    def draft(self, *, question: str, hits: Sequence[Hit], context: str = "") -> Draft | None:
+    def draft(self, *, question: str, hits: Sequence[Hit], context: str = "") -> Draft:
+        """Never returns ``None``.
+
+        Four outcomes exist and the screen has to tell them apart: no fragments
+        at all (no model call, instant), a draft refused for citing a passage it
+        was never given, a draft refused for having no citations, and the model
+        being unreachable. Collapsing them into ``None`` threw away the only
+        information the interface needs in order to explain itself — and one of
+        the four is slow and three are instant, so a single spinner is a lie.
+        """
         try:
             return draft(self.ollama, question=question, hits=hits, context=context)
-        except (OllamaError, DraftRejected):
-            return None
+        except DraftRejected as exc:
+            return Draft(
+                proposals=(),
+                cautions=(),
+                refusal=f"Черновик отклонён проверкой цитат: {exc}",
+                hits=tuple(hits),
+                model=self.ollama.roles.reasoning,
+            )
+        except OllamaError as exc:
+            return Draft(
+                proposals=(),
+                cautions=(),
+                refusal=f"Модель недоступна: {exc}",
+                hits=tuple(hits),
+                model=self.ollama.roles.reasoning,
+            )
 
     def extract(self, document: str, fields: Sequence[str]) -> Extraction | None:
         schema = {
