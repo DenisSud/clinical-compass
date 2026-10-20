@@ -1,5 +1,5 @@
 # Python runtime for the clinical app + the vendored demo.
-# Mirror of reference/mockup/clinical_compass_app/requirements.txt.
+# Keep in sync with pyproject.toml [project].dependencies.
 Django==5.2.18
 asgiref==3.12.1
 psycopg==3.2.13
@@ -8,3 +8,5 @@ sqlparse==0.6.0
 typing_extensions==4.16.0
 tzdata==2026.5
 waitress==3.0.2
+httpx==0.28.1
+pytest==8.4.2

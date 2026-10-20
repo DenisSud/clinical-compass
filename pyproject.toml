@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "clinical-compass"
+version = "0.1.0"
+description = "Digital assistant for a physician managing anxiety and depressive symptoms (case championship)"
+requires-python = ">=3.12"
+dependencies = ["Django==5.2.18", "httpx>=0.27", "waitress==3.0.2", "psycopg==3.2.13"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[tool.setuptools]
+# The workspace is a plain source tree: `packages/` goes on sys.path, there is
+# nothing to build or install. Listing packages keeps `pip install -e .` honest.
+packages = ["instruments", "compass_ai", "knowledge"]
+
+[tool.pytest.ini_options]
+pythonpath = ["packages"]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = ["live: needs a running Ollama and installed models; skipped by default"]
+
+[tool.ruff]
+line-length = 130
+target-version = "py312"
+src = ["packages", "apps"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+ignore = ["E501"]
