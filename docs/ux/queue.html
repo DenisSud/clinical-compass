@@ -9,8 +9,8 @@
   /* только специфичное для этой страницы; токены и сигналы — в tokens.css */
 
   .screen{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
-  .screen-head{padding:18px var(--s5) 14px;border-bottom:1px solid var(--line)}
-  .screen-head h2{margin-top:var(--s1)}
+  .screen-head{padding:20px var(--s5) 16px;border-bottom:1px solid var(--line)}
+  .screen-head h2{font-size:24px}
 
   .order-rule{padding:10px var(--s5);font-size:12.5px;color:var(--muted);
               border-bottom:1px solid var(--line);background:var(--bg-sunken)}
@@ -18,7 +18,7 @@
 
   .cols{display:grid;grid-template-columns:4px 240px 1fr 200px;
         padding:0 var(--s5) 0 0;
-        font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);
+        font-size:12px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--faint);
         border-bottom:1px solid var(--line);background:var(--surface)}
   .cols span{padding:9px 0 9px 14px}
   .cols span:first-child{padding:0}
@@ -70,8 +70,8 @@
 
   <div class="screen">
     <div class="screen-head">
-      <div class="eyebrow">Очередь · вторник, 20 октября</div>
-      <h2>Требует вашего решения — 7</h2>
+      <h2>Требует вашего решения</h2>
+      <div class="sub">7 пациентов<span class="dot">·</span>вторник, 20 октября</div>
     </div>
 
     <div class="order-rule">
@@ -89,7 +89,7 @@
         <div class="line"><span class="mark square"></span><span class="t-verified">Пункт 9 PHQ-9 — 2 балла</span><span class="src auth">шкала · PHQ-9 v1</span></div>
         <div class="line"><span class="src">Отмечено «более недели». Сумму не снимает.</span></div>
       </div>
-      <div class="when">18 мин<div><span class="pill critical">сегодня</span></div></div>
+      <div class="when">18 мин</div>
     </div>
 
     <div class="row" tabindex="0">
@@ -99,7 +99,7 @@
         <div class="line"><span class="mark square"></span><span class="t-verified">Пункт 9 без ответа — отвечены 8 из 9</span><span class="src auth">шкала · PHQ-9 v1</span></div>
         <div class="line"><span class="src">Пациент дошёл до последнего пункта и не ответил. Это решение, а не обрыв. Сумма не рассчитана.</span></div>
       </div>
-      <div class="when">вчера, 09:05<div><span class="pill critical">сегодня</span></div></div>
+      <div class="when">вчера, 09:05</div>
     </div>
     <div class="row" tabindex="0">
       <div class="rail dashed"></div>
@@ -108,7 +108,7 @@
         <div class="line"><span class="mark circle"></span><span class="t-suspected"><span class="lead">Возможно:</span> суицидальные мысли</span><span class="conf">≈ 76 % · не калибрована</span></div>
         <div class="line"><span class="src">Модель по тексту обращения: «нет смысла продолжать»</span></div>
       </div>
-      <div class="when">1 ч 05 мин<div><span class="pill critical">сегодня</span></div></div>
+      <div class="when">1 ч 05 мин</div>
     </div>
 
     <div class="row" tabindex="0">
@@ -118,7 +118,7 @@
         <div class="line"><span class="mark circle"></span><span class="t-suspected"><span class="lead">Возможно:</span> тяжёлая нежелательная реакция</span><span class="conf">≈ 88 % · не калибрована</span></div>
         <div class="line"><span class="src">Модель по тексту: «температура 39, мышцы сводит»</span></div>
       </div>
-      <div class="when">2 ч 20 мин<div><span class="pill await">сегодня</span></div></div>
+      <div class="when">2 ч 20 мин</div>
     </div>
 
     <div class="row" tabindex="0">
@@ -128,7 +128,7 @@
         <div class="line"><span class="mark square attn"></span><span class="t-verified">PHQ-9 = 22 — тяжёлая полоса</span><span class="src auth">шкала · PHQ-9 v1</span></div>
         <div class="line"><span class="src">Было 17 месяц назад. Пункт 9 — 0.</span></div>
       </div>
-      <div class="when">3 ч 40 мин<div><span class="pill await">сегодня</span></div></div>
+      <div class="when">3 ч 40 мин</div>
     </div>
 
     <div class="row" tabindex="0">
