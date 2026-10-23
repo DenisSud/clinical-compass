@@ -33,3 +33,9 @@ devenv.local.yaml
 # Tool caches
 .pytest_cache/
 .ruff_cache/
+
+# Build output
+server/public/
+
+# Logs
+*.log
