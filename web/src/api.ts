@@ -3,6 +3,7 @@ import type {
   LinkCodeResponse,
   MeResponse,
   PatientListResponse,
+  PatientSummary,
   Role,
 } from "../../shared/contracts";
 
@@ -74,4 +75,12 @@ export function bindToDoctor(code: string): Promise<{ doctorId: string; boundAt:
     method: "POST",
     body: JSON.stringify({ code }),
   });
+}
+
+export function fetchPatient(id: string): Promise<{ patient: PatientSummary }> {
+  return request<{ patient: PatientSummary }>(`/api/patients/${id}`);
+}
+
+export function unbindPatient(id: string): Promise<void> {
+  return request<void>(`/api/patients/${id}/unbind`, { method: "POST" });
 }

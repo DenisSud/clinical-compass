@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { DoctorProfile, LinkCodeResponse, PatientSummary } from "../../shared/contracts";
-import { fetchLinkCode, fetchPatients, rotateLinkCode } from "./api";
+import { fetchLinkCode, fetchPatients, rotateLinkCode, unbindPatient } from "./api";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
@@ -9,6 +9,7 @@ function formatDate(iso: string): string {
 export function DoctorHome({ profile, onSignOut }: { profile: DoctorProfile; onSignOut: () => void }) {
   const [patients, setPatients] = useState<PatientSummary[] | null>(null);
   const [linkCode, setLinkCode] = useState<LinkCodeResponse | null>(null);
+  const [selected, setSelected] = useState<PatientSummary | null>(null);
 
   const load = useCallback(() => {
     fetchPatients()
@@ -23,6 +24,12 @@ export function DoctorHome({ profile, onSignOut }: { profile: DoctorProfile; onS
 
   async function rotate() {
     setLinkCode(await rotateLinkCode());
+  }
+
+  async function unbind(patient: PatientSummary) {
+    await unbindPatient(patient.id);
+    setSelected(null);
+    load();
   }
 
   return (
@@ -64,14 +71,53 @@ export function DoctorHome({ profile, onSignOut }: { profile: DoctorProfile; onS
       {patients === null && <p>Загрузка…</p>}
       {patients?.length === 0 && <p style={{ color: "#555" }}>Пока никого.</p>}
       {patients && patients.length > 0 && (
-        <ul style={{ paddingLeft: 18 }}>
+        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
           {patients.map((patient) => (
-            <li key={patient.id} style={{ marginBottom: 4 }}>
-              {patient.name ?? patient.email}
-              {patient.boundAt && <span style={{ color: "#777" }}> — с {formatDate(patient.boundAt)}</span>}
+            <li key={patient.id}>
+              <button
+                type="button"
+                onClick={() => setSelected(patient)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "12px 14px",
+                  borderRadius: 10,
+                  border: "1px solid " + (selected?.id === patient.id ? "#1f6feb" : "#d0d7de"),
+                  background: "white",
+                  cursor: "pointer",
+                  fontSize: 15,
+                }}
+              >
+                {patient.name ?? patient.email}
+                {patient.boundAt && <span style={{ color: "#777" }}> — с {formatDate(patient.boundAt)}</span>}
+              </button>
             </li>
           ))}
         </ul>
+      )}
+
+      {selected && (
+        <section style={{ marginTop: 24, padding: 20, border: "1px solid #d0d7de", borderRadius: 12 }}>
+          <h2 style={{ fontSize: 16, marginTop: 0 }}>{selected.name ?? selected.email}</h2>
+          <p style={{ color: "#555", margin: "4px 0" }}>{selected.email}</p>
+          {selected.boundAt && (
+            <p style={{ color: "#777", fontSize: 14, marginTop: 0 }}>Привязан(а) с {formatDate(selected.boundAt)}</p>
+          )}
+          <button
+            type="button"
+            onClick={() => void unbind(selected)}
+            style={{
+              padding: "8px 12px",
+              borderRadius: 8,
+              border: "1px solid #f0b4b4",
+              background: "#fff5f5",
+              color: "#b42318",
+              cursor: "pointer",
+            }}
+          >
+            Отвязать пациента
+          </button>
+        </section>
       )}
     </main>
   );
