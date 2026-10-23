@@ -5,6 +5,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDb } from "./db/client.js";
 import { authRoutes } from "./routes/auth.js";
+import { assessmentRoutes } from "./routes/assessments.js";
 import { bindRoutes } from "./routes/bind.js";
 import { healthRoutes } from "./routes/health.js";
 import { bindingCodeRoutes } from "./routes/binding-code.js";
@@ -30,6 +31,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(patientRoutes, { prefix: "/api" });
   await app.register(bindingCodeRoutes, { prefix: "/api" });
   await app.register(bindRoutes, { prefix: "/api" });
+  await app.register(assessmentRoutes, { prefix: "/api" });
 
   if (options.serveStatic) {
     await app.register(fastifyStatic, { root: join(here, "public") });

@@ -1,4 +1,4 @@
-import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const doctors = sqliteTable("doctors", {
   id: text("id").primaryKey(),
@@ -34,4 +34,27 @@ export const sessions = sqliteTable(
     createdAt: text("created_at").notNull(),
   },
   (table) => [index("idx_sessions_user").on(table.userId)],
+);
+
+export const assessments = sqliteTable(
+  "assessments",
+  {
+    id: text("id").primaryKey(),
+    patientId: text("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+    instrumentId: text("instrument_id").notNull(),
+    instrumentVersion: text("instrument_version").notNull(),
+    answers: text("answers").notNull(),
+    totalScore: integer("total_score").notNull(),
+    bandId: text("band_id").notNull(),
+    bandLabel: text("band_label").notNull(),
+    submissionId: text("submission_id").notNull(),
+    submittedAt: text("submitted_at").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_assessments_submission").on(table.patientId, table.submissionId),
+    index("idx_assessments_patient").on(table.patientId, table.submittedAt),
+  ],
 );

@@ -83,3 +83,41 @@ export type Draft<T> = {
   readonly value: T;
   readonly confirmedAt: string | null;
 };
+
+export const assessmentSubmitSchema = z.object({
+  submissionId: z.string().min(1).max(100),
+  answers: z.record(z.string(), z.number().int()),
+});
+
+export type AssessmentSubmit = z.infer<typeof assessmentSubmitSchema>;
+
+export const assessmentAnswerSchema = z.object({
+  itemId: z.string(),
+  text: z.string(),
+  value: z.number(),
+  label: z.string(),
+});
+
+/** The patient's own view: answers only, no score and no band. */
+export const patientAssessmentSchema = z.object({
+  id: z.string(),
+  instrumentId: z.string(),
+  instrumentTitle: z.string(),
+  submittedAt: z.string(),
+  answers: z.array(assessmentAnswerSchema),
+});
+
+export type PatientAssessment = z.infer<typeof patientAssessmentSchema>;
+
+/** The doctor's view: the same answers, scored. */
+export const doctorAssessmentSchema = z.object({
+  id: z.string(),
+  instrumentId: z.string(),
+  instrumentTitle: z.string(),
+  submittedAt: z.string(),
+  total: z.number(),
+  band: z.object({ id: z.string(), label: z.string() }),
+  criticalItems: z.array(z.string()),
+});
+
+export type DoctorAssessment = z.infer<typeof doctorAssessmentSchema>;
