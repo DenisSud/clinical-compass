@@ -118,6 +118,8 @@ export const doctorAssessmentSchema = z.object({
   total: z.number(),
   band: z.object({ id: z.string(), label: z.string() }),
   criticalItems: z.array(z.string()),
+  /** True when the stored instrument description is no longer available. */
+  instrumentMissing: z.boolean().optional(),
 });
 
 export type DoctorAssessment = z.infer<typeof doctorAssessmentSchema>;
@@ -241,7 +243,11 @@ export const checkinSubmitSchema = z.object({
   planItemId: z.string().min(1),
   status: checkinStatusSchema,
   reason: z.string().trim().max(500).optional(),
-  checkinDate: z.string().optional(),
+  // Same shape as the diary: everything downstream keys on this exact string.
+  checkinDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
 });
 
 /** One prescription as the patient sees it today. */
@@ -269,6 +275,7 @@ export type AdherenceItem = {
   planItemId: string;
   title: string;
   kind: PlanItem["kind"];
+  status: "active" | "archived";
   startedAt: string;
   days: AdherenceDay[];
   done: number;

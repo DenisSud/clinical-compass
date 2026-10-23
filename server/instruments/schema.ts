@@ -30,6 +30,8 @@ export const instrumentSchema = z.object({
   options: z.array(optionSchema).min(2),
   items: z.array(itemSchema).min(1),
   bands: z.array(bandSchema).min(1),
+  /** Which band is worth a signal. Clinical policy about this instrument, so it lives in the data. */
+  alert: z.object({ bandId: z.string().min(1) }).optional(),
   source: z.object({
     authors: z.string().min(1),
     validation_citation: z.string().nullable(),

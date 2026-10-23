@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
-import type { FastifyPluginAsync } from "fastify";
+import { and, desc, eq, lt } from "drizzle-orm";
+import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import {
   assessmentSubmitSchema,
   instrumentViewSchema,
@@ -82,6 +82,84 @@ function toDoctorAssessment(
   };
 }
 
+/**
+ * Derives and stores the signals for one submission. Conflict-safe, so the retry
+ * path calls it too: otherwise a first attempt that died before writing the signals
+ * would leave a stored questionnaire with a critical answer and no signal.
+ */
+async function deriveAssessmentSignals(
+  app: FastifyInstance,
+  input: {
+    patientId: string;
+    instrument: Instrument;
+    answers: Record<string, number>;
+    total: number;
+    submittedAt: string;
+    sourceId: string;
+  },
+): Promise<void> {
+  const [previous] = await app.conn.db
+    .select({ totalScore: assessments.totalScore })
+    .from(assessments)
+    .where(
+      and(
+        eq(assessments.patientId, input.patientId),
+        lt(assessments.submittedAt, input.submittedAt),
+      ),
+    )
+    .orderBy(desc(assessments.submittedAt))
+    .limit(1);
+
+  await raiseWatchSignals(app, {
+    patientId: input.patientId,
+    sourceType: "assessment",
+    sourceId: input.sourceId,
+    event: { type: "assessment", instrumentId: input.instrument.id, total: input.total },
+  });
+
+  await saveSignals(app, {
+    patientId: input.patientId,
+    sourceType: "assessment",
+    sourceId: input.sourceId,
+    drafts: signalsForAssessment({
+      instrument: input.instrument,
+      answers: input.answers,
+      total: input.total,
+      previousTotal: previous?.totalScore ?? null,
+    }),
+  });
+}
+
+/** A stored answer whose instrument description is gone still belongs in the history. */
+function degradedPatientAssessment(row: typeof assessments.$inferSelect): PatientAssessment {
+  const answers = JSON.parse(row.answers) as Record<string, number>;
+  return {
+    id: row.id,
+    instrumentId: row.instrumentId,
+    instrumentTitle: `«${row.instrumentId}» — описание опросника недоступно`,
+    submittedAt: row.submittedAt,
+    answers: Object.entries(answers).map(([itemId, value]) => ({
+      itemId,
+      text: itemId,
+      value,
+      label: String(value),
+    })),
+  };
+}
+
+function degradedDoctorAssessment(row: typeof assessments.$inferSelect): DoctorAssessment {
+  return {
+    id: row.id,
+    instrumentId: row.instrumentId,
+    instrumentTitle: `«${row.instrumentId}» — описание опросника недоступно`,
+    submittedAt: row.submittedAt,
+    total: row.totalScore,
+    band: { id: row.bandId, label: row.bandLabel },
+    criticalItems: [],
+    instrumentMissing: true,
+  };
+}
+
 export const assessmentRoutes: FastifyPluginAsync = async (app) => {
   app.get<{ Params: { id: string } }>(
     "/instruments/:id",
@@ -117,9 +195,31 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
       const [existing] = await app.conn.db
         .select()
         .from(assessments)
-        .where(eq(assessments.submissionId, parsed.data.submissionId))
+        .where(
+          and(
+            eq(assessments.patientId, patientId),
+            eq(assessments.submissionId, parsed.data.submissionId),
+          ),
+        )
         .limit(1);
-      if (existing && existing.patientId === patientId) {
+      if (existing) {
+        if (existing.instrumentId !== instrument.id) {
+          return fail(
+            reply,
+            409,
+            "wrong_instrument",
+            "Этот идентификатор отправки уже использован для другого опросника",
+          );
+        }
+        // First result wins, and the signals it deserves are repaired if missing.
+        await deriveAssessmentSignals(app, {
+          patientId,
+          instrument,
+          answers: JSON.parse(existing.answers) as Record<string, number>,
+          total: existing.totalScore,
+          submittedAt: existing.submittedAt,
+          sourceId: existing.id,
+        });
         return reply.code(200).send({ assessment: toPatientAssessment(instrument, existing) });
       }
 
@@ -143,13 +243,6 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
         throw error;
       }
 
-      const [previous] = await app.conn.db
-        .select({ totalScore: assessments.totalScore })
-        .from(assessments)
-        .where(eq(assessments.patientId, patientId))
-        .orderBy(desc(assessments.submittedAt))
-        .limit(1);
-
       const submittedAt = new Date().toISOString();
       const [row] = await app.conn.db
         .insert(assessments)
@@ -169,23 +262,13 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
         .returning();
       if (!row) throw new Error("insert returned no row");
 
-      await raiseWatchSignals(app, {
+      await deriveAssessmentSignals(app, {
         patientId,
-        sourceType: "assessment",
+        instrument,
+        answers: parsed.data.answers,
+        total: scored.total,
+        submittedAt,
         sourceId: row.id,
-        event: { type: "assessment", instrumentId: instrument.id, total: scored.total },
-      });
-
-      await saveSignals(app, {
-        patientId,
-        sourceType: "assessment",
-        sourceId: row.id,
-        drafts: signalsForAssessment({
-          instrument,
-          answers: parsed.data.answers,
-          total: scored.total,
-          previousTotal: previous?.totalScore ?? null,
-        }),
       });
 
       return reply.code(201).send({ assessment: toPatientAssessment(instrument, row) });
@@ -199,12 +282,16 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(assessments.patientId, requireAuth(request).userId))
       .orderBy(desc(assessments.submittedAt));
 
+    const lastInstrumentId = rows[0]?.instrumentId;
+
     return {
-      assessments: rows.flatMap((row) => {
+      assessments: rows.map((row) => {
         const instrument = findInstrument(row.instrumentId);
-        return instrument ? [toPatientAssessment(instrument, row)] : [];
+        return instrument ? toPatientAssessment(instrument, row) : degradedPatientAssessment(row);
       }),
-      nextAllowedAt: await nextAttemptAt(app, requireAuth(request).userId, "phq-9"),
+      nextAllowedAt: lastInstrumentId
+        ? await nextAttemptAt(app, requireAuth(request).userId, lastInstrumentId)
+        : null,
     };
   });
 
@@ -226,9 +313,9 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
         .orderBy(desc(assessments.submittedAt));
 
       return {
-        assessments: rows.flatMap((row) => {
+        assessments: rows.map((row) => {
           const instrument = findInstrument(row.instrumentId);
-          return instrument ? [toDoctorAssessment(instrument, row)] : [];
+          return instrument ? toDoctorAssessment(instrument, row) : degradedDoctorAssessment(row);
         }),
       };
     },

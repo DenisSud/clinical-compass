@@ -20,6 +20,8 @@ export function setSessionCookie(reply: FastifyReply, token: string): void {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
+    // The demo runs over http on localhost, where a secure cookie is never sent.
+    secure: process.env.NODE_ENV === "production",
     maxAge: Math.floor(SESSION_TTL_MS / 1000),
   });
 }

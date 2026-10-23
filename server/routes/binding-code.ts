@@ -20,15 +20,25 @@ function generateCode(): string {
 }
 
 async function issueCode(app: FastifyInstance, doctorId: string): Promise<BindingCodeResponse> {
-  const code = generateCode();
   const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString();
 
-  await app.conn.db
-    .update(doctors)
-    .set({ bindingCode: code, bindingCodeExpiresAt: expiresAt })
-    .where(eq(doctors.id, doctorId));
+  // Six symbols collide rarely, but "rarely" is not "never", and a 500 on issuing a
+  // code is a dead end for the doctor. Try another one.
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    const code = generateCode();
+    try {
+      await app.conn.db
+        .update(doctors)
+        .set({ bindingCode: code, bindingCodeExpiresAt: expiresAt })
+        .where(eq(doctors.id, doctorId));
+      return { code, expiresAt };
+    } catch (error) {
+      const collision = error instanceof Error && /UNIQUE constraint failed/.test(error.message);
+      if (!collision) throw error;
+    }
+  }
 
-  return { code, expiresAt };
+  throw new Error("could not issue a unique binding code");
 }
 
 export const bindingCodeRoutes: FastifyPluginAsync = async (app) => {

@@ -89,6 +89,9 @@ export const signalRoutes: FastifyPluginAsync = async (app) => {
     async (request, reply) => {
       const signal = await loadOwnSignal(app, requireAuth(request).userId, request.params.id);
       if (!signal.ok) return signal.reply(reply);
+      if (signal.row.status === "closed") {
+        return fail(reply, 409, "wrong_status", "Сигнал уже закрыт");
+      }
       if (signal.row.status !== "saved") {
         return fail(reply, 409, "wrong_status", "Сигнал уже взят в разбор");
       }
@@ -115,6 +118,10 @@ export const signalRoutes: FastifyPluginAsync = async (app) => {
       if (!parsed.success) return fail(reply, 400, "invalid_request", "Опишите результат разбора");
       if (signal.row.status === "closed") {
         return fail(reply, 409, "wrong_status", "Сигнал уже закрыт");
+      }
+      // saved -> closed would leave a closed signal nobody ever took into review.
+      if (signal.row.status === "saved") {
+        return fail(reply, 409, "wrong_status", "Сначала возьмите сигнал в разбор");
       }
 
       const closedAt = new Date().toISOString();

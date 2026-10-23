@@ -9,8 +9,6 @@ export type SignalDraft = {
   detail: string;
 };
 
-const CRITICAL_ITEM = "q9";
-const SEVERE_TOTAL = 15;
 const WORSENING_DELTA = 5;
 const LOW_WELLBEING = 3;
 const SHARP_DROP = 3;
@@ -27,24 +25,41 @@ export function signalsForAssessment(input: {
   previousTotal: number | null;
 }): SignalDraft[] {
   const signals: SignalDraft[] = [];
-  const critical = input.answers[CRITICAL_ITEM] ?? 0;
 
-  if (critical > 0) {
+  // The instrument says which items are critical and which band deserves a signal.
+  // Nothing here may hardcode a questionnaire's item ids, bands or maximum: a second
+  // instrument would silently inherit the first one's clinical rules.
+  const flagged = input.instrument.items.filter(
+    (item) => item.critical && (input.answers[item.id] ?? 0) > 0,
+  );
+  if (flagged.length > 0) {
     signals.push({
       kind: "critical_item",
       severity: "critical",
       title: "Отмечен критический пункт опросника",
-      detail:
-        "В ответах на PHQ-9 отмечены мысли о смерти или самоповреждении. Нужен разбор врачом.",
+      detail: `В ответах на «${input.instrument.title}» отмечены пункты, требующие разбора врачом: ${flagged
+        .map((item) => item.id)
+        .join(", ")}.`,
     });
   }
 
-  if (input.total >= SEVERE_TOTAL) {
+  const topScore = input.instrument.items.length * Math.max(...input.instrument.options.map((option) => option.value));
+  const alertBand =
+    input.instrument.bands.find((band) => band.id === input.instrument.alert?.bandId) ??
+    [...input.instrument.bands].sort((left, right) => right.min - left.min)[0];
+
+  // The alert band decides whether this is worth a signal. The label must come from
+  // the band the score actually falls into, otherwise a 24 reads as "moderately severe".
+  const actualBand = input.instrument.bands.find(
+    (band) => input.total >= band.min && input.total <= band.max,
+  );
+
+  if (alertBand && actualBand && input.total >= alertBand.min) {
     signals.push({
       kind: "severe_total",
       severity: "high",
-      title: `Выраженные проявления: ${input.total} из 27`,
-      detail: "Сумма ответов попала в диапазон выраженных проявлений.",
+      title: `${actualBand.label}: ${input.total} из ${topScore}`,
+      detail: `Сумма ответов попала в диапазон «${actualBand.label}» (${actualBand.min}–${actualBand.max}).`,
     });
   }
 

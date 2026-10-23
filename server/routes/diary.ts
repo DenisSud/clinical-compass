@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { and, desc, eq } from "drizzle-orm";
-import type { FastifyPluginAsync } from "fastify";
+import { and, desc, eq, lt } from "drizzle-orm";
+import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import { diarySubmitSchema, type DiaryEntry } from "../../shared/contracts.js";
 import { requireAuth, requireRole } from "../auth/guard.js";
 import { diaryEntries } from "../db/schema.js";
@@ -9,6 +9,38 @@ import { loadPatientForDoctor } from "../patient-access.js";
 import { signalsForDiary } from "../rules/signals.js";
 import { raiseWatchSignals } from "../watch-service.js";
 import { saveSignals } from "./signals.js";
+
+/**
+ * Derives and stores the signals for one entry. Conflict-safe, so calling it again
+ * on a retry repairs a first attempt that died between the insert and the signals.
+ */
+async function deriveDiarySignals(
+  app: FastifyInstance,
+  patientId: string,
+  row: typeof diaryEntries.$inferSelect,
+): Promise<void> {
+  const [previous] = await app.conn.db
+    .select({ value: diaryEntries.value })
+    .from(diaryEntries)
+    .where(and(eq(diaryEntries.patientId, patientId), lt(diaryEntries.entryDate, row.entryDate)))
+    .orderBy(desc(diaryEntries.entryDate), desc(diaryEntries.createdAt))
+    .limit(1);
+  const previousValue = previous?.value ?? null;
+
+  await saveSignals(app, {
+    patientId,
+    sourceType: "diary",
+    sourceId: row.id,
+    drafts: signalsForDiary({ value: row.value, previousValue }),
+  });
+
+  await raiseWatchSignals(app, {
+    patientId,
+    sourceType: "diary",
+    sourceId: row.id,
+    event: { type: "diary", value: row.value, previousValue },
+  });
+}
 
 function toEntry(row: typeof diaryEntries.$inferSelect): DiaryEntry {
   return {
@@ -26,21 +58,22 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
     if (!parsed.success) return fail(reply, 400, "invalid_request", "Оценка — от 1 до 10");
 
     const patientId = requireAuth(request).userId;
+    // Scoped to this patient: the unique index is (patient_id, submission_id), so two
+    // patients may hold the same id and an unscoped lookup could miss the caller's row.
     const [existing] = await app.conn.db
       .select()
       .from(diaryEntries)
-      .where(eq(diaryEntries.submissionId, parsed.data.submissionId))
+      .where(
+        and(
+          eq(diaryEntries.patientId, patientId),
+          eq(diaryEntries.submissionId, parsed.data.submissionId),
+        ),
+      )
       .limit(1);
-    if (existing && existing.patientId === patientId) {
+    if (existing) {
+      await deriveDiarySignals(app, patientId, existing);
       return reply.code(200).send({ entry: toEntry(existing) });
     }
-
-    const [previous] = await app.conn.db
-      .select({ value: diaryEntries.value })
-      .from(diaryEntries)
-      .where(eq(diaryEntries.patientId, patientId))
-      .orderBy(desc(diaryEntries.entryDate), desc(diaryEntries.createdAt))
-      .limit(1);
 
     const createdAt = new Date().toISOString();
     const entryDate = parsed.data.entryDate ?? createdAt.slice(0, 10);
@@ -79,19 +112,7 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
       .returning();
     if (!row) throw new Error("insert returned no row");
 
-    await saveSignals(app, {
-      patientId,
-      sourceType: "diary",
-      sourceId: row.id,
-      drafts: signalsForDiary({ value: row.value, previousValue: previous?.value ?? null }),
-    });
-
-    await raiseWatchSignals(app, {
-      patientId,
-      sourceType: "diary",
-      sourceId: row.id,
-      event: { type: "diary", value: row.value, previousValue: previous?.value ?? null },
-    });
+    await deriveDiarySignals(app, patientId, row);
 
     return reply.code(201).send({ entry: toEntry(row) });
   });

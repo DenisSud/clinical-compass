@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, gte } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import {
   checkinSubmitSchema,
@@ -171,10 +171,17 @@ export const checkinRoutes: FastifyPluginAsync = async (app) => {
       const day = today();
       const windowStart = shiftDate(day, -(windowDays - 1));
 
+      // Archived prescriptions keep their history: what the patient did while taking
+      // them decides the next prescription, so it cannot disappear with the item.
       const items = await app.conn.db
         .select()
         .from(planItems)
-        .where(and(eq(planItems.patientId, lookup.patient.id), eq(planItems.status, "active")))
+        .where(
+          and(
+            eq(planItems.patientId, lookup.patient.id),
+            inArray(planItems.status, ["active", "archived"]),
+          ),
+        )
         .orderBy(asc(planItems.confirmedAt));
 
       const recorded = await app.conn.db
@@ -204,6 +211,7 @@ export const checkinRoutes: FastifyPluginAsync = async (app) => {
           planItemId: item.id,
           title: item.title,
           kind: item.kind as AdherenceItem["kind"],
+          status: item.status as AdherenceItem["status"],
           startedAt,
           days,
           done: days.filter((entry) => entry.state === "done").length,

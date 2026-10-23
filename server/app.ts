@@ -4,6 +4,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDb } from "./db/client.js";
+import { fail } from "./http/errors.js";
 import { authRoutes } from "./routes/auth.js";
 import { assessmentRoutes } from "./routes/assessments.js";
 import { diaryRoutes } from "./routes/diary.js";
@@ -32,6 +33,14 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   app.decorate("conn", createDb(options.dbPath ?? process.env.SQLITE_DB ?? "var/app.db"));
   await app.register(fastifyCookie);
+
+  // Without this, a thrown error returns Fastify's own body, and a client that
+  // validates against apiErrorSchema sees garbage exactly when something broke.
+  app.setErrorHandler((error, request, reply) => {
+    request.log.error(error);
+    return fail(reply, 500, "internal", "Внутренняя ошибка сервера");
+  });
+
   await app.register(healthRoutes, { prefix: "/api" });
   await app.register(authRoutes, { prefix: "/api" });
   await app.register(meRoutes, { prefix: "/api" });
