@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
 import { MessageThread } from "./MessageThread";
 import { PlanPanel } from "./PlanPanel";
-import type { DiaryEntry, DoctorAssessment, Message, PatientSummary } from "../../shared/contracts";
-import { fetchPatientAssessments, fetchPatientDiary, fetchPatientMessages, sendPatientMessage, unbindPatient } from "./api";
+import type { DiaryEntry, DoctorAssessment, Message, PatientSummary, TherapyCard } from "../../shared/contracts";
+import {
+  fetchPatientAssessments,
+  fetchPatientDiary,
+  fetchPatientMessages,
+  fetchRecommendations,
+  sendPatientMessage,
+  unbindPatient,
+} from "./api";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
@@ -13,6 +20,8 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
   const [entries, setEntries] = useState<DiaryEntry[] | null>(null);
   const [messages, setMessages] = useState<Message[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
+  const [cards, setCards] = useState<TherapyCard[] | null>(null);
+  const [missing, setMissing] = useState<string[]>([]);
 
   useEffect(() => {
     setAssessments(null);
@@ -27,6 +36,12 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
     fetchPatientMessages(patient.id)
       .then((response) => setMessages(response.messages))
       .catch(() => setLoadFailed(true));
+    fetchRecommendations(patient.id)
+      .then((response) => {
+        setCards(response.cards);
+        setMissing(response.missing);
+      })
+      .catch(() => setCards([]));
   }, [patient.id]);
 
   return (
@@ -41,6 +56,53 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
         <p style={{ color: "#b42318", fontSize: 14 }}>
           Не удалось загрузить часть данных. Это не значит, что их нет — обновите страницу.
         </p>
+      )}
+
+      <h3 style={{ fontSize: 15, marginTop: 20 }}>Варианты терапии</h3>
+      {cards === null && <p style={{ color: "#777" }}>Загрузка…</p>}
+      {cards?.length === 0 && (
+        <p style={{ color: "#555", marginTop: 0 }}>
+          Рекомендации не построены — нет документов, на которые можно опереться.
+        </p>
+      )}
+      {cards && cards.length > 0 && (
+        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
+          {cards.map((card) => (
+            <li key={card.id} style={{ padding: 12, borderRadius: 10, border: "1px solid #d0d7de" }}>
+              <strong>{card.title}</strong>
+              <p style={{ margin: "6px 0 0", fontSize: 14 }}>
+                <em>Основание:</em> {card.basis}
+              </p>
+              {card.missing.length > 0 && (
+                <div style={{ marginTop: 6, fontSize: 14, color: "#b54708" }}>
+                  Не хватает: {card.missing.join("; ")}
+                </div>
+              )}
+              {card.source && (
+                <a
+                  href={card.source.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ fontSize: 13, color: "#1f6feb" }}
+                >
+                  Источник
+                </a>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {missing.length > 0 && (
+        <div style={{ marginTop: 10, padding: 12, borderRadius: 10, background: "#fffaeb" }}>
+          <p style={{ margin: 0, fontSize: 14, color: "#b54708" }}>
+            <strong>Чего не хватает для рекомендаций:</strong>
+          </p>
+          <ul style={{ margin: "6px 0 0", paddingLeft: 20, fontSize: 14, color: "#b54708" }}>
+            {missing.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
       )}
 
       <h3 style={{ fontSize: 15, marginTop: 20 }}>Опросник PHQ-9</h3>

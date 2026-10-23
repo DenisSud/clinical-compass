@@ -5,6 +5,7 @@ import type {
   DoctorSignal,
   Message,
   PlanItem,
+  TherapyCard,
   Signal,
   DoctorAssessment,
   InstrumentView,
@@ -206,4 +207,12 @@ export function sendPatientMessage(id: string, body: string): Promise<{ message:
     method: "POST",
     body: JSON.stringify({ body }),
   });
+}
+
+export function fetchRecommendations(
+  patientId: string,
+): Promise<{ cards: TherapyCard[]; missing: string[] }> {
+  return request<{ cards: TherapyCard[]; missing: string[] }>(
+    `/api/patients/${patientId}/recommendations`,
+  );
 }

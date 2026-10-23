@@ -215,3 +215,20 @@ export const messageSchema = z.object({
 });
 
 export type Message = z.infer<typeof messageSchema>;
+
+/**
+ * A recommendation the doctor may act on. `basis` is why it is on screen at all,
+ * `missing` is what we do not know and would need before deciding. A card with an
+ * empty basis is a defect: the case requires every recommendation to explain itself.
+ */
+export const therapyCardSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  basis: z.string(),
+  missing: z.array(z.string()),
+  source: z
+    .object({ kind: z.enum(["smpc", "guideline"]), ref: z.string(), url: z.string() })
+    .nullable(),
+});
+
+export type TherapyCard = z.infer<typeof therapyCardSchema>;
