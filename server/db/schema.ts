@@ -77,3 +77,28 @@ export const diaryEntries = sqliteTable(
     index("idx_diary_patient").on(table.patientId, table.entryDate),
   ],
 );
+
+export const signals = sqliteTable(
+  "signals",
+  {
+    id: text("id").primaryKey(),
+    patientId: text("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    severity: text("severity").notNull(),
+    title: text("title").notNull(),
+    detail: text("detail").notNull(),
+    sourceType: text("source_type").notNull(),
+    sourceId: text("source_id").notNull(),
+    status: text("status").notNull(),
+    outcome: text("outcome"),
+    createdAt: text("created_at").notNull(),
+    takenAt: text("taken_at"),
+    closedAt: text("closed_at"),
+  },
+  (table) => [
+    uniqueIndex("idx_signals_source").on(table.sourceType, table.sourceId, table.kind),
+    index("idx_signals_patient").on(table.patientId, table.status),
+  ],
+);

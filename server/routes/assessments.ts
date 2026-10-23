@@ -14,6 +14,8 @@ import { instrument as findInstrument } from "../instruments/loader.js";
 import type { Instrument } from "../instruments/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
+import { signalsForAssessment } from "../rules/signals.js";
+import { saveSignals } from "./signals.js";
 
 function answerList(instrument: Instrument, answers: Record<string, number>) {
   return instrument.items.map((item) => ({
@@ -105,6 +107,13 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
         throw error;
       }
 
+      const [previous] = await app.conn.db
+        .select({ totalScore: assessments.totalScore })
+        .from(assessments)
+        .where(eq(assessments.patientId, patientId))
+        .orderBy(desc(assessments.submittedAt))
+        .limit(1);
+
       const submittedAt = new Date().toISOString();
       const [row] = await app.conn.db
         .insert(assessments)
@@ -123,6 +132,18 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
         })
         .returning();
       if (!row) throw new Error("insert returned no row");
+
+      await saveSignals(app, {
+        patientId,
+        sourceType: "assessment",
+        sourceId: row.id,
+        drafts: signalsForAssessment({
+          instrument,
+          answers: parsed.data.answers,
+          total: scored.total,
+          previousTotal: previous?.totalScore ?? null,
+        }),
+      });
 
       return reply.code(201).send({ assessment: toPatientAssessment(instrument, row) });
     },

@@ -2,6 +2,8 @@ import type {
   AssessmentSubmit,
   Credentials,
   DiaryEntry,
+  DoctorSignal,
+  Signal,
   DoctorAssessment,
   InstrumentView,
   PatientAssessment,
@@ -131,4 +133,23 @@ export function fetchMyDiary(): Promise<{ entries: DiaryEntry[] }> {
 
 export function fetchPatientDiary(id: string): Promise<{ entries: DiaryEntry[] }> {
   return request<{ entries: DiaryEntry[] }>(`/api/patients/${id}/diary`);
+}
+
+export function fetchSignals(): Promise<{ signals: DoctorSignal[] }> {
+  return request<{ signals: DoctorSignal[] }>("/api/signals");
+}
+
+export function fetchPatientSignals(id: string): Promise<{ signals: Signal[] }> {
+  return request<{ signals: Signal[] }>(`/api/patients/${id}/signals`);
+}
+
+export function takeSignal(id: string): Promise<{ signal: Signal }> {
+  return request<{ signal: Signal }>(`/api/signals/${id}/take`, { method: "POST" });
+}
+
+export function closeSignal(id: string, outcome: string): Promise<{ signal: Signal }> {
+  return request<{ signal: Signal }>(`/api/signals/${id}/close`, {
+    method: "POST",
+    body: JSON.stringify({ outcome }),
+  });
 }

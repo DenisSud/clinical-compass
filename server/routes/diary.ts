@@ -6,6 +6,8 @@ import { requireAuth, requireRole } from "../auth/guard.js";
 import { diaryEntries } from "../db/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
+import { signalsForDiary } from "../rules/signals.js";
+import { saveSignals } from "./signals.js";
 
 function toEntry(row: typeof diaryEntries.$inferSelect): DiaryEntry {
   return {
@@ -32,6 +34,13 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
       return reply.code(200).send({ entry: toEntry(existing) });
     }
 
+    const [previous] = await app.conn.db
+      .select({ value: diaryEntries.value })
+      .from(diaryEntries)
+      .where(eq(diaryEntries.patientId, patientId))
+      .orderBy(desc(diaryEntries.entryDate), desc(diaryEntries.createdAt))
+      .limit(1);
+
     const createdAt = new Date().toISOString();
     const [row] = await app.conn.db
       .insert(diaryEntries)
@@ -46,6 +55,13 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
       })
       .returning();
     if (!row) throw new Error("insert returned no row");
+
+    await saveSignals(app, {
+      patientId,
+      sourceType: "diary",
+      sourceId: row.id,
+      drafts: signalsForDiary({ value: row.value, previousValue: previous?.value ?? null }),
+    });
 
     return reply.code(201).send({ entry: toEntry(row) });
   });

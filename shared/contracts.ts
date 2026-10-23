@@ -153,3 +153,29 @@ export const instrumentViewSchema = z.object({
 });
 
 export type InstrumentView = z.infer<typeof instrumentViewSchema>;
+
+export const signalSchema = z.object({
+  id: z.string(),
+  patientId: z.string(),
+  kind: z.string(),
+  severity: z.enum(["critical", "high", "medium"]),
+  title: z.string(),
+  detail: z.string(),
+  status: z.enum(["saved", "in_review", "closed"]),
+  outcome: z.string().nullable(),
+  createdAt: z.string(),
+  takenAt: z.string().nullable(),
+  closedAt: z.string().nullable(),
+});
+
+export type Signal = z.infer<typeof signalSchema>;
+
+export const doctorSignalSchema = signalSchema.extend({
+  patient: z.object({ id: z.string(), email: z.string(), name: z.string().nullable() }).nullable(),
+});
+
+export type DoctorSignal = z.infer<typeof doctorSignalSchema>;
+
+export const signalCloseSchema = z.object({
+  outcome: z.string().trim().min(3).max(2000),
+});

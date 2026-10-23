@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { DoctorProfile, BindingCodeResponse, PatientSummary } from "../../shared/contracts";
 import { fetchBindingCode, fetchPatients, rotateBindingCode } from "./api";
 import { PatientDetail } from "./PatientDetail";
+import { SignalsPanel } from "./SignalsPanel";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
@@ -61,6 +62,8 @@ export function DoctorHome({ profile, onSignOut }: { profile: DoctorProfile; onS
           Перевыпустить код
         </button>
       </section>
+
+      <SignalsPanel onChanged={load} />
 
       <h2 style={{ fontSize: 16, marginTop: 32 }}>Мои пациенты</h2>
       {patients === null && <p>Загрузка…</p>}
