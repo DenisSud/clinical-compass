@@ -179,3 +179,39 @@ export type DoctorSignal = z.infer<typeof doctorSignalSchema>;
 export const signalCloseSchema = z.object({
   outcome: z.string().trim().min(3).max(2000),
 });
+
+export const planItemKindSchema = z.enum(["medication", "therapy", "observation", "referral"]);
+
+export const planItemCreateSchema = z.object({
+  kind: planItemKindSchema,
+  title: z.string().trim().min(1).max(200),
+  details: z.string().trim().max(2000).optional(),
+});
+
+export const planItemSchema = z.object({
+  id: z.string(),
+  patientId: z.string(),
+  kind: planItemKindSchema,
+  title: z.string(),
+  details: z.string().nullable(),
+  status: z.enum(["draft", "active", "archived"]),
+  createdAt: z.string(),
+  confirmedAt: z.string().nullable(),
+  archivedAt: z.string().nullable(),
+});
+
+export type PlanItem = z.infer<typeof planItemSchema>;
+
+export const messageCreateSchema = z.object({
+  body: z.string().trim().min(1).max(4000),
+});
+
+export const messageSchema = z.object({
+  id: z.string(),
+  patientId: z.string(),
+  authorRole: z.enum(["doctor", "patient"]),
+  body: z.string(),
+  createdAt: z.string(),
+});
+
+export type Message = z.infer<typeof messageSchema>;

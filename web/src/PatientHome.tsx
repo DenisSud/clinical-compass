@@ -1,7 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
-import type { DiaryEntry, PatientAssessment, PatientProfile } from "../../shared/contracts";
-import { ApiRequestError, bindToDoctor, fetchMyAssessments, fetchMyDiary } from "./api";
+import type { DiaryEntry, Message, PatientAssessment, PatientProfile, PlanItem } from "../../shared/contracts";
+import {
+  ApiRequestError,
+  bindToDoctor,
+  fetchMyAssessments,
+  fetchMyDiary,
+  fetchMyMessages,
+  fetchMyPlan,
+  sendMessage,
+} from "./api";
 import { DiaryForm } from "./DiaryForm";
+import { MessageThread } from "./MessageThread";
 import { Phq9Form } from "./Phq9Form";
 
 const CARD = { marginTop: 24, padding: 20, border: "1px solid #d0d7de", borderRadius: 12 } as const;
@@ -25,6 +34,8 @@ export function PatientHome({
   const [assessments, setAssessments] = useState<PatientAssessment[] | null>(null);
   const [entries, setEntries] = useState<DiaryEntry[] | null>(null);
   const [openForm, setOpenForm] = useState<"phq9" | null>(null);
+  const [plan, setPlan] = useState<PlanItem[] | null>(null);
+  const [messages, setMessages] = useState<Message[] | null>(null);
 
   const reload = useCallback(() => {
     fetchMyAssessments()
@@ -33,6 +44,12 @@ export function PatientHome({
     fetchMyDiary()
       .then((response) => setEntries(response.entries))
       .catch(() => setEntries([]));
+    fetchMyPlan()
+      .then((response) => setPlan(response.items))
+      .catch(() => setPlan([]));
+    fetchMyMessages()
+      .then((response) => setMessages(response.messages))
+      .catch(() => setMessages([]));
   }, []);
 
   useEffect(reload, [reload]);
@@ -111,6 +128,48 @@ export function PatientHome({
           {error && <p style={{ color: "#b42318", fontSize: 14 }}>{error}</p>}
         </>
       )}
+
+      <section style={CARD}>
+        <h2 style={{ fontSize: 16, marginTop: 0 }}>План лечения</h2>
+        {plan === null && <p style={{ color: "#777" }}>Загрузка…</p>}
+        {plan?.length === 0 && (
+          <p style={{ color: "#777", marginTop: 0 }}>
+            Врач пока не добавил план. Пункты появляются здесь после того, как врач их подтвердит.
+          </p>
+        )}
+        {plan && plan.length > 0 && (
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
+            {plan.map((item) => (
+              <li key={item.id} style={{ borderLeft: "3px solid #1a7f37", paddingLeft: 12 }}>
+                <strong>{item.title}</strong>
+                {item.details && <p style={{ margin: "2px 0 0", color: "#333" }}>{item.details}</p>}
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section style={CARD}>
+        <h2 style={{ fontSize: 16, marginTop: 0 }}>Вопрос врачу</h2>
+        {messages === null ? (
+          <p style={{ color: "#777" }}>Загрузка…</p>
+        ) : (
+          <MessageThread
+            messages={messages}
+            placeholder="Например: стало хуже спать, что делать?"
+            onSend={async (body) => {
+              await sendMessage(body);
+              const refreshed = await fetchMyMessages();
+              setMessages(refreshed.messages);
+            }}
+          />
+        )}
+        {!profile.doctor && (
+          <p style={{ color: "#777", fontSize: 13, marginBottom: 0 }}>
+            Пока вы не привязаны к врачу, сообщения видит только ваша карточка.
+          </p>
+        )}
+      </section>
 
       <section style={CARD}>
         <h2 style={{ fontSize: 16, marginTop: 0 }}>Самочувствие</h2>

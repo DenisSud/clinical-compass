@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
-import type { DiaryEntry, DoctorAssessment, PatientSummary } from "../../shared/contracts";
-import { fetchPatientAssessments, fetchPatientDiary, unbindPatient } from "./api";
+import { MessageThread } from "./MessageThread";
+import { PlanPanel } from "./PlanPanel";
+import type { DiaryEntry, DoctorAssessment, Message, PatientSummary } from "../../shared/contracts";
+import { fetchPatientAssessments, fetchPatientDiary, fetchPatientMessages, sendPatientMessage, unbindPatient } from "./api";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
@@ -9,6 +11,7 @@ function formatDate(iso: string): string {
 export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary; onUnbound: () => void }) {
   const [assessments, setAssessments] = useState<DoctorAssessment[] | null>(null);
   const [entries, setEntries] = useState<DiaryEntry[] | null>(null);
+  const [messages, setMessages] = useState<Message[] | null>(null);
 
   useEffect(() => {
     setAssessments(null);
@@ -19,6 +22,9 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
     fetchPatientDiary(patient.id)
       .then((response) => setEntries(response.entries))
       .catch(() => setEntries([]));
+    fetchPatientMessages(patient.id)
+      .then((response) => setMessages(response.messages))
+      .catch(() => setMessages([]));
   }, [patient.id]);
 
   return (
@@ -76,6 +82,24 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
             </li>
           ))}
         </ul>
+      )}
+
+      <h3 style={{ fontSize: 15, marginTop: 24 }}>План лечения</h3>
+      <PlanPanel patientId={patient.id} />
+
+      <h3 style={{ fontSize: 15, marginTop: 24 }}>Переписка</h3>
+      {messages === null ? (
+        <p style={{ color: "#777" }}>Загрузка…</p>
+      ) : (
+        <MessageThread
+          messages={messages}
+          placeholder="Ответить пациенту"
+          onSend={async (body) => {
+            await sendPatientMessage(patient.id, body);
+            const refreshed = await fetchPatientMessages(patient.id);
+            setMessages(refreshed.messages);
+          }}
+        />
       )}
 
       <button

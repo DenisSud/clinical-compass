@@ -102,3 +102,35 @@ export const signals = sqliteTable(
     index("idx_signals_patient").on(table.patientId, table.status),
   ],
 );
+
+export const planItems = sqliteTable(
+  "plan_items",
+  {
+    id: text("id").primaryKey(),
+    patientId: text("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    details: text("details"),
+    status: text("status").notNull(),
+    createdAt: text("created_at").notNull(),
+    confirmedAt: text("confirmed_at"),
+    archivedAt: text("archived_at"),
+  },
+  (table) => [index("idx_plan_patient").on(table.patientId, table.status)],
+);
+
+export const messages = sqliteTable(
+  "messages",
+  {
+    id: text("id").primaryKey(),
+    patientId: text("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+    authorRole: text("author_role").notNull(),
+    body: text("body").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [index("idx_messages_patient").on(table.patientId, table.createdAt)],
+);

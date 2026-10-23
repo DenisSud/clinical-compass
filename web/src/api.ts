@@ -3,6 +3,8 @@ import type {
   Credentials,
   DiaryEntry,
   DoctorSignal,
+  Message,
+  PlanItem,
   Signal,
   DoctorAssessment,
   InstrumentView,
@@ -151,5 +153,53 @@ export function closeSignal(id: string, outcome: string): Promise<{ signal: Sign
   return request<{ signal: Signal }>(`/api/signals/${id}/close`, {
     method: "POST",
     body: JSON.stringify({ outcome }),
+  });
+}
+
+export function fetchMyPlan(): Promise<{ items: PlanItem[] }> {
+  return request<{ items: PlanItem[] }>("/api/plan");
+}
+
+export function fetchPatientPlan(id: string): Promise<{ items: PlanItem[] }> {
+  return request<{ items: PlanItem[] }>(`/api/patients/${id}/plan`);
+}
+
+export function createPlanItem(
+  patientId: string,
+  payload: { kind: PlanItem["kind"]; title: string; details?: string },
+): Promise<{ item: PlanItem }> {
+  return request<{ item: PlanItem }>(`/api/patients/${patientId}/plan`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function confirmPlanItem(id: string): Promise<{ item: PlanItem }> {
+  return request<{ item: PlanItem }>(`/api/plan/${id}/confirm`, { method: "POST" });
+}
+
+export function archivePlanItem(id: string): Promise<{ item: PlanItem }> {
+  return request<{ item: PlanItem }>(`/api/plan/${id}/archive`, { method: "POST" });
+}
+
+export function fetchMyMessages(): Promise<{ messages: Message[] }> {
+  return request<{ messages: Message[] }>("/api/messages");
+}
+
+export function sendMessage(body: string): Promise<{ message: Message }> {
+  return request<{ message: Message }>("/api/messages", {
+    method: "POST",
+    body: JSON.stringify({ body }),
+  });
+}
+
+export function fetchPatientMessages(id: string): Promise<{ messages: Message[] }> {
+  return request<{ messages: Message[] }>(`/api/patients/${id}/messages`);
+}
+
+export function sendPatientMessage(id: string, body: string): Promise<{ message: Message }> {
+  return request<{ message: Message }>(`/api/patients/${id}/messages`, {
+    method: "POST",
+    body: JSON.stringify({ body }),
   });
 }
