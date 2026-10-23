@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { PatientProfile } from "../../shared/contracts";
-import { ApiError, bindToDoctor } from "./api";
+import { ApiRequestError, bindToDoctor } from "./api";
 
 export function PatientHome({
   profile,
@@ -24,7 +24,7 @@ export function PatientHome({
       setCode("");
       onChanged();
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : "Не удалось привязаться");
+      setError(cause instanceof ApiRequestError ? cause.message : "Не удалось привязаться");
     } finally {
       setBusy(false);
     }

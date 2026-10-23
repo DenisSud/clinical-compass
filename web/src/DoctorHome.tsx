@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import type { DoctorProfile, LinkCodeResponse, PatientSummary } from "../../shared/contracts";
-import { fetchLinkCode, fetchPatients, rotateLinkCode, unbindPatient } from "./api";
+import type { DoctorProfile, BindingCodeResponse, PatientSummary } from "../../shared/contracts";
+import { fetchBindingCode, fetchPatients, rotateBindingCode, unbindPatient } from "./api";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
@@ -8,14 +8,14 @@ function formatDate(iso: string): string {
 
 export function DoctorHome({ profile, onSignOut }: { profile: DoctorProfile; onSignOut: () => void }) {
   const [patients, setPatients] = useState<PatientSummary[] | null>(null);
-  const [linkCode, setLinkCode] = useState<LinkCodeResponse | null>(null);
+  const [bindingCode, setLinkCode] = useState<BindingCodeResponse | null>(null);
   const [selected, setSelected] = useState<PatientSummary | null>(null);
 
   const load = useCallback(() => {
     fetchPatients()
       .then((response) => setPatients(response.patients))
       .catch(() => setPatients([]));
-    fetchLinkCode()
+    fetchBindingCode()
       .then(setLinkCode)
       .catch(() => setLinkCode(null));
   }, []);
@@ -23,7 +23,7 @@ export function DoctorHome({ profile, onSignOut }: { profile: DoctorProfile; onS
   useEffect(load, [load]);
 
   async function rotate() {
-    setLinkCode(await rotateLinkCode());
+    setLinkCode(await rotateBindingCode());
   }
 
   async function unbind(patient: PatientSummary) {
@@ -48,12 +48,12 @@ export function DoctorHome({ profile, onSignOut }: { profile: DoctorProfile; onS
         <p style={{ color: "#555", marginTop: 4, fontSize: 14 }}>
           Пациент вводит этот код у себя, чтобы привязаться к вам.
         </p>
-        {linkCode ? (
+        {bindingCode ? (
           <>
             <p style={{ fontFamily: "ui-monospace, monospace", fontSize: 32, letterSpacing: 6, margin: "12px 0" }}>
-              {linkCode.code}
+              {bindingCode.code}
             </p>
-            <p style={{ color: "#777", fontSize: 14, marginTop: 0 }}>Действует до {formatDate(linkCode.expiresAt)}</p>
+            <p style={{ color: "#777", fontSize: 14, marginTop: 0 }}>Действует до {formatDate(bindingCode.expiresAt)}</p>
           </>
         ) : (
           <p style={{ color: "#777" }}>Код не получен</p>

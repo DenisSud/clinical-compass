@@ -1,21 +1,20 @@
 import { eq } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
-import type { PatientSummary } from "../../shared/contracts.js";
-import { requireRole } from "../auth/guard.js";
+import { requireAuth, requireRole } from "../auth/guard.js";
 import { patients } from "../db/schema.js";
+import { forbidden, notFound } from "../http/errors.js";
+import { toPatientSummary } from "./profiles.js";
 
-function toSummary(row: typeof patients.$inferSelect): PatientSummary {
-  return { id: row.id, email: row.email, name: row.name, boundAt: row.boundAt };
-}
+const NOT_YOURS = "Этот пациент ведёт другой врач";
 
 export const patientRoutes: FastifyPluginAsync = async (app) => {
   app.get("/patients", { preHandler: requireRole("doctor") }, async (request) => {
     const rows = await app.conn.db
       .select()
       .from(patients)
-      .where(eq(patients.doctorId, request.auth!.userId));
+      .where(eq(patients.doctorId, requireAuth(request).userId));
 
-    return { patients: rows.map(toSummary) };
+    return { patients: rows.map(toPatientSummary) };
   });
 
   app.get<{ Params: { id: string } }>(
@@ -28,14 +27,10 @@ export const patientRoutes: FastifyPluginAsync = async (app) => {
         .where(eq(patients.id, request.params.id))
         .limit(1);
 
-      if (!patient) {
-        return reply.code(404).send({ code: "not_found", message: "Пациент не найден" });
-      }
-      if (patient.doctorId !== request.auth!.userId) {
-        return reply.code(403).send({ code: "forbidden", message: "Этот пациент ведёт другой врач" });
-      }
+      if (!patient) return notFound(reply, "Пациент не найден");
+      if (patient.doctorId !== requireAuth(request).userId) return forbidden(reply, NOT_YOURS);
 
-      return { patient: toSummary(patient) };
+      return { patient: toPatientSummary(patient) };
     },
   );
 
@@ -49,12 +44,8 @@ export const patientRoutes: FastifyPluginAsync = async (app) => {
         .where(eq(patients.id, request.params.id))
         .limit(1);
 
-      if (!patient) {
-        return reply.code(404).send({ code: "not_found", message: "Пациент не найден" });
-      }
-      if (patient.doctorId !== request.auth!.userId) {
-        return reply.code(403).send({ code: "forbidden", message: "Этот пациент ведёт другой врач" });
-      }
+      if (!patient) return notFound(reply, "Пациент не найден");
+      if (patient.doctorId !== requireAuth(request).userId) return forbidden(reply, NOT_YOURS);
 
       await app.conn.db
         .update(patients)

@@ -1,19 +1,19 @@
 import type {
   Credentials,
-  LinkCodeResponse,
+  BindingCodeResponse,
   MeResponse,
   PatientListResponse,
   PatientSummary,
   Role,
 } from "../../shared/contracts";
 
-export class ApiError extends Error {
+export class ApiRequestError extends Error {
   constructor(
     readonly code: string,
     message: string,
   ) {
     super(message);
-    this.name = "ApiError";
+    this.name = "ApiRequestError";
   }
 }
 
@@ -28,7 +28,7 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
   const body: unknown = await response.json().catch(() => null);
   if (!response.ok) {
     const error = body as { code?: string; message?: string } | null;
-    throw new ApiError(error?.code ?? "unknown", error?.message ?? "Не удалось выполнить запрос");
+    throw new ApiRequestError(error?.code ?? "unknown", error?.message ?? "Не удалось выполнить запрос");
   }
   return body as T;
 }
@@ -36,7 +36,7 @@ async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
 export async function fetchMe(): Promise<MeResponse | null> {
   const response = await fetch("/api/me");
   if (response.status === 401) return null;
-  if (!response.ok) throw new ApiError("unknown", "Сервер недоступен");
+  if (!response.ok) throw new ApiRequestError("unknown", "Сервер недоступен");
   return (await response.json()) as MeResponse;
 }
 
@@ -62,12 +62,12 @@ export function fetchPatients(): Promise<PatientListResponse> {
   return request<PatientListResponse>("/api/patients");
 }
 
-export function fetchLinkCode(): Promise<LinkCodeResponse> {
-  return request<LinkCodeResponse>("/api/link-code");
+export function fetchBindingCode(): Promise<BindingCodeResponse> {
+  return request<BindingCodeResponse>("/api/binding-code");
 }
 
-export function rotateLinkCode(): Promise<LinkCodeResponse> {
-  return request<LinkCodeResponse>("/api/link-code/rotate", { method: "POST" });
+export function rotateBindingCode(): Promise<BindingCodeResponse> {
+  return request<BindingCodeResponse>("/api/binding-code/rotate", { method: "POST" });
 }
 
 export function bindToDoctor(code: string): Promise<{ doctorId: string; boundAt: string }> {

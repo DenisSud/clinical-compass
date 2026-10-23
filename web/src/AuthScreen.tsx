@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Role } from "../../shared/contracts";
-import { ApiError, signIn, signUp } from "./api";
+import { ApiRequestError, signIn, signUp } from "./api";
 
 const ROLE_LABEL: Record<Role, string> = { patient: "Пациент", doctor: "Врач" };
 
@@ -22,7 +22,7 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void })
       else await signIn(role, credentials);
       onAuthenticated();
     } catch (cause) {
-      setError(cause instanceof ApiError ? cause.message : "Что-то пошло не так");
+      setError(cause instanceof ApiRequestError ? cause.message : "Что-то пошло не так");
     } finally {
       setBusy(false);
     }

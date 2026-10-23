@@ -6,7 +6,7 @@ const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 type App = Awaited<ReturnType<typeof newApp>>;
 
 async function codeOf(app: App, doctorCookie: string): Promise<string> {
-  const response = await app.inject({ method: "GET", url: "/api/link-code", headers: { cookie: doctorCookie } });
+  const response = await app.inject({ method: "GET", url: "/api/binding-code", headers: { cookie: doctorCookie } });
   expect(response.statusCode).toBe(200);
   return response.json<{ code: string }>().code;
 }
@@ -48,7 +48,7 @@ describe("doctor's link code", () => {
 
     const rotated = await app.inject({
       method: "POST",
-      url: "/api/link-code/rotate",
+      url: "/api/binding-code/rotate",
       headers: { cookie: doctorCookie },
     });
     const newCode = rotated.json<{ code: string }>().code;
@@ -62,7 +62,7 @@ describe("doctor's link code", () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
-    const response = await app.inject({ method: "GET", url: "/api/link-code", headers: { cookie } });
+    const response = await app.inject({ method: "GET", url: "/api/binding-code", headers: { cookie } });
 
     expect(response.statusCode).toBe(403);
     await app.close();
@@ -121,7 +121,7 @@ describe("patient binding", () => {
     const patientCookie = await signUpPatient(app);
     const code = await codeOf(app, doctorCookie);
     app.conn.sqlite
-      .prepare("UPDATE doctors SET link_code_expires_at = ? WHERE email = ?")
+      .prepare("UPDATE doctors SET binding_code_expires_at = ? WHERE email = ?")
       .run(new Date(Date.now() - 1000).toISOString(), DOCTOR.email);
 
     const response = await bind(app, patientCookie, code);

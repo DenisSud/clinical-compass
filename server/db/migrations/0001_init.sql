@@ -3,8 +3,8 @@ CREATE TABLE IF NOT EXISTS doctors (
   email TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   name TEXT,
-  link_code TEXT UNIQUE,
-  link_code_expires_at TEXT,
+  binding_code TEXT UNIQUE,
+  binding_code_expires_at TEXT,
   created_at TEXT NOT NULL
 );
 

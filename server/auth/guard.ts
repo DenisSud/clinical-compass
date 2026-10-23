@@ -1,5 +1,6 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { readSession, type Role } from "./session.js";
+import { forbidden, unauthorized } from "../http/errors.js";
+import { readSession, type Auth, type Role } from "./session.js";
 
 /** Rejects anonymous callers, and callers holding a session for the other role. */
 export function requireRole(role: Role) {
@@ -7,14 +8,20 @@ export function requireRole(role: Role) {
     const auth = await readSession(request.server.conn, request);
 
     if (!auth) {
-      await reply.code(401).send({ code: "unauthorized", message: "Нужно войти в аккаунт" });
+      unauthorized(reply);
       return;
     }
     if (auth.role !== role) {
-      await reply.code(403).send({ code: "forbidden", message: "Недостаточно прав" });
+      forbidden(reply);
       return;
     }
 
     request.auth = auth;
   };
+}
+
+/** Reads what requireRole() stored. Throws when a handler is mounted without the guard. */
+export function requireAuth(request: FastifyRequest): Auth {
+  if (!request.auth) throw new Error("requireRole() must run before this handler");
+  return request.auth;
 }

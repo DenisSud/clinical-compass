@@ -6,7 +6,7 @@ type App = Awaited<ReturnType<typeof newApp>>;
 async function bindPatient(app: App, doctorCookie: string, patientCookie: string): Promise<void> {
   const { code } = await app.inject({
     method: "GET",
-    url: "/api/link-code",
+    url: "/api/binding-code",
     headers: { cookie: doctorCookie },
   }).then((response) => response.json<{ code: string }>());
 
