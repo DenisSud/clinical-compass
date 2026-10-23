@@ -1,6 +1,14 @@
-import { useState } from "react";
-import type { PatientProfile } from "../../shared/contracts";
-import { ApiRequestError, bindToDoctor } from "./api";
+import { useCallback, useEffect, useState } from "react";
+import type { DiaryEntry, PatientAssessment, PatientProfile } from "../../shared/contracts";
+import { ApiRequestError, bindToDoctor, fetchMyAssessments, fetchMyDiary } from "./api";
+import { DiaryForm } from "./DiaryForm";
+import { Phq9Form } from "./Phq9Form";
+
+const CARD = { marginTop: 24, padding: 20, border: "1px solid #d0d7de", borderRadius: 12 } as const;
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
+}
 
 export function PatientHome({
   profile,
@@ -14,8 +22,22 @@ export function PatientHome({
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [assessments, setAssessments] = useState<PatientAssessment[] | null>(null);
+  const [entries, setEntries] = useState<DiaryEntry[] | null>(null);
+  const [openForm, setOpenForm] = useState<"phq9" | null>(null);
 
-  async function submit(event: React.FormEvent) {
+  const reload = useCallback(() => {
+    fetchMyAssessments()
+      .then((response) => setAssessments(response.assessments))
+      .catch(() => setAssessments([]));
+    fetchMyDiary()
+      .then((response) => setEntries(response.entries))
+      .catch(() => setEntries([]));
+  }, []);
+
+  useEffect(reload, [reload]);
+
+  async function bind(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
     setError(null);
@@ -55,7 +77,7 @@ export function PatientHome({
       ) : (
         <>
           <p style={{ color: "#555" }}>Вы пока не привязаны к врачу. Введите код, который вам передал врач.</p>
-          <form onSubmit={submit} style={{ display: "flex", gap: 8, alignItems: "start" }}>
+          <form onSubmit={bind} style={{ display: "flex", gap: 8, alignItems: "start" }}>
             <input
               value={code}
               onChange={(event) => setCode(event.target.value)}
@@ -89,6 +111,67 @@ export function PatientHome({
           {error && <p style={{ color: "#b42318", fontSize: 14 }}>{error}</p>}
         </>
       )}
+
+      <section style={CARD}>
+        <h2 style={{ fontSize: 16, marginTop: 0 }}>Самочувствие</h2>
+        <DiaryForm onSaved={reload} />
+        {entries && entries.length > 0 && (
+          <ul style={{ listStyle: "none", padding: 0, margin: "20px 0 0", display: "grid", gap: 10 }}>
+            {entries.map((entry) => (
+              <li key={entry.id} style={{ borderTop: "1px solid #eaeef2", paddingTop: 10 }}>
+                <strong>{entry.value}</strong>
+                <span style={{ color: "#777" }}> / 10 — {formatDate(entry.entryDate)}</span>
+                {entry.comment && <p style={{ margin: "4px 0 0", color: "#333" }}>{entry.comment}</p>}
+              </li>
+            ))}
+          </ul>
+        )}
+        {entries?.length === 0 && <p style={{ color: "#777", marginBottom: 0 }}>Записей пока нет.</p>}
+      </section>
+
+      <section style={CARD}>
+        <h2 style={{ fontSize: 16, marginTop: 0 }}>Опросник PHQ-9</h2>
+        {openForm === "phq9" ? (
+          <Phq9Form
+            onSaved={() => {
+              reload();
+            }}
+          />
+        ) : (
+          <>
+            <p style={{ color: "#555", marginTop: 0 }}>Девять вопросов о том, как вы себя чувствовали последние две недели.</p>
+            <button
+              type="button"
+              onClick={() => setOpenForm("phq9")}
+              style={{ padding: "10px 16px", borderRadius: 8, border: "none", background: "#1f6feb", color: "white", cursor: "pointer" }}
+            >
+              Пройти опросник
+            </button>
+          </>
+        )}
+
+        {assessments && assessments.length > 0 && (
+          <ul style={{ listStyle: "none", padding: 0, margin: "20px 0 0", display: "grid", gap: 8 }}>
+            {assessments.map((assessment) => (
+              <li key={assessment.id} style={{ borderTop: "1px solid #eaeef2", paddingTop: 10 }}>
+                <details>
+                  <summary style={{ cursor: "pointer" }}>
+                    {formatDate(assessment.submittedAt)} — {assessment.instrumentTitle}
+                  </summary>
+                  <ul style={{ margin: "8px 0 0", paddingLeft: 20, color: "#333", fontSize: 14 }}>
+                    {assessment.answers.map((answer) => (
+                      <li key={answer.itemId}>
+                        {answer.text} — <em>{answer.label}</em>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              </li>
+            ))}
+          </ul>
+        )}
+        {assessments?.length === 0 && <p style={{ color: "#777", marginBottom: 0 }}>Вы ещё не проходили опросник.</p>}
+      </section>
     </main>
   );
 }

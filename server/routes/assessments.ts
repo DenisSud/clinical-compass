@@ -3,6 +3,7 @@ import { desc, eq } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import {
   assessmentSubmitSchema,
+  instrumentViewSchema,
   type DoctorAssessment,
   type PatientAssessment,
 } from "../../shared/contracts.js";
@@ -62,14 +63,14 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
       if (!instrument) return notFound(reply, "Опросник не найден");
 
       return {
-        instrument: {
+        instrument: instrumentViewSchema.parse({
           id: instrument.id,
           title: instrument.title,
           intro: instrument.intro,
           options: instrument.options,
           items: instrument.items.map((item) => ({ id: item.id, text: item.text })),
           sourceNote: instrument.source.note,
-        },
+        }),
       };
     },
   );

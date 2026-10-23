@@ -121,3 +121,35 @@ export const doctorAssessmentSchema = z.object({
 });
 
 export type DoctorAssessment = z.infer<typeof doctorAssessmentSchema>;
+
+export const diarySubmitSchema = z.object({
+  submissionId: z.string().min(1).max(100),
+  value: z.number().int().min(1).max(10),
+  comment: z.string().trim().max(2000).optional(),
+  entryDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+});
+
+export const diaryEntrySchema = z.object({
+  id: z.string(),
+  entryDate: z.string(),
+  value: z.number(),
+  comment: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+export type DiaryEntry = z.infer<typeof diaryEntrySchema>;
+
+/** The questionnaire as the patient receives it: no bands, no critical flags. */
+export const instrumentViewSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  intro: z.string(),
+  options: z.array(z.object({ value: z.number(), label: z.string() })),
+  items: z.array(z.object({ id: z.string(), text: z.string() })),
+  sourceNote: z.string(),
+});
+
+export type InstrumentView = z.infer<typeof instrumentViewSchema>;

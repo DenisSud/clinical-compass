@@ -1,5 +1,10 @@
 import type {
+  AssessmentSubmit,
   Credentials,
+  DiaryEntry,
+  DoctorAssessment,
+  InstrumentView,
+  PatientAssessment,
   HealthResponse,
   BindingCodeResponse,
   MeResponse,
@@ -88,4 +93,42 @@ export function unbindPatient(id: string): Promise<void> {
 
 export function fetchHealth(): Promise<HealthResponse> {
   return request<HealthResponse>("/api/health");
+}
+
+export function fetchInstrument(id: string): Promise<{ instrument: InstrumentView }> {
+  return request<{ instrument: InstrumentView }>(`/api/instruments/${id}`);
+}
+
+export function submitAssessment(
+  instrumentId: string,
+  payload: AssessmentSubmit,
+): Promise<{ assessment: PatientAssessment }> {
+  return request<{ assessment: PatientAssessment }>(`/api/assessments/${instrumentId}`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function fetchMyAssessments(): Promise<{ assessments: PatientAssessment[] }> {
+  return request<{ assessments: PatientAssessment[] }>("/api/assessments");
+}
+
+export function fetchPatientAssessments(id: string): Promise<{ assessments: DoctorAssessment[] }> {
+  return request<{ assessments: DoctorAssessment[] }>(`/api/patients/${id}/assessments`);
+}
+
+export function submitDiary(payload: {
+  submissionId: string;
+  value: number;
+  comment?: string;
+}): Promise<{ entry: DiaryEntry }> {
+  return request<{ entry: DiaryEntry }>("/api/diary", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function fetchMyDiary(): Promise<{ entries: DiaryEntry[] }> {
+  return request<{ entries: DiaryEntry[] }>("/api/diary");
+}
+
+export function fetchPatientDiary(id: string): Promise<{ entries: DiaryEntry[] }> {
+  return request<{ entries: DiaryEntry[] }>(`/api/patients/${id}/diary`);
 }

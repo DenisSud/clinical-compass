@@ -58,3 +58,22 @@ export const assessments = sqliteTable(
     index("idx_assessments_patient").on(table.patientId, table.submittedAt),
   ],
 );
+
+export const diaryEntries = sqliteTable(
+  "diary_entries",
+  {
+    id: text("id").primaryKey(),
+    patientId: text("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+    entryDate: text("entry_date").notNull(),
+    value: integer("value").notNull(),
+    comment: text("comment"),
+    submissionId: text("submission_id").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_diary_submission").on(table.patientId, table.submissionId),
+    index("idx_diary_patient").on(table.patientId, table.entryDate),
+  ],
+);
