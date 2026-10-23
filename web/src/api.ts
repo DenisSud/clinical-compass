@@ -1,4 +1,10 @@
-import type { Credentials, MeResponse, PatientListResponse, Role } from "../../shared/contracts";
+import type {
+  Credentials,
+  LinkCodeResponse,
+  MeResponse,
+  PatientListResponse,
+  Role,
+} from "../../shared/contracts";
 
 export class ApiError extends Error {
   constructor(
@@ -53,4 +59,19 @@ export function signOut(): Promise<void> {
 
 export function fetchPatients(): Promise<PatientListResponse> {
   return request<PatientListResponse>("/api/patients");
+}
+
+export function fetchLinkCode(): Promise<LinkCodeResponse> {
+  return request<LinkCodeResponse>("/api/link-code");
+}
+
+export function rotateLinkCode(): Promise<LinkCodeResponse> {
+  return request<LinkCodeResponse>("/api/link-code/rotate", { method: "POST" });
+}
+
+export function bindToDoctor(code: string): Promise<{ doctorId: string; boundAt: string }> {
+  return request<{ doctorId: string; boundAt: string }>("/api/bind", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+  });
 }

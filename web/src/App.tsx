@@ -31,6 +31,6 @@ export function App() {
   return me.role === "doctor" ? (
     <DoctorHome profile={me.profile} onSignOut={handleSignOut} />
   ) : (
-    <PatientHome profile={me.profile} onSignOut={handleSignOut} />
+    <PatientHome profile={me.profile} onSignOut={handleSignOut} onChanged={refresh} />
   );
 }

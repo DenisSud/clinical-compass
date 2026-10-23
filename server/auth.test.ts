@@ -1,42 +1,9 @@
-import type { LightMyRequestResponse } from "fastify";
 import { describe, expect, it } from "vitest";
-import { buildApp } from "./app.js";
-
-type App = Awaited<ReturnType<typeof buildApp>>;
-
-const DOCTOR = { email: "doctor@example.com", password: "correct horse battery" };
-const PATIENT = { email: "patient@example.com", password: "another good password" };
-
-function cookieOf(response: LightMyRequestResponse): string {
-  const header = response.headers["set-cookie"];
-  const raw = Array.isArray(header) ? header[0] : header;
-  if (!raw) throw new Error("response carried no cookie");
-  return raw.split(";")[0] ?? "";
-}
-
-async function signUpPatient(app: App, credentials = PATIENT): Promise<string> {
-  const response = await app.inject({
-    method: "POST",
-    url: "/api/auth/patient/signup",
-    payload: credentials,
-  });
-  expect(response.statusCode).toBe(201);
-  return cookieOf(response);
-}
-
-async function signUpDoctor(app: App, credentials = DOCTOR): Promise<string> {
-  const response = await app.inject({
-    method: "POST",
-    url: "/api/auth/doctor/signup",
-    payload: credentials,
-  });
-  expect(response.statusCode).toBe(201);
-  return cookieOf(response);
-}
+import { DOCTOR, PATIENT, cookieOf, newApp, signUpDoctor, signUpPatient } from "./test-support.js";
 
 describe("patient signup and signin", () => {
   it("creates a patient, starts a session and returns the patient role", async () => {
-    const app = await buildApp({ dbPath: ":memory:", logger: false });
+    const app = await newApp();
 
     const cookie = await signUpPatient(app);
     const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie } });
@@ -50,7 +17,7 @@ describe("patient signup and signin", () => {
   });
 
   it("refuses a second account on the same email", async () => {
-    const app = await buildApp({ dbPath: ":memory:", logger: false });
+    const app = await newApp();
     await signUpPatient(app);
 
     const second = await app.inject({
@@ -65,7 +32,7 @@ describe("patient signup and signin", () => {
   });
 
   it("refuses a wrong password", async () => {
-    const app = await buildApp({ dbPath: ":memory:", logger: false });
+    const app = await newApp();
     await signUpPatient(app);
 
     const attempt = await app.inject({
@@ -80,7 +47,7 @@ describe("patient signup and signin", () => {
   });
 
   it("signs an existing patient in and returns the patient role", async () => {
-    const app = await buildApp({ dbPath: ":memory:", logger: false });
+    const app = await newApp();
     await signUpPatient(app);
 
     const signin = await app.inject({
@@ -97,7 +64,7 @@ describe("patient signup and signin", () => {
 
 describe("doctor signup and signin", () => {
   it("creates a doctor and returns the doctor role", async () => {
-    const app = await buildApp({ dbPath: ":memory:", logger: false });
+    const app = await newApp();
 
     const cookie = await signUpDoctor(app);
     const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie } });
@@ -110,7 +77,7 @@ describe("doctor signup and signin", () => {
 
 describe("session", () => {
   it("rejects a request without a cookie", async () => {
-    const app = await buildApp({ dbPath: ":memory:", logger: false });
+    const app = await newApp();
 
     const me = await app.inject({ method: "GET", url: "/api/me" });
 
@@ -120,7 +87,7 @@ describe("session", () => {
   });
 
   it("stores a httpOnly lax cookie that lasts a week", async () => {
-    const app = await buildApp({ dbPath: ":memory:", logger: false });
+    const app = await newApp();
 
     const response = await app.inject({
       method: "POST",
@@ -137,7 +104,7 @@ describe("session", () => {
   });
 
   it("keeps only a hash of the token in the database", async () => {
-    const app = await buildApp({ dbPath: ":memory:", logger: false });
+    const app = await newApp();
     const cookie = await signUpPatient(app);
     const token = cookie.split("=")[1] ?? "";
 
@@ -152,7 +119,7 @@ describe("session", () => {
   });
 
   it("invalidates the session on signout", async () => {
-    const app = await buildApp({ dbPath: ":memory:", logger: false });
+    const app = await newApp();
     const cookie = await signUpPatient(app);
 
     const signout = await app.inject({
@@ -170,7 +137,7 @@ describe("session", () => {
 
 describe("role isolation", () => {
   it("stops a patient from reading the doctor's patient list", async () => {
-    const app = await buildApp({ dbPath: ":memory:", logger: false });
+    const app = await newApp();
     const cookie = await signUpPatient(app);
 
     const list = await app.inject({ method: "GET", url: "/api/patients", headers: { cookie } });
@@ -181,7 +148,7 @@ describe("role isolation", () => {
   });
 
   it("gives a doctor an empty list before anyone is bound", async () => {
-    const app = await buildApp({ dbPath: ":memory:", logger: false });
+    const app = await newApp();
     const cookie = await signUpDoctor(app);
 
     const list = await app.inject({ method: "GET", url: "/api/patients", headers: { cookie } });

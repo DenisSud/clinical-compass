@@ -65,3 +65,10 @@ export const patientListResponse = z.object({
 });
 
 export type PatientListResponse = z.infer<typeof patientListResponse>;
+
+export const linkCodeResponse = z.object({
+  code: z.string(),
+  expiresAt: z.string(),
+});
+
+export type LinkCodeResponse = z.infer<typeof linkCodeResponse>;
