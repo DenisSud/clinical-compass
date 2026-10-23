@@ -10,7 +10,8 @@
     "start": "NODE_ENV=production tsx server/index.ts",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
-    "db:migrate": "tsx server/db/migrate-cli.ts"
+    "db:migrate": "tsx server/db/migrate-cli.ts",
+    "db:seed": "tsx server/db/seed.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.3",

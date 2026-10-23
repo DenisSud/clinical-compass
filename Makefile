@@ -1,7 +1,7 @@
 SHELL := $(shell command -v bash 2>/dev/null || echo /bin/sh)
 .DEFAULT_GOAL := help
 
-.PHONY: help install dev build start test typecheck db-migrate db-reset
+.PHONY: help install dev build start test typecheck db-migrate db-reset seed
 
 help: ## Показать доступные команды
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  \033[36m%-12s\033[0m %s\n", $$1, $$2}'
@@ -26,6 +26,9 @@ typecheck: ## Проверить типы
 
 db-migrate: ## Применить миграции
 	npm run db:migrate
+
+seed: ## Создать демо-врача и двух привязанных пациентов
+	npm run db:seed
 
 db-reset: ## Удалить локальную базу
 	rm -f var/app.db var/app.db-wal var/app.db-shm
