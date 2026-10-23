@@ -20,13 +20,15 @@ function formatDate(iso: string): string {
 
 export function SignalsPanel({ onChanged }: { onChanged?: () => void }) {
   const [signals, setSignals] = useState<DoctorSignal[] | null>(null);
+  const [failed, setFailed] = useState(false);
   const [outcomes, setOutcomes] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(() => {
+    setFailed(false);
     fetchSignals()
       .then((response) => setSignals(response.signals))
-      .catch(() => setSignals([]));
+      .catch(() => setFailed(true));
   }, []);
 
   useEffect(reload, [reload]);
@@ -60,8 +62,13 @@ export function SignalsPanel({ onChanged }: { onChanged?: () => void }) {
       <h2 style={{ fontSize: 16 }}>
         Сигналы{open.length > 0 && <span style={{ color: "#b42318" }}> — {open.length}</span>}
       </h2>
-      {signals === null && <p style={{ color: "#777" }}>Загрузка…</p>}
-      {signals?.length === 0 && <p style={{ color: "#777" }}>Сигналов нет.</p>}
+      {failed && (
+        <p style={{ color: "#b42318", fontSize: 14 }}>
+          Не удалось загрузить сигналы. Это не значит, что их нет — обновите страницу.
+        </p>
+      )}
+      {signals === null && !failed && <p style={{ color: "#777" }}>Загрузка…</p>}
+      {signals?.length === 0 && !failed && <p style={{ color: "#777" }}>Сигналов нет.</p>}
       {error && <p style={{ color: "#b42318", fontSize: 14 }}>{error}</p>}
 
       <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
@@ -121,7 +128,22 @@ export function SignalsPanel({ onChanged }: { onChanged?: () => void }) {
                   <button
                     type="button"
                     onClick={() => void close(signal.id)}
-                    style={{ justifySelf: "start", padding: "6px 12px", borderRadius: 8, border: "none", background: "#1f6feb", color: "white", cursor: "pointer" }}
+                    disabled={(outcomes[signal.id] ?? "").trim().length < 3}
+                    title={
+                      (outcomes[signal.id] ?? "").trim().length < 3
+                        ? "Без результата разбора сигнал не закрывается"
+                        : undefined
+                    }
+                    style={{
+                      justifySelf: "start",
+                      padding: "8px 14px",
+                      borderRadius: 8,
+                      border: "none",
+                      background: "#1f6feb",
+                      color: "white",
+                      cursor: (outcomes[signal.id] ?? "").trim().length < 3 ? "default" : "pointer",
+                      opacity: (outcomes[signal.id] ?? "").trim().length < 3 ? 0.5 : 1,
+                    }}
                   >
                     Закрыть с результатом
                   </button>

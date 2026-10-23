@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ApiRequestError, submitDiary } from "./api";
 
 export function DiaryForm({ onSaved }: { onSaved: () => void }) {
-  const [value, setValue] = useState(5);
+  const [value, setValue] = useState<number | null>(null);
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -10,6 +10,7 @@ export function DiaryForm({ onSaved }: { onSaved: () => void }) {
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (value === null) return;
     setBusy(true);
     setError(null);
     try {
@@ -32,24 +33,35 @@ export function DiaryForm({ onSaved }: { onSaved: () => void }) {
 
   return (
     <form onSubmit={submit}>
-      <label style={{ display: "block", fontSize: 14, color: "#555", marginBottom: 8 }}>
+      <p style={{ display: "block", fontSize: 14, color: "#555", margin: "0 0 8px" }}>
         Насколько вы сегодня себя чувствуете? 1 — очень плохо, 10 — хорошо.
-      </label>
-      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-        <input
-          type="range"
-          min={1}
-          max={10}
-          step={1}
-          value={value}
-          onChange={(event) => {
-            setValue(Number(event.target.value));
-            setSaved(false);
-          }}
-          style={{ flex: 1 }}
-        />
-        <strong style={{ fontSize: 20, width: 28, textAlign: "right" }}>{value}</strong>
+      </p>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 6 }}>
+        {Array.from({ length: 10 }, (_, index) => index + 1).map((option) => (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={value === option}
+            onClick={() => {
+              setValue(option);
+              setSaved(false);
+            }}
+            style={{
+              minHeight: 44,
+              borderRadius: 8,
+              border: value === option ? "2px solid #1f6feb" : "1px solid #d0d7de",
+              background: value === option ? "#eef4ff" : "white",
+              fontWeight: value === option ? 600 : 400,
+              cursor: "pointer",
+            }}
+          >
+            {option}
+          </button>
+        ))}
       </div>
+      <p style={{ color: "#777", fontSize: 13, margin: "6px 0 0" }}>
+        {value === null ? "Выберите оценку — без выбора запись не сохранится." : " "}
+      </p>
       <textarea
         value={comment}
         onChange={(event) => setComment(event.target.value)}
@@ -69,15 +81,16 @@ export function DiaryForm({ onSaved }: { onSaved: () => void }) {
       {saved && <p style={{ color: "#1a7f37", fontSize: 14 }}>Запись сохранена.</p>}
       <button
         type="submit"
-        disabled={busy}
+        disabled={busy || value === null}
         style={{
           marginTop: 8,
+          opacity: busy || value === null ? 0.5 : 1,
           padding: "10px 16px",
           borderRadius: 8,
           border: "none",
           background: "#1f6feb",
           color: "white",
-          cursor: busy ? "progress" : "pointer",
+          cursor: busy || value === null ? "default" : "pointer",
         }}
       >
         Записать самочувствие

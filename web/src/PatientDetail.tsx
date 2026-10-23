@@ -12,19 +12,21 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
   const [assessments, setAssessments] = useState<DoctorAssessment[] | null>(null);
   const [entries, setEntries] = useState<DiaryEntry[] | null>(null);
   const [messages, setMessages] = useState<Message[] | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     setAssessments(null);
     setEntries(null);
+    setLoadFailed(false);
     fetchPatientAssessments(patient.id)
       .then((response) => setAssessments(response.assessments))
-      .catch(() => setAssessments([]));
+      .catch(() => setLoadFailed(true));
     fetchPatientDiary(patient.id)
       .then((response) => setEntries(response.entries))
-      .catch(() => setEntries([]));
+      .catch(() => setLoadFailed(true));
     fetchPatientMessages(patient.id)
       .then((response) => setMessages(response.messages))
-      .catch(() => setMessages([]));
+      .catch(() => setLoadFailed(true));
   }, [patient.id]);
 
   return (
@@ -35,9 +37,15 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
         <p style={{ color: "#777", fontSize: 14, marginTop: 0 }}>Привязан(а) с {formatDate(patient.boundAt)}</p>
       )}
 
+      {loadFailed && (
+        <p style={{ color: "#b42318", fontSize: 14 }}>
+          Не удалось загрузить часть данных. Это не значит, что их нет — обновите страницу.
+        </p>
+      )}
+
       <h3 style={{ fontSize: 15, marginTop: 20 }}>Опросник PHQ-9</h3>
       {assessments === null && <p style={{ color: "#777" }}>Загрузка…</p>}
-      {assessments?.length === 0 && <p style={{ color: "#777" }}>Пациент ещё не проходил опросник.</p>}
+      {assessments?.length === 0 && !loadFailed && <p style={{ color: "#777" }}>Пациент ещё не проходил опросник.</p>}
       {assessments && assessments.length > 0 && (
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <thead>
@@ -71,7 +79,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
 
       <h3 style={{ fontSize: 15, marginTop: 24 }}>Дневник самочувствия</h3>
       {entries === null && <p style={{ color: "#777" }}>Загрузка…</p>}
-      {entries?.length === 0 && <p style={{ color: "#777" }}>Записей пока нет.</p>}
+      {entries?.length === 0 && !loadFailed && <p style={{ color: "#777" }}>Записей пока нет.</p>}
       {entries && entries.length > 0 && (
         <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
           {entries.map((entry) => (

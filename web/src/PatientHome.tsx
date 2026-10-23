@@ -37,23 +37,25 @@ export function PatientHome({
   const [plan, setPlan] = useState<PlanItem[] | null>(null);
   const [messages, setMessages] = useState<Message[] | null>(null);
   const [nextAllowedAt, setNextAllowedAt] = useState<string | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   const reload = useCallback(() => {
+    setLoadFailed(false);
     fetchMyAssessments()
       .then((response) => {
         setAssessments(response.assessments);
         setNextAllowedAt(response.nextAllowedAt);
       })
-      .catch(() => setAssessments([]));
+      .catch(() => setLoadFailed(true));
     fetchMyDiary()
       .then((response) => setEntries(response.entries))
-      .catch(() => setEntries([]));
+      .catch(() => setLoadFailed(true));
     fetchMyPlan()
       .then((response) => setPlan(response.items))
-      .catch(() => setPlan([]));
+      .catch(() => setLoadFailed(true));
     fetchMyMessages()
       .then((response) => setMessages(response.messages))
-      .catch(() => setMessages([]));
+      .catch(() => setLoadFailed(true));
   }, []);
 
   useEffect(reload, [reload]);
@@ -87,6 +89,12 @@ export function PatientHome({
       </header>
 
       <p style={{ color: "#555" }}>{profile.email}</p>
+
+      {loadFailed && (
+        <p style={{ color: "#b42318", fontSize: 14 }}>
+          Часть данных не загрузилась. Это не значит, что их нет — обновите страницу.
+        </p>
+      )}
 
       <h2 style={{ fontSize: 16, marginTop: 32 }}>Ведущий врач</h2>
       {profile.doctor ? (
@@ -140,7 +148,7 @@ export function PatientHome({
       <section style={CARD}>
         <h2 style={{ fontSize: 16, marginTop: 0 }}>План лечения</h2>
         {plan === null && <p style={{ color: "#777" }}>Загрузка…</p>}
-        {plan?.length === 0 && (
+        {plan?.length === 0 && !loadFailed && (
           <p style={{ color: "#777", marginTop: 0 }}>
             Врач пока не добавил план. Пункты появляются здесь после того, как врач их подтвердит.
           </p>
@@ -202,7 +210,7 @@ export function PatientHome({
             ))}
           </ul>
         )}
-        {entries?.length === 0 && <p style={{ color: "#777", marginBottom: 0 }}>Записей пока нет.</p>}
+        {entries?.length === 0 && !loadFailed && <p style={{ color: "#777", marginBottom: 0 }}>Записей пока нет.</p>}
       </section>
 
       <section style={CARD}>
@@ -257,7 +265,7 @@ export function PatientHome({
             ))}
           </ul>
         )}
-        {assessments?.length === 0 && <p style={{ color: "#777", marginBottom: 0 }}>Вы ещё не проходили опросник.</p>}
+        {assessments?.length === 0 && !loadFailed && <p style={{ color: "#777", marginBottom: 0 }}>Вы ещё не проходили опросник.</p>}
       </section>
     </main>
   );

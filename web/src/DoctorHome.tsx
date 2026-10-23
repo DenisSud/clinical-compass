@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { DoctorProfile, BindingCodeResponse, PatientSummary } from "../../shared/contracts";
 import { fetchBindingCode, fetchPatients, rotateBindingCode } from "./api";
 import { PatientDetail } from "./PatientDetail";
@@ -12,17 +12,24 @@ export function DoctorHome({ profile, onSignOut }: { profile: DoctorProfile; onS
   const [patients, setPatients] = useState<PatientSummary[] | null>(null);
   const [bindingCode, setLinkCode] = useState<BindingCodeResponse | null>(null);
   const [selected, setSelected] = useState<PatientSummary | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const cardRef = useRef<HTMLDivElement | null>(null);
 
   const load = useCallback(() => {
+    setLoadFailed(false);
     fetchPatients()
       .then((response) => setPatients(response.patients))
-      .catch(() => setPatients([]));
+      .catch(() => setLoadFailed(true));
     fetchBindingCode()
       .then(setLinkCode)
       .catch(() => setLinkCode(null));
   }, []);
 
   useEffect(load, [load]);
+
+  useEffect(() => {
+    if (selected) cardRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [selected]);
 
   async function rotate() {
     setLinkCode(await rotateBindingCode());
@@ -67,7 +74,12 @@ export function DoctorHome({ profile, onSignOut }: { profile: DoctorProfile; onS
 
       <h2 style={{ fontSize: 16, marginTop: 32 }}>Мои пациенты</h2>
       {patients === null && <p>Загрузка…</p>}
-      {patients?.length === 0 && <p style={{ color: "#555" }}>Пока никого.</p>}
+      {loadFailed && (
+        <p style={{ color: "#b42318", fontSize: 14 }}>
+          Не удалось загрузить список пациентов — обновите страницу.
+        </p>
+      )}
+      {patients?.length === 0 && !loadFailed && <p style={{ color: "#555" }}>Пока никого.</p>}
       {patients && patients.length > 0 && (
         <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
           {patients.map((patient) => (
@@ -94,6 +106,7 @@ export function DoctorHome({ profile, onSignOut }: { profile: DoctorProfile; onS
         </ul>
       )}
 
+      <div ref={cardRef} />
       {selected && (
         <PatientDetail
           patient={selected}

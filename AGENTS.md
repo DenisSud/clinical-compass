@@ -19,3 +19,9 @@ Default five-role vocabulary; label string equals role name. See
 
 Single-context: `GLOSSARY.md` at the root plus ADRs in `docs/adr/`, created
 lazily. See `docs/agents/domain.md`.
+
+### Design
+
+`DESIGN.md` at the root decides UI questions by citation (`DESIGN.md §3.2`).
+Its §2 outranks any UX heuristic: clinical safety, uninterpreted patient data,
+signal semantics above decoration. Read it before changing a screen.
