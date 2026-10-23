@@ -36,7 +36,7 @@ export function DiaryForm({ onSaved }: { onSaved: () => void }) {
       <p style={{ display: "block", fontSize: 14, color: "#555", margin: "0 0 8px" }}>
         Насколько вы сегодня себя чувствуете? 1 — очень плохо, 10 — хорошо.
       </p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(10, 1fr)", gap: 6 }}>
+      <div className="diary-scale">
         {Array.from({ length: 10 }, (_, index) => index + 1).map((option) => (
           <button
             key={option}
@@ -84,6 +84,7 @@ export function DiaryForm({ onSaved }: { onSaved: () => void }) {
         disabled={busy || value === null}
         style={{
           marginTop: 8,
+          minHeight: 44,
           opacity: busy || value === null ? 0.5 : 1,
           padding: "10px 16px",
           borderRadius: 8,
@@ -93,7 +94,7 @@ export function DiaryForm({ onSaved }: { onSaved: () => void }) {
           cursor: busy || value === null ? "default" : "pointer",
         }}
       >
-        Записать самочувствие
+        {busy ? "Сохраняем…" : "Записать самочувствие"}
       </button>
     </form>
   );

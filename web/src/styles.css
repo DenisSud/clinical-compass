@@ -1,0 +1,555 @@
+/*
+ * Layout only: structure, hierarchy, responsiveness. Colour and decoration are
+ * kept to the minimum DESIGN.md §2 allows, so that clinical severity wins over
+ * anything decorative on the same screen.
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.45;
+  color: #24292f;
+  background: #fff;
+}
+
+:focus-visible {
+  outline: 2px solid #1f6feb;
+  outline-offset: 2px;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+td,
+th {
+  overflow-wrap: anywhere;
+}
+
+/* ---------- app shell ---------- */
+
+.app {
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #d0d7de;
+}
+
+.topbar__brand {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.topbar__spacer {
+  flex: 1 1 auto;
+}
+
+.topbar__email {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  color: #555;
+}
+
+/* On a phone the brand and the exit share the first row; the email drops below it,
+   instead of the exit button falling onto a line of its own under the rule. */
+@media (max-width: 520px) {
+  .topbar {
+    gap: 2px 12px;
+  }
+
+  .topbar__spacer {
+    display: none;
+  }
+
+  .topbar__brand {
+    order: 1;
+    flex: 1 1 auto;
+  }
+
+  .topbar button {
+    order: 2;
+  }
+
+  .topbar__email {
+    order: 3;
+    flex-basis: 100%;
+    font-size: 13px;
+  }
+}
+
+.page {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.page > .tabs:first-child {
+  margin-top: 16px;
+}
+
+.page--wide {
+  max-width: 1120px;
+}
+
+@media (min-width: 720px) {
+  .page {
+    padding: 24px 24px 48px;
+  }
+}
+
+/* ---------- tabs ---------- */
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 16px;
+  background: #f5f7fa;
+  border: 1px solid #eaeef2;
+  border-radius: 10px;
+}
+
+.tab {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: #475467;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+  background: #fff;
+  border-color: #d0d7de;
+  color: #24292f;
+  font-weight: 600;
+}
+
+.tab__count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #eaeef2;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ---------- blocks ---------- */
+
+.card {
+  padding: 16px;
+  margin-bottom: 16px;
+  border: 1px solid #d0d7de;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.card:last-child {
+  margin-bottom: 0;
+}
+
+.card__title {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.section-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.stack {
+  display: grid;
+  gap: 16px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.muted {
+  margin: 0;
+  font-size: 14px;
+  color: #555;
+}
+
+.hint {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #777;
+}
+
+.notice {
+  margin: 0;
+  font-size: 14px;
+  color: #555;
+}
+
+.notice--error {
+  color: #b42318;
+}
+
+.load-error {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+
+/* ---------- buttons ---------- */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  background: #fff;
+  color: #24292f;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.button--primary {
+  border-color: #1f6feb;
+  background: #1f6feb;
+  color: #fff;
+}
+
+.button--quiet {
+  min-height: 32px;
+  padding: 0 4px;
+  border-color: transparent;
+  background: none;
+  color: #1f6feb;
+  text-decoration: underline;
+}
+
+.button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .button {
+    min-height: 44px;
+    padding: 0 16px;
+  }
+
+  .button--quiet {
+    min-height: 44px;
+  }
+}
+
+/* ---------- disclosure (invite a patient) ---------- */
+
+.disclosure {
+  margin-bottom: 16px;
+  padding: 0 14px;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.disclosure > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.disclosure[open] > summary {
+  border-bottom: 1px solid #eaeef2;
+}
+
+.disclosure__body {
+  padding: 12px 0;
+}
+
+.disclosure__body > :first-child {
+  margin-top: 0;
+}
+
+/* Ten 44 px targets in a row do not fit a 360 px phone; 5 x 2 keeps the thumb honest (§3.9). */
+.diary-scale {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 6px;
+}
+
+@media (max-width: 600px) {
+  .diary-scale {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+
+.code {
+  margin: 10px 0 4px;
+  font-family: ui-monospace, SFMono-Regular, monospace;
+  font-size: 18px;
+  letter-spacing: 2px;
+}
+
+/* ---------- doctor: signals ---------- */
+
+.signal-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.signal {
+  padding: 12px 14px;
+  border: 1px solid #d0d7de;
+  border-left: 4px solid #98a2b3;
+  border-radius: 10px;
+  background: #fff;
+}
+
+/*
+ * The critical signal is the one loud thing on the screen (DESIGN.md §2.3, §3.1):
+ * larger title, thicker dark frame and a wider bar. Strip the colour and it still
+ * outranks everything else on the page.
+ */
+.signal--critical {
+  padding: 16px 18px;
+  border: 2px solid #24292f;
+  border-left: 8px solid #b42318;
+}
+
+.signal__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.signal__severity {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.signal__title {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.signal--critical .signal__severity {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.signal--critical .signal__title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.signal__status {
+  flex: none;
+  padding: 2px 10px;
+  border: 1px solid #d0d7de;
+  border-radius: 999px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.signal--critical .signal__status {
+  border-color: #24292f;
+}
+
+.signal__meta {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: #555;
+}
+
+.signal__detail {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
+.signal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.signal__form {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.signal__form textarea {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.closed-group {
+  margin-top: 20px;
+  padding: 0 14px;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+}
+
+.closed-group > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #555;
+  cursor: pointer;
+}
+
+.closed-group .signal-list {
+  padding-bottom: 12px;
+}
+
+/* ---------- doctor: patients ---------- */
+
+.patients {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+
+.patients__list {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.patients__card {
+  min-width: 0;
+}
+
+.patient-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.patient-list__item {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: 1px solid #d0d7de;
+  border-radius: 10px;
+  background: #fff;
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.patient-list__item[aria-current="true"] {
+  padding: 9px 11px;
+  border: 2px solid #24292f;
+  font-weight: 600;
+}
+
+.patient-card__head {
+  margin-bottom: 4px;
+}
+
+.patient-card__name {
+  margin: 0;
+  font-size: 18px;
+}
+
+.patient-card__footer {
+  display: grid;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: 1px solid #eaeef2;
+}
+
+.confirm {
+  display: grid;
+  gap: 10px;
+  max-width: 480px;
+}
+
+.confirm__question {
+  margin: 0;
+  font-size: 14px;
+}
+
+@media (min-width: 900px) {
+  .patients {
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .back {
+    display: none;
+  }
+}
+
+@media (max-width: 899px) {
+  .patients.is-open .patients__list {
+    display: none;
+  }
+
+  .patients__placeholder {
+    display: none;
+  }
+
+  .patients__card .patient-card__footer {
+    margin-top: 16px;
+  }
+}

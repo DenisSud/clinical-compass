@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { describeWatch, type WatchItem, type WatchKind } from "../../shared/contracts";
 import { createWatchItem, fetchWatchItems, setWatchStatus } from "./api";
+import { Button, LoadError, loading, track, type Load } from "./ui";
 
 const KIND_LABEL: Record<WatchKind, string> = {
   diary_below: "Самочувствие ниже порога",
@@ -17,8 +18,7 @@ const SEVERITY_LABEL = { medium: "средняя", high: "высокая", criti
  * be switched off from here — a critical questionnaire answer always raises a signal.
  */
 export function WatchPanel({ patientId }: { patientId: string }) {
-  const [items, setItems] = useState<WatchItem[] | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [items, setItems] = useState<Load<WatchItem[]>>(loading());
   const [adding, setAdding] = useState(false);
   const [kind, setKind] = useState<WatchKind>("diary_below");
   const [title, setTitle] = useState("");
@@ -27,15 +27,27 @@ export function WatchPanel({ patientId }: { patientId: string }) {
   const [terms, setTerms] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [toggleBusy, setToggleBusy] = useState<string | null>(null);
+  const [toggleError, setToggleError] = useState<string | null>(null);
 
   const reload = useCallback(() => {
-    setFailed(false);
-    fetchWatchItems(patientId)
-      .then((response) => setItems(response.items))
-      .catch(() => setFailed(true));
+    track(setItems, fetchWatchItems(patientId).then((response) => response.items));
   }, [patientId]);
 
   useEffect(reload, [reload]);
+
+  async function toggle(item: WatchItem) {
+    setToggleBusy(item.id);
+    setToggleError(null);
+    try {
+      await setWatchStatus(item.id, item.status === "active" ? "pause" : "resume");
+      reload();
+    } catch {
+      setToggleError("Не удалось изменить правило — повторите попытку.");
+    } finally {
+      setToggleBusy(null);
+    }
+  }
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -65,27 +77,27 @@ export function WatchPanel({ patientId }: { patientId: string }) {
     }
   }
 
-  if (failed) {
+  if (items.status === "failed") {
     return (
-      <p style={{ color: "#b42318", fontSize: 14 }}>
-        Не удалось загрузить правила наблюдения. Обновите страницу.
-      </p>
+      <LoadError onRetry={reload}>
+        Не удалось загрузить правила наблюдения. Это не значит, что правил нет — повторите попытку.
+      </LoadError>
     );
   }
-  if (items === null) return <p style={{ color: "#777" }}>Загрузка…</p>;
+  if (items.status === "loading") return <p className="notice">Загрузка правил…</p>;
 
   return (
     <div>
-      {items.length === 0 && (
+      {items.data.length === 0 && (
         <p style={{ color: "#555", marginTop: 0 }}>
           Своих правил нет. Работают только встроенные: критический ответ опросника, тяжёлая сумма,
           ухудшение, низкое самочувствие и резкое падение.
         </p>
       )}
 
-      {items.length > 0 && (
+      {items.data.length > 0 && (
         <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
-          {items.map((item) => (
+          {items.data.map((item) => (
             <li
               key={item.id}
               style={{
@@ -104,26 +116,33 @@ export function WatchPanel({ patientId }: { patientId: string }) {
               <div style={{ fontSize: 13, color: "#555", marginTop: 2 }}>{describeWatch(item)}</div>
               <button
                 type="button"
-                onClick={async () => {
-                  await setWatchStatus(item.id, item.status === "active" ? "pause" : "resume");
-                  reload();
-                }}
+                disabled={toggleBusy !== null}
+                onClick={() => void toggle(item)}
                 style={{
                   marginTop: 6,
                   border: "none",
                   background: "none",
                   color: "#1f6feb",
-                  cursor: "pointer",
+                  cursor: toggleBusy !== null ? "default" : "pointer",
+                  opacity: toggleBusy !== null ? 0.5 : 1,
                   padding: 0,
                   fontSize: 13,
                 }}
               >
-                {item.status === "active" ? "Приостановить" : "Включить обратно"}
+                {toggleBusy === item.id
+                  ? item.status === "active"
+                    ? "Приостанавливаем…"
+                    : "Включаем…"
+                  : item.status === "active"
+                    ? "Приостановить"
+                    : "Включить обратно"}
               </button>
             </li>
           ))}
         </ul>
       )}
+
+      {toggleError && <p className="notice notice--error">{toggleError}</p>}
 
       {!adding && (
         <button
@@ -185,32 +204,22 @@ export function WatchPanel({ patientId }: { patientId: string }) {
             <option value="critical">критичная</option>
           </select>
 
-          {error && <p style={{ color: "#b42318", fontSize: 13, margin: 0 }}>{error}</p>}
+          {error && <p className="notice notice--error">{error}</p>}
+          {title.trim().length < 3 && (
+            <p className="hint">Название — не короче 3 символов, иначе правило не сохранится.</p>
+          )}
 
           <div style={{ display: "flex", gap: 8 }}>
-            <button
+            <Button
               type="submit"
+              variant="primary"
               disabled={busy || title.trim().length < 3}
-              style={{
-                minHeight: 40,
-                padding: "0 16px",
-                borderRadius: 8,
-                border: "1px solid #1f6feb",
-                background: "#1f6feb",
-                color: "white",
-                opacity: busy || title.trim().length < 3 ? 0.5 : 1,
-                cursor: busy || title.trim().length < 3 ? "default" : "pointer",
-              }}
             >
-              Сохранить
-            </button>
-            <button
-              type="button"
-              onClick={() => setAdding(false)}
-              style={{ minHeight: 40, padding: "0 16px", borderRadius: 8, border: "1px solid #d0d7de", background: "white", cursor: "pointer" }}
-            >
+              {busy ? "Сохраняем…" : "Сохранить"}
+            </Button>
+            <Button type="button" onClick={() => setAdding(false)}>
               Отмена
-            </button>
+            </Button>
           </div>
         </form>
       )}

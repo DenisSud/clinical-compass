@@ -4,6 +4,7 @@ import { AuthScreen } from "./AuthScreen";
 import { DoctorHome } from "./DoctorHome";
 import { PatientHome } from "./PatientHome";
 import { fetchMe, signOut } from "./api";
+import { TopBar } from "./ui";
 
 export function App() {
   const [me, setMe] = useState<MeResponse | null>(null);
@@ -28,9 +29,14 @@ export function App() {
 
   if (!me) return <AuthScreen onAuthenticated={refresh} />;
 
-  return me.role === "doctor" ? (
-    <DoctorHome profile={me.profile} onSignOut={handleSignOut} />
-  ) : (
-    <PatientHome profile={me.profile} onSignOut={handleSignOut} onChanged={refresh} />
+  return (
+    <div className="app">
+      <TopBar email={me.profile.email} onSignOut={handleSignOut} />
+      {me.role === "doctor" ? (
+        <DoctorHome />
+      ) : (
+        <PatientHome profile={me.profile} onChanged={refresh} />
+      )}
+    </div>
   );
 }

@@ -1,169 +1,187 @@
-import { useCallback, useEffect, useState } from "react";
-import type { DoctorSignal } from "../../shared/contracts";
-import { ApiRequestError, closeSignal, fetchSignals, takeSignal } from "./api";
+import { useState } from "react";
+import type { DoctorSignal, Signal } from "../../shared/contracts";
+import { ApiRequestError, closeSignal, takeSignal } from "./api";
+import { Button, Empty, LoadError, type Load } from "./ui";
 
-const SEVERITY: Record<DoctorSignal["severity"], { label: string; color: string; background: string }> = {
-  critical: { label: "критично", color: "#b42318", background: "#fff5f5" },
-  high: { label: "важно", color: "#b54708", background: "#fffaeb" },
-  medium: { label: "обратить внимание", color: "#475467", background: "#f5f7fa" },
+export const SIGNAL_SEVERITY_LABEL: Record<Signal["severity"], string> = {
+  critical: "критично",
+  high: "важно",
+  medium: "обратить внимание",
 };
 
-const STATUS: Record<DoctorSignal["status"], string> = {
+export const SIGNAL_SEVERITY_COLOR: Record<Signal["severity"], string> = {
+  critical: "#b42318",
+  high: "#b54708",
+  medium: "#475467",
+};
+
+export const SIGNAL_STATUS_LABEL: Record<Signal["status"], string> = {
   saved: "новый",
   in_review: "в разборе",
   closed: "закрыт",
 };
 
+const SEVERITY_RANK: Record<Signal["severity"], number> = { critical: 0, high: 1, medium: 2 };
+
+/** Severity first, newest second — the order the doctor reads, not the order the server sent (§3.7). */
+export function sortSignals<T extends Signal>(signals: T[]): T[] {
+  return [...signals].sort(
+    (left, right) =>
+      SEVERITY_RANK[left.severity] - SEVERITY_RANK[right.severity] ||
+      right.createdAt.localeCompare(left.createdAt),
+  );
+}
+
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }
 
-export function SignalsPanel({ onChanged }: { onChanged?: () => void }) {
-  const [signals, setSignals] = useState<DoctorSignal[] | null>(null);
-  const [failed, setFailed] = useState(false);
+/**
+ * Controlled by DoctorHome so the open count in the header and the list on screen
+ * can never disagree. Signal updates arrive from the server and replace the card
+ * in place, so the doctor does not lose their position (§3.2, §5.6).
+ */
+export function SignalsPanel({
+  signals,
+  onRetry,
+  onUpdated,
+}: {
+  signals: Load<DoctorSignal[]>;
+  onRetry: () => void;
+  onUpdated: (signal: DoctorSignal) => void;
+}) {
   const [outcomes, setOutcomes] = useState<Record<string, string>>({});
-  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [failures, setFailures] = useState<Record<string, string>>({});
 
-  const reload = useCallback(() => {
-    setFailed(false);
-    fetchSignals()
-      .then((response) => setSignals(response.signals))
-      .catch(() => setFailed(true));
-  }, []);
-
-  useEffect(reload, [reload]);
-
-  async function take(id: string) {
-    setError(null);
+  async function take(signal: DoctorSignal) {
+    setBusy(signal.id);
+    setFailures((current) => ({ ...current, [signal.id]: "" }));
     try {
-      await takeSignal(id);
-      reload();
-      onChanged?.();
+      const response = await takeSignal(signal.id);
+      onUpdated({ ...signal, ...response.signal });
     } catch (cause) {
-      setError(cause instanceof ApiRequestError ? cause.message : "Не удалось взять сигнал");
+      setFailures((current) => ({
+        ...current,
+        [signal.id]: cause instanceof ApiRequestError ? cause.message : "Не удалось взять сигнал в разбор",
+      }));
+    } finally {
+      setBusy(null);
     }
   }
 
-  async function close(id: string) {
-    setError(null);
+  async function close(signal: DoctorSignal) {
+    setBusy(signal.id);
+    setFailures((current) => ({ ...current, [signal.id]: "" }));
     try {
-      await closeSignal(id, outcomes[id] ?? "");
-      reload();
-      onChanged?.();
+      const response = await closeSignal(signal.id, outcomes[signal.id] ?? "");
+      onUpdated({ ...signal, ...response.signal });
     } catch (cause) {
-      setError(cause instanceof ApiRequestError ? cause.message : "Не удалось закрыть сигнал");
+      setFailures((current) => ({
+        ...current,
+        [signal.id]: cause instanceof ApiRequestError ? cause.message : "Не удалось закрыть сигнал",
+      }));
+    } finally {
+      setBusy(null);
     }
   }
 
-  const open = signals?.filter((signal) => signal.status !== "closed") ?? [];
+  function renderCard(signal: DoctorSignal) {
+    const outcome = outcomes[signal.id] ?? "";
+    const canClose = outcome.trim().length >= 3;
+    const failure = failures[signal.id];
+
+    return (
+      <li
+        key={signal.id}
+        className={signal.severity === "critical" ? "signal signal--critical" : "signal"}
+      >
+        <div className="signal__head">
+          <span className="signal__severity" style={{ color: SIGNAL_SEVERITY_COLOR[signal.severity] }}>
+            {SIGNAL_SEVERITY_LABEL[signal.severity]}
+          </span>
+          <span className="signal__status">{SIGNAL_STATUS_LABEL[signal.status]}</span>
+        </div>
+        <h3 className="signal__title">{signal.title}</h3>
+        <p className="signal__meta">
+          {signal.patient?.name ?? signal.patient?.email} · {formatDate(signal.createdAt)}
+          {signal.watchItemId && " · по вашему правилу"}
+        </p>
+        <p className="signal__detail">{signal.detail}</p>
+
+        {signal.status === "saved" && (
+          <div className="signal__actions">
+            <Button variant="primary" onClick={() => void take(signal)} disabled={busy === signal.id}>
+              {busy === signal.id ? "Берём в разбор…" : "Взять в разбор"}
+            </Button>
+          </div>
+        )}
+
+        {signal.status === "in_review" && (
+          <div className="signal__form">
+            <textarea
+              value={outcome}
+              onChange={(event) =>
+                setOutcomes((current) => ({ ...current, [signal.id]: event.target.value }))
+              }
+              placeholder="Результат разбора: что решили и что дальше"
+              rows={2}
+            />
+            <div className="signal__actions">
+              <Button
+                variant="primary"
+                onClick={() => void close(signal)}
+                disabled={!canClose || busy === signal.id}
+              >
+                {busy === signal.id ? "Закрываем…" : "Закрыть с результатом"}
+              </Button>
+            </div>
+            {!canClose && (
+              <p className="hint">Без результата разбора сигнал не закрывается — запишите, что решили.</p>
+            )}
+          </div>
+        )}
+
+        {signal.status === "closed" && signal.outcome && (
+          <p className="hint">
+            <em>Результат:</em> {signal.outcome}
+          </p>
+        )}
+
+        {failure && <p className="notice notice--error">{failure}</p>}
+      </li>
+    );
+  }
+
+  if (signals.status === "loading") return <p className="notice">Загрузка сигналов…</p>;
+
+  if (signals.status === "failed") {
+    return (
+      <LoadError onRetry={onRetry}>
+        Не удалось загрузить сигналы. Это не значит, что их нет — повторите попытку.
+      </LoadError>
+    );
+  }
+
+  const sorted = sortSignals(signals.data);
+  const open = sorted.filter((signal) => signal.status !== "closed");
+  const closed = sorted.filter((signal) => signal.status === "closed");
 
   return (
-    <section style={{ marginTop: 32 }}>
-      <h2 style={{ fontSize: 16 }}>
-        Сигналы{open.length > 0 && <span style={{ color: "#b42318" }}> — {open.length}</span>}
-      </h2>
-      {failed && (
-        <p style={{ color: "#b42318", fontSize: 14 }}>
-          Не удалось загрузить сигналы. Это не значит, что их нет — обновите страницу.
-        </p>
+    <section aria-label="Сигналы">
+      {open.length === 0 && (
+        <Empty>
+          {closed.length === 0 ? "Сигналов нет." : "Открытых сигналов нет."}
+        </Empty>
       )}
-      {signals === null && !failed && <p style={{ color: "#777" }}>Загрузка…</p>}
-      {signals?.length === 0 && !failed && <p style={{ color: "#777" }}>Сигналов нет.</p>}
-      {error && <p style={{ color: "#b42318", fontSize: 14 }}>{error}</p>}
+      {open.length > 0 && <ul className="signal-list">{open.map(renderCard)}</ul>}
 
-      <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
-        {signals?.map((signal) => {
-          const severity = SEVERITY[signal.severity];
-          return (
-            <li
-              key={signal.id}
-              style={{
-                padding: 14,
-                borderRadius: 10,
-                border: "1px solid #d0d7de",
-                borderLeft: `4px solid ${severity.color}`,
-                background: signal.status === "closed" ? "#fafbfc" : "white",
-                opacity: signal.status === "closed" ? 0.75 : 1,
-              }}
-            >
-              <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-                <span
-                  style={{
-                    fontSize: 12,
-                    padding: "2px 8px",
-                    borderRadius: 999,
-                    color: severity.color,
-                    background: severity.background,
-                  }}
-                >
-                  {severity.label}
-                </span>
-                <strong style={{ fontSize: 15 }}>{signal.title}</strong>
-                <span style={{ color: "#777", fontSize: 13 }}>
-                  {signal.patient?.name ?? signal.patient?.email} · {formatDate(signal.createdAt)} ·{" "}
-                  {STATUS[signal.status]}
-                </span>
-              </div>
-              <p style={{ margin: "6px 0 0", color: "#333", fontSize: 14 }}>
-                {signal.watchItemId && (
-                  <span style={{ fontSize: 12, color: "#1f6feb", marginRight: 6 }}>по вашему правилу</span>
-                )}
-                {signal.detail}
-              </p>
-
-              {signal.status === "saved" && (
-                <button
-                  type="button"
-                  onClick={() => void take(signal.id)}
-                  style={{ marginTop: 10, padding: "6px 12px", borderRadius: 8, border: "1px solid #d0d7de", background: "white", cursor: "pointer" }}
-                >
-                  Взять в разбор
-                </button>
-              )}
-
-              {signal.status === "in_review" && (
-                <div style={{ marginTop: 10, display: "grid", gap: 6 }}>
-                  <textarea
-                    value={outcomes[signal.id] ?? ""}
-                    onChange={(event) => setOutcomes((current) => ({ ...current, [signal.id]: event.target.value }))}
-                    placeholder="Результат разбора: что решили и что дальше"
-                    rows={2}
-                    style={{ padding: 8, borderRadius: 8, border: "1px solid #d0d7de", fontFamily: "inherit", boxSizing: "border-box" }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => void close(signal.id)}
-                    disabled={(outcomes[signal.id] ?? "").trim().length < 3}
-                    title={
-                      (outcomes[signal.id] ?? "").trim().length < 3
-                        ? "Без результата разбора сигнал не закрывается"
-                        : undefined
-                    }
-                    style={{
-                      justifySelf: "start",
-                      padding: "8px 14px",
-                      borderRadius: 8,
-                      border: "none",
-                      background: "#1f6feb",
-                      color: "white",
-                      cursor: (outcomes[signal.id] ?? "").trim().length < 3 ? "default" : "pointer",
-                      opacity: (outcomes[signal.id] ?? "").trim().length < 3 ? 0.5 : 1,
-                    }}
-                  >
-                    Закрыть с результатом
-                  </button>
-                </div>
-              )}
-
-              {signal.status === "closed" && signal.outcome && (
-                <p style={{ margin: "8px 0 0", color: "#555", fontSize: 14 }}>
-                  <em>Результат:</em> {signal.outcome}
-                </p>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      {closed.length > 0 && (
+        <details className="closed-group">
+          <summary>Закрытые ({closed.length})</summary>
+          <ul className="signal-list">{closed.map(renderCard)}</ul>
+        </details>
+      )}
     </section>
   );
 }

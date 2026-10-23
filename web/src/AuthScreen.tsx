@@ -104,7 +104,13 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void })
             cursor: busy ? "progress" : "pointer",
           }}
         >
-          {mode === "signup" ? "Зарегистрироваться" : "Войти"}
+          {busy
+            ? mode === "signup"
+              ? "Регистрируемся…"
+              : "Входим…"
+            : mode === "signup"
+              ? "Зарегистрироваться"
+              : "Войти"}
         </button>
       </form>
 

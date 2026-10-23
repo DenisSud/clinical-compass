@@ -45,7 +45,7 @@ export function AdherenceTable({ patientId }: { patientId: string }) {
     <div style={{ display: "grid", gap: 12 }}>
       {data.items.map((item) => (
         <div key={item.planItemId}>
-          <div style={{ display: "flex", justifyContent: "space-between", gap: 12, fontSize: 14 }}>
+          <div className="row" style={{ justifyContent: "space-between", fontSize: 14 }}>
             <strong>{item.title}</strong>
             <span style={{ color: "#555", whiteSpace: "nowrap" }}>
               выполнено {item.done} · пропущено {item.skipped} · нет сведений {item.noData}

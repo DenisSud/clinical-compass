@@ -12,7 +12,7 @@ export function TodayPlan() {
   const [failed, setFailed] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [reason, setReason] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(() => {
@@ -25,7 +25,7 @@ export function TodayPlan() {
   useEffect(reload, [reload]);
 
   async function mark(planItemId: string, status: "done" | "skipped", why?: string) {
-    setBusy(true);
+    setBusyId(planItemId);
     setError(null);
     try {
       await submitCheckin({ planItemId, status, reason: why });
@@ -35,7 +35,7 @@ export function TodayPlan() {
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Не удалось сохранить отметку");
     } finally {
-      setBusy(false);
+      setBusyId(null);
     }
   }
 
@@ -46,8 +46,10 @@ export function TodayPlan() {
       </p>
     );
   }
-  if (items === null) return <p style={{ color: "#777" }}>Загрузка…</p>;
-  if (items.length === 0) return null;
+  if (items === null) return <p className="notice">Загрузка назначений…</p>;
+  if (items.length === 0) return <p className="notice">На сегодня назначений нет.</p>;
+
+  const busy = busyId !== null;
 
   return (
     <div>
@@ -70,10 +72,11 @@ export function TodayPlan() {
                     border: "1px solid #1f6feb",
                     background: "#1f6feb",
                     color: "white",
+                    opacity: busy ? 0.5 : 1,
                     cursor: busy ? "progress" : "pointer",
                   }}
                 >
-                  Выполнил
+                  {busyId === item.planItemId ? "Отмечаем…" : "Выполнил"}
                 </button>
                 <button
                   type="button"
@@ -89,7 +92,8 @@ export function TodayPlan() {
                     borderRadius: 8,
                     border: "1px solid #d0d7de",
                     background: "white",
-                    cursor: "pointer",
+                    opacity: busy ? 0.5 : 1,
+                    cursor: busy ? "default" : "pointer",
                   }}
                 >
                   Пропустил
@@ -125,7 +129,7 @@ export function TodayPlan() {
                       cursor: busy || reason.trim().length < 3 ? "default" : "pointer",
                     }}
                   >
-                    Сохранить
+                    {busyId === item.planItemId ? "Сохраняем…" : "Сохранить"}
                   </button>
                   <button
                     type="button"
@@ -142,6 +146,9 @@ export function TodayPlan() {
                     Отмена
                   </button>
                 </div>
+                {reason.trim().length < 3 && (
+                  <p className="hint">Без причины пропуск не сохраняется.</p>
+                )}
               </div>
             )}
 

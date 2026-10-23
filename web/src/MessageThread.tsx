@@ -26,6 +26,10 @@ export function MessageThread({
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
+    if (body.trim() === "") {
+      setError("Напишите сообщение.");
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -75,19 +79,20 @@ export function MessageThread({
         {error && <p style={{ color: "#b42318", fontSize: 14, margin: 0 }}>{error}</p>}
         <button
           type="submit"
-          disabled={busy || body.trim() === ""}
+          disabled={busy}
           style={{
             justifySelf: "start",
+            minHeight: 44,
             padding: "8px 14px",
             borderRadius: 8,
             border: "none",
             background: "#1f6feb",
             color: "white",
-            cursor: busy || body.trim() === "" ? "default" : "pointer",
-            opacity: busy || body.trim() === "" ? 0.5 : 1,
+            cursor: busy ? "progress" : "pointer",
+            opacity: busy ? 0.5 : 1,
           }}
         >
-          Отправить
+          {busy ? "Отправляем…" : "Отправить"}
         </button>
       </form>
     </div>

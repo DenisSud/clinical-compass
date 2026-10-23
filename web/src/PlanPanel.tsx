@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PlanItem } from "../../shared/contracts";
 import { ApiRequestError, archivePlanItem, confirmPlanItem, createPlanItem, fetchPatientPlan } from "./api";
+import { Button, Empty, LoadError, loading, track, type Load } from "./ui";
 
 const KIND: Record<PlanItem["kind"], string> = {
   medication: "Препарат",
@@ -16,94 +17,114 @@ const STATUS: Record<PlanItem["status"], string> = {
 };
 
 export function PlanPanel({ patientId, onChanged }: { patientId: string; onChanged?: () => void }) {
-  const [items, setItems] = useState<PlanItem[] | null>(null);
+  const [items, setItems] = useState<Load<PlanItem[]>>(loading());
   const [kind, setKind] = useState<PlanItem["kind"]>("medication");
   const [title, setTitle] = useState("");
   const [details, setDetails] = useState("");
+  const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const reload = useCallback(() => {
-    fetchPatientPlan(patientId)
-      .then((response) => setItems(response.items))
-      .catch(() => setItems([]));
+    track(setItems, fetchPatientPlan(patientId).then((response) => response.items));
   }, [patientId]);
 
   useEffect(reload, [reload]);
 
-  async function act(action: () => Promise<unknown>) {
+  async function act(key: string, action: () => Promise<unknown>) {
+    setBusy(key);
     setError(null);
     try {
       await action();
       reload();
       onChanged?.();
     } catch (cause) {
-      setError(cause instanceof ApiRequestError ? cause.message : "Не удалось выполнить");
+      setError(cause instanceof ApiRequestError ? cause.message : "Не удалось выполнить действие");
+    } finally {
+      setBusy(null);
     }
   }
 
   async function add(event: React.FormEvent) {
     event.preventDefault();
-    await act(async () => {
+    if (title.trim() === "") {
+      setError("Введите, что назначаем.");
+      return;
+    }
+    await act("create", async () => {
       await createPlanItem(patientId, { kind, title, details: details.trim() === "" ? undefined : details });
       setTitle("");
       setDetails("");
     });
   }
 
+  const blocked = busy !== null;
+
   return (
     <div>
-      {items === null && <p style={{ color: "#777" }}>Загрузка…</p>}
-      {items?.length === 0 && <p style={{ color: "#777", marginTop: 0 }}>Плана пока нет.</p>}
-      <ul style={{ listStyle: "none", padding: 0, margin: "0 0 16px", display: "grid", gap: 8 }}>
-        {items?.map((item) => (
-          <li
-            key={item.id}
-            style={{
-              padding: 12,
-              borderRadius: 10,
-              border: "1px solid #d0d7de",
-              borderLeft: `4px solid ${item.status === "active" ? "#1a7f37" : "#d0d7de"}`,
-              background: item.status === "archived" ? "#fafbfc" : "white",
-            }}
-          >
-            <div style={{ display: "flex", gap: 8, alignItems: "baseline", flexWrap: "wrap" }}>
-              <strong>{item.title}</strong>
-              <span style={{ fontSize: 12, color: "#777" }}>
-                {KIND[item.kind]} · {STATUS[item.status]}
-              </span>
-            </div>
-            {item.details && <p style={{ margin: "4px 0 0", color: "#333", fontSize: 14 }}>{item.details}</p>}
-            <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-              {item.status === "draft" && (
-                <button
-                  type="button"
-                  onClick={() => void act(() => confirmPlanItem(item.id))}
-                  style={{ padding: "6px 12px", borderRadius: 8, border: "none", background: "#1f6feb", color: "white", cursor: "pointer" }}
-                >
-                  Подтвердить
-                </button>
-              )}
-              {item.status !== "archived" && (
-                <button
-                  type="button"
-                  onClick={() => void act(() => archivePlanItem(item.id))}
-                  style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #d0d7de", background: "white", cursor: "pointer" }}
-                >
-                  В архив
-                </button>
-              )}
-            </div>
-          </li>
-        ))}
-      </ul>
+      {items.status === "loading" && <p className="notice">Загрузка плана…</p>}
 
-      {error && <p style={{ color: "#b42318", fontSize: 14 }}>{error}</p>}
+      {items.status === "failed" && (
+        <LoadError onRetry={reload}>
+          Не удалось загрузить план лечения. Это не значит, что плана нет — повторите попытку.
+        </LoadError>
+      )}
 
-      <form onSubmit={add} style={{ display: "grid", gap: 6 }}>
-        <div style={{ display: "flex", gap: 8 }}>
+      {items.status === "ready" && items.data.length === 0 && (
+        <Empty>Плана пока нет. Черновик ниже пациент не увидит до подтверждения.</Empty>
+      )}
+
+      {items.status === "ready" && items.data.length > 0 && (
+        <ul className="stack" style={{ gap: 8, margin: "0 0 16px", padding: 0, listStyle: "none" }}>
+          {items.data.map((item) => (
+            <li
+              key={item.id}
+              style={{
+                padding: 12,
+                borderRadius: 10,
+                border: "1px solid #d0d7de",
+                borderLeft: `4px solid ${item.status === "active" ? "#1a7f37" : "#d0d7de"}`,
+                background: item.status === "archived" ? "#fafbfc" : "white",
+              }}
+            >
+              <div className="row" style={{ alignItems: "baseline" }}>
+                <strong>{item.title}</strong>
+                <span className="hint" style={{ margin: 0 }}>
+                  {KIND[item.kind]} · {STATUS[item.status]}
+                </span>
+              </div>
+              {item.details && <p style={{ margin: "4px 0 0", color: "#333", fontSize: 14 }}>{item.details}</p>}
+              <div className="row" style={{ marginTop: 10 }}>
+                {item.status === "draft" && (
+                  <Button
+                    variant="primary"
+                    disabled={blocked}
+                    onClick={() => void act(`confirm:${item.id}`, () => confirmPlanItem(item.id))}
+                  >
+                    {busy === `confirm:${item.id}` ? "Подтверждаем…" : "Подтвердить"}
+                  </Button>
+                )}
+                {item.status !== "archived" && (
+                  <Button
+                    disabled={blocked}
+                    onClick={() => void act(`archive:${item.id}`, () => archivePlanItem(item.id))}
+                  >
+                    {busy === `archive:${item.id}` ? "Отправляем…" : "В архив"}
+                  </Button>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {error && <p className="notice notice--error">{error}</p>}
+
+      <form onSubmit={add} className="stack" style={{ gap: 8, marginTop: 8 }}>
+        <div className="row">
           <select
             value={kind}
             onChange={(event) => setKind(event.target.value as PlanItem["kind"])}
+            aria-label="Тип назначения"
             style={{ padding: 8, borderRadius: 8, border: "1px solid #d0d7de" }}
           >
             {Object.entries(KIND).map(([value, label]) => (
@@ -116,31 +137,27 @@ export function PlanPanel({ patientId, onChanged }: { patientId: string; onChang
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="Что назначаем"
-            style={{ flex: 1, padding: 8, borderRadius: 8, border: "1px solid #d0d7de" }}
+            aria-label="Что назначаем"
+            style={{
+              flex: "1 1 160px",
+              minWidth: 0,
+              padding: 8,
+              borderRadius: 8,
+              border: "1px solid #d0d7de",
+            }}
           />
         </div>
         <input
           value={details}
           onChange={(event) => setDetails(event.target.value)}
           placeholder="Как принимать, как часто (необязательно)"
+          aria-label="Как принимать, как часто"
           style={{ padding: 8, borderRadius: 8, border: "1px solid #d0d7de" }}
         />
-        <button
-          type="submit"
-          disabled={title.trim() === ""}
-          style={{
-            justifySelf: "start",
-            padding: "8px 14px",
-            borderRadius: 8,
-            border: "1px solid #d0d7de",
-            background: "white",
-            cursor: title.trim() === "" ? "default" : "pointer",
-            opacity: title.trim() === "" ? 0.5 : 1,
-          }}
-        >
-          Добавить в черновик
-        </button>
-        <p style={{ color: "#777", fontSize: 13, margin: 0 }}>
+        <Button type="submit" disabled={blocked}>
+          {busy === "create" ? "Сохраняем…" : "Добавить в черновик"}
+        </Button>
+        <p className="hint" style={{ margin: 0 }}>
           Пациент увидит пункт только после подтверждения.
         </p>
       </form>
