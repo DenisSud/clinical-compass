@@ -8,7 +8,7 @@ import { toDoctorProfile, toPatientProfile } from "./profiles.js";
 
 export const meRoutes: FastifyPluginAsync = async (app) => {
   app.get("/me", async (request, reply) => {
-    const auth = await readSession(app.conn, request);
+    const auth = await readSession(app.conn, request, reply);
     if (!auth) return unauthorized(reply);
 
     if (auth.role === "doctor") {

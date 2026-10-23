@@ -118,6 +118,22 @@ describe("session", () => {
     await app.close();
   });
 
+  it("re-issues the cookie when the session slides, so an active browser keeps it", async () => {
+    const app = await newApp();
+    const cookie = await signUpPatient(app);
+    app.conn.sqlite
+      .prepare("UPDATE sessions SET expires_at = ?")
+      .run(new Date(Date.now() + 60 * 60 * 1000).toISOString());
+
+    const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie } });
+
+    expect(me.statusCode).toBe(200);
+    expect(String(me.headers["set-cookie"])).toMatch(/Max-Age=604800/);
+    const row = app.conn.sqlite.prepare("SELECT expires_at FROM sessions").get() as { expires_at: string };
+    expect(new Date(row.expires_at).getTime()).toBeGreaterThan(Date.now() + 6 * 24 * 60 * 60 * 1000);
+    await app.close();
+  });
+
   it("invalidates the session on signout", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);

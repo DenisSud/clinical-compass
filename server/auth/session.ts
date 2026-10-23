@@ -47,8 +47,12 @@ export async function startSession(
   setSessionCookie(reply, token);
 }
 
-/** Resolves the session cookie to an identity, extending it when it is more than a day old. */
-export async function readSession(conn: Db, request: FastifyRequest): Promise<Auth | null> {
+/** Resolves the session cookie to an identity, extending both row and cookie when the session is old. */
+export async function readSession(
+  conn: Db,
+  request: FastifyRequest,
+  reply: FastifyReply,
+): Promise<Auth | null> {
   const token = request.cookies[SESSION_COOKIE];
   if (!token) return null;
 
@@ -72,6 +76,7 @@ export async function readSession(conn: Db, request: FastifyRequest): Promise<Au
       .update(sessions)
       .set({ expiresAt: new Date(now.getTime() + SESSION_TTL_MS).toISOString() })
       .where(eq(sessions.tokenHash, tokenHash));
+    setSessionCookie(reply, token);
   }
 
   return { role: row.role, userId: row.userId };

@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Role } from "../../shared/contracts";
-import { ApiRequestError, signIn, signUp } from "./api";
+import { ApiRequestError, fetchHealth, signIn, signUp } from "./api";
 
 const ROLE_LABEL: Record<Role, string> = { patient: "Пациент", doctor: "Врач" };
 
@@ -11,6 +11,13 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void })
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [serverUp, setServerUp] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetchHealth()
+      .then(() => setServerUp(true))
+      .catch(() => setServerUp(false));
+  }, []);
 
   async function submit(event: React.FormEvent) {
     event.preventDefault();
@@ -108,6 +115,12 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void })
       >
         {mode === "signup" ? "У меня уже есть аккаунт" : "Создать аккаунт"}
       </button>
+
+      <p style={{ marginTop: 32, fontSize: 13, color: serverUp === false ? "#b42318" : "#777" }}>
+        {serverUp === null && "Проверяем связь с сервером…"}
+        {serverUp === true && "Сервер на связи"}
+        {serverUp === false && "Сервер недоступен — данные не сохранятся"}
+      </p>
     </main>
   );
 }

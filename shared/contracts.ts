@@ -74,3 +74,12 @@ export const bindingCodeResponseSchema = z.object({
 });
 
 export type BindingCodeResponse = z.infer<typeof bindingCodeResponseSchema>;
+
+/**
+ * A model's proposal. `confirmedAt` stays null until a doctor confirms it;
+ * an unconfirmed draft never changes what the patient sees.
+ */
+export type Draft<T> = {
+  readonly value: T;
+  readonly confirmedAt: string | null;
+};

@@ -5,7 +5,7 @@ import { readSession, type Auth, type Role } from "./session.js";
 /** Rejects anonymous callers, and callers holding a session for the other role. */
 export function requireRole(role: Role) {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
-    const auth = await readSession(request.server.conn, request);
+    const auth = await readSession(request.server.conn, request, reply);
 
     if (!auth) {
       unauthorized(reply);

@@ -1,5 +1,6 @@
 import type {
   Credentials,
+  HealthResponse,
   BindingCodeResponse,
   MeResponse,
   PatientListResponse,
@@ -83,4 +84,8 @@ export function fetchPatient(id: string): Promise<{ patient: PatientSummary }> {
 
 export function unbindPatient(id: string): Promise<void> {
   return request<void>(`/api/patients/${id}/unbind`, { method: "POST" });
+}
+
+export function fetchHealth(): Promise<HealthResponse> {
+  return request<HealthResponse>("/api/health");
 }
