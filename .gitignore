@@ -1,3 +1,8 @@
+# Secrets / env
+.env
+.env.*
+!.env.example
+
 # Python
 __pycache__/
 *.py[cod]
@@ -5,24 +10,9 @@ __pycache__/
 venv/
 *.egg-info/
 
-# Django
-db.sqlite3
-data/
-/staticfiles/
-media/
-
-# Mockup heavyweight artifacts (rebuilt by `import_knowledge`)
-reference/mockup/clinical_compass_app/knowledge_assets/
-
-# Secrets / env
-.env
-.env.*
-!.env.example
-
 # Node
 node_modules/
 dist/
-.next/
 
 # OS / editor
 .DS_Store
@@ -40,6 +30,6 @@ devenv.local.nix
 devenv.local.yaml
 .direnv/
 
-# pytest / ruff
+# Tool caches
 .pytest_cache/
 .ruff_cache/
