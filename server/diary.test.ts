@@ -101,8 +101,9 @@ describe("the wellbeing diary", () => {
   it("shows the doctor their patient's entries, newest first", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
-    await post(app, patientCookie, { submissionId: "old", value: 2, entryDate: "2026-10-01" });
-    await post(app, patientCookie, { submissionId: "new", value: 9, entryDate: "2026-10-20" });
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+    await post(app, patientCookie, { submissionId: "old", value: 2, entryDate: yesterday });
+    await post(app, patientCookie, { submissionId: "new", value: 9 });
 
     const response = await app.inject({
       method: "GET",

@@ -74,7 +74,7 @@ export const diaryEntries = sqliteTable(
   },
   (table) => [
     uniqueIndex("idx_diary_submission").on(table.patientId, table.submissionId),
-    index("idx_diary_patient").on(table.patientId, table.entryDate),
+    uniqueIndex("idx_diary_day").on(table.patientId, table.entryDate),
   ],
 );
 

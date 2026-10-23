@@ -2,7 +2,9 @@ import { eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { hashPassword } from "../auth/password.js";
 import { createDb } from "./client.js";
-import { doctors, patients } from "./schema.js";
+import { score } from "../instruments/engine.js";
+import { instrument } from "../instruments/loader.js";
+import { assessments, diaryEntries, doctors, patients } from "./schema.js";
 
 const DOCTOR_EMAIL = process.env.SEED_DOCTOR_EMAIL ?? "doctor@example.com";
 const PASSWORD = process.env.SEED_PASSWORD ?? "compass-demo-2026";
@@ -47,6 +49,98 @@ for (const demo of DEMO_PATIENTS) {
     createdAt: daysAgo(demo.boundDaysAgo + 2),
   });
   console.log(`created patient ${demo.email}`);
+}
+
+/** Demo history so the doctor's card has dynamics instead of empty tables. */
+const HISTORY: Record<string, { answers: Record<string, number>; daysAgo: number }[]> = {
+  "anna@example.com": [
+    {
+      daysAgo: 21,
+      answers: { q1: 1, q2: 2, q3: 1, q4: 2, q5: 1, q6: 2, q7: 1, q8: 1, q9: 0 },
+    },
+    {
+      daysAgo: 14,
+      answers: { q1: 1, q2: 1, q3: 1, q4: 1, q5: 1, q6: 1, q7: 1, q8: 1, q9: 0 },
+    },
+  ],
+  "mikhail@example.com": [
+    {
+      daysAgo: 12,
+      answers: { q1: 1, q2: 2, q3: 1, q4: 1, q5: 1, q6: 0, q7: 1, q8: 0, q9: 0 },
+    },
+  ],
+};
+
+const DIARY_HISTORY: Record<string, { daysAgo: number; value: number; comment: string | null }[]> = {
+  "anna@example.com": [
+    { daysAgo: 5, value: 4, comment: "Тяжело вставать по утрам" },
+    { daysAgo: 4, value: 5, comment: null },
+    { daysAgo: 3, value: 5, comment: "Погуляла, стало легче" },
+    { daysAgo: 2, value: 6, comment: null },
+    { daysAgo: 1, value: 7, comment: "Спал лучше" },
+  ],
+  "mikhail@example.com": [
+    { daysAgo: 3, value: 7, comment: null },
+    { daysAgo: 2, value: 6, comment: "Много работы" },
+    { daysAgo: 1, value: 8, comment: null },
+  ],
+};
+
+const phq9 = instrument("phq-9");
+if (!phq9) throw new Error("phq-9 missing");
+
+for (const demo of DEMO_PATIENTS) {
+  const [patient] = await db.select().from(patients).where(eq(patients.email, demo.email)).limit(1);
+  if (!patient) continue;
+
+  const [hasAssessment] = await db
+    .select({ id: assessments.id })
+    .from(assessments)
+    .where(eq(assessments.patientId, patient.id))
+    .limit(1);
+
+  if (!hasAssessment) {
+    for (const entry of HISTORY[demo.email] ?? []) {
+      const scored = score(phq9, entry.answers);
+      const submittedAt = daysAgo(entry.daysAgo);
+      await db.insert(assessments).values({
+        id: randomUUID(),
+        patientId: patient.id,
+        instrumentId: phq9.id,
+        instrumentVersion: phq9.version,
+        answers: JSON.stringify(entry.answers),
+        totalScore: scored.total,
+        bandId: scored.band.id,
+        bandLabel: scored.band.label,
+        submissionId: `seed-${patient.id}-${entry.daysAgo}`,
+        submittedAt,
+        createdAt: submittedAt,
+      });
+    }
+    console.log(`added assessment history for ${demo.email}`);
+  }
+
+  const [hasDiary] = await db
+    .select({ id: diaryEntries.id })
+    .from(diaryEntries)
+    .where(eq(diaryEntries.patientId, patient.id))
+    .limit(1);
+
+  if (!hasDiary) {
+    for (const entry of DIARY_HISTORY[demo.email] ?? []) {
+      const createdAt = daysAgo(entry.daysAgo);
+      await db.insert(diaryEntries).values({
+        id: randomUUID(),
+        patientId: patient.id,
+        entryDate: createdAt.slice(0, 10),
+        value: entry.value,
+        comment: entry.comment,
+        submissionId: `seed-${patient.id}-diary-${entry.daysAgo}`,
+        createdAt,
+      });
+    }
+    console.log(`added diary history for ${demo.email}`);
+  }
 }
 
 sqlite.close();

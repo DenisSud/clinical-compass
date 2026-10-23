@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import {
   assessmentSubmitSchema,
@@ -16,6 +16,31 @@ import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
 import { signalsForAssessment } from "../rules/signals.js";
 import { saveSignals } from "./signals.js";
+
+const REPEAT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+
+function formatDay(iso: string): string {
+  return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+}
+
+/** The questionnaire is weekly: the next attempt opens seven days after the last one. */
+async function nextAttemptAt(
+  app: Parameters<FastifyPluginAsync>[0],
+  patientId: string,
+  instrumentId: string,
+): Promise<string | null> {
+  const [last] = await app.conn.db
+    .select({ submittedAt: assessments.submittedAt })
+    .from(assessments)
+    .where(and(eq(assessments.patientId, patientId), eq(assessments.instrumentId, instrumentId)))
+    .orderBy(desc(assessments.submittedAt))
+    .limit(1);
+
+  if (!last) return null;
+
+  const opensAt = new Date(last.submittedAt).getTime() + REPEAT_INTERVAL_MS;
+  return opensAt > Date.now() ? new Date(opensAt).toISOString() : null;
+}
 
 function answerList(instrument: Instrument, answers: Record<string, number>) {
   return instrument.items.map((item) => ({
@@ -97,6 +122,16 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
         return reply.code(200).send({ assessment: toPatientAssessment(instrument, existing) });
       }
 
+      const nextAllowedAt = await nextAttemptAt(app, patientId, instrument.id);
+      if (nextAllowedAt && Date.now() < new Date(nextAllowedAt).getTime()) {
+        return fail(
+          reply,
+          409,
+          "too_soon",
+          `Опросник проходят раз в неделю. Следующий раз — ${formatDay(nextAllowedAt)}`,
+        );
+      }
+
       let scored;
       try {
         scored = score(instrument, parsed.data.answers);
@@ -161,6 +196,7 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
         const instrument = findInstrument(row.instrumentId);
         return instrument ? [toPatientAssessment(instrument, row)] : [];
       }),
+      nextAllowedAt: await nextAttemptAt(app, requireAuth(request).userId, "phq-9"),
     };
   });
 

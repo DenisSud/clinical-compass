@@ -36,10 +36,14 @@ export function PatientHome({
   const [openForm, setOpenForm] = useState<"phq9" | null>(null);
   const [plan, setPlan] = useState<PlanItem[] | null>(null);
   const [messages, setMessages] = useState<Message[] | null>(null);
+  const [nextAllowedAt, setNextAllowedAt] = useState<string | null>(null);
 
   const reload = useCallback(() => {
     fetchMyAssessments()
-      .then((response) => setAssessments(response.assessments))
+      .then((response) => {
+        setAssessments(response.assessments);
+        setNextAllowedAt(response.nextAllowedAt);
+      })
       .catch(() => setAssessments([]));
     fetchMyDiary()
       .then((response) => setEntries(response.entries))
@@ -68,6 +72,10 @@ export function PatientHome({
       setBusy(false);
     }
   }
+
+  const today = new Date().toLocaleDateString("sv-SE");
+  const todayEntry = entries?.find((entry) => entry.entryDate === today);
+  const weeklyWait = nextAllowedAt !== null && new Date(nextAllowedAt).getTime() > Date.now();
 
   return (
     <main style={{ maxWidth: 720, margin: "0 auto", padding: 32, fontFamily: "system-ui, sans-serif" }}>
@@ -173,7 +181,16 @@ export function PatientHome({
 
       <section style={CARD}>
         <h2 style={{ fontSize: 16, marginTop: 0 }}>Самочувствие</h2>
-        <DiaryForm onSaved={reload} />
+        {todayEntry ? (
+          <p style={{ marginTop: 0 }}>
+            Сегодня отмечено: <strong>{todayEntry.value}</strong> / 10
+            {todayEntry.comment && <span style={{ color: "#555" }}> — {todayEntry.comment}</span>}
+            <br />
+            <span style={{ color: "#777", fontSize: 14 }}>Следующая запись — завтра.</span>
+          </p>
+        ) : (
+          <DiaryForm onSaved={reload} />
+        )}
         {entries && entries.length > 0 && (
           <ul style={{ listStyle: "none", padding: 0, margin: "20px 0 0", display: "grid", gap: 10 }}>
             {entries.map((entry) => (
@@ -193,19 +210,30 @@ export function PatientHome({
         {openForm === "phq9" ? (
           <Phq9Form
             onSaved={() => {
+              setOpenForm(null);
               reload();
             }}
           />
         ) : (
           <>
             <p style={{ color: "#555", marginTop: 0 }}>Девять вопросов о том, как вы себя чувствовали последние две недели.</p>
-            <button
-              type="button"
-              onClick={() => setOpenForm("phq9")}
-              style={{ padding: "10px 16px", borderRadius: 8, border: "none", background: "#1f6feb", color: "white", cursor: "pointer" }}
-            >
-              Пройти опросник
-            </button>
+            {weeklyWait ? (
+              <p style={{ color: "#555", marginTop: 0 }}>
+                Опросник проходят раз в неделю. Следующий раз —{" "}
+                <strong>
+                  {new Date(nextAllowedAt!).toLocaleDateString("ru-RU", { day: "numeric", month: "long" })}
+                </strong>
+                .
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setOpenForm("phq9")}
+                style={{ padding: "10px 16px", borderRadius: 8, border: "none", background: "#1f6feb", color: "white", cursor: "pointer" }}
+              >
+                Пройти опросник
+              </button>
+            )}
           </>
         )}
 

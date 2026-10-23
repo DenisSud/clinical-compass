@@ -113,8 +113,11 @@ export function submitAssessment(
   });
 }
 
-export function fetchMyAssessments(): Promise<{ assessments: PatientAssessment[] }> {
-  return request<{ assessments: PatientAssessment[] }>("/api/assessments");
+export function fetchMyAssessments(): Promise<{
+  assessments: PatientAssessment[];
+  nextAllowedAt: string | null;
+}> {
+  return request<{ assessments: PatientAssessment[]; nextAllowedAt: string | null }>("/api/assessments");
 }
 
 export function fetchPatientAssessments(id: string): Promise<{ assessments: DoctorAssessment[] }> {
@@ -125,6 +128,7 @@ export function submitDiary(payload: {
   submissionId: string;
   value: number;
   comment?: string;
+  entryDate?: string;
 }): Promise<{ entry: DiaryEntry }> {
   return request<{ entry: DiaryEntry }>("/api/diary", { method: "POST", body: JSON.stringify(payload) });
 }

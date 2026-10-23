@@ -79,6 +79,11 @@ describe("what raises a signal", () => {
     await submit(app, patientCookie, 0);
     expect((await listSignals(app, doctorCookie)).json().signals).toEqual([]);
 
+    // the questionnaire is weekly, so age the first submission before the second
+    app.conn.sqlite
+      .prepare("UPDATE assessments SET submitted_at = ?")
+      .run(new Date(Date.now() - 8 * 86_400_000).toISOString());
+
     await submit(app, patientCookie, 1, { q2: 2, q3: 2 });
     const kinds = (await listSignals(app, doctorCookie)).json().signals.map((s: { kind: string }) => s.kind);
     expect(kinds).toContain("worsening");

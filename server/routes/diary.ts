@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import { diarySubmitSchema, type DiaryEntry } from "../../shared/contracts.js";
 import { requireAuth, requireRole } from "../auth/guard.js";
@@ -42,12 +42,34 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
       .limit(1);
 
     const createdAt = new Date().toISOString();
+    const entryDate = parsed.data.entryDate ?? createdAt.slice(0, 10);
+
+    // The patient's own date wins over the server's, but only by a day either way.
+    const skewDays = Math.abs(Date.parse(entryDate) - Date.parse(createdAt.slice(0, 10))) / 86_400_000;
+    if (Number.isNaN(skewDays) || skewDays > 1) {
+      return fail(reply, 400, "invalid_request", "Дата записи вне допустимого диапазона");
+    }
+
+    const [sameDay] = await app.conn.db
+      .select()
+      .from(diaryEntries)
+      .where(and(eq(diaryEntries.patientId, patientId), eq(diaryEntries.entryDate, entryDate)))
+      .limit(1);
+    if (sameDay) {
+      return fail(
+        reply,
+        409,
+        "already_recorded",
+        "На этот день запись уже есть. Одна запись в день — так динамика остаётся честной",
+      );
+    }
+
     const [row] = await app.conn.db
       .insert(diaryEntries)
       .values({
         id: randomUUID(),
         patientId,
-        entryDate: parsed.data.entryDate ?? createdAt.slice(0, 10),
+        entryDate,
         value: parsed.data.value,
         comment: parsed.data.comment ?? null,
         submissionId: parsed.data.submissionId,
