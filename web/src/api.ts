@@ -8,6 +8,7 @@ import type {
   TherapyCard,
   PatientCheckins,
   DoctorAdherence,
+  WatchItem,
   Signal,
   DoctorAssessment,
   InstrumentView,
@@ -233,4 +234,19 @@ export function submitCheckin(input: {
 
 export function fetchPatientCheckins(patientId: string, days = 14): Promise<DoctorAdherence> {
   return request<DoctorAdherence>(`/api/patients/${patientId}/checkins?days=${days}`);
+}
+
+export function fetchWatchItems(patientId: string): Promise<{ items: WatchItem[] }> {
+  return request<{ items: WatchItem[] }>(`/api/patients/${patientId}/watch`);
+}
+
+export function createWatchItem(
+  patientId: string,
+  payload: Record<string, unknown>,
+): Promise<{ item: WatchItem }> {
+  return request(`/api/patients/${patientId}/watch`, { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function setWatchStatus(id: string, action: "pause" | "resume"): Promise<{ item: WatchItem }> {
+  return request(`/api/watch/${id}/${action}`, { method: "POST" });
 }

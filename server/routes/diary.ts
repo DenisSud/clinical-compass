@@ -7,6 +7,7 @@ import { diaryEntries } from "../db/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
 import { signalsForDiary } from "../rules/signals.js";
+import { raiseWatchSignals } from "../watch-service.js";
 import { saveSignals } from "./signals.js";
 
 function toEntry(row: typeof diaryEntries.$inferSelect): DiaryEntry {
@@ -83,6 +84,13 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
       sourceType: "diary",
       sourceId: row.id,
       drafts: signalsForDiary({ value: row.value, previousValue: previous?.value ?? null }),
+    });
+
+    await raiseWatchSignals(app, {
+      patientId,
+      sourceType: "diary",
+      sourceId: row.id,
+      event: { type: "diary", value: row.value, previousValue: previous?.value ?? null },
     });
 
     return reply.code(201).send({ entry: toEntry(row) });

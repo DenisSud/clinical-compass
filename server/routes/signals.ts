@@ -21,13 +21,19 @@ export function toSignal(row: typeof signals.$inferSelect): Signal {
     createdAt: row.createdAt,
     takenAt: row.takenAt,
     closedAt: row.closedAt,
+    watchItemId: row.watchItemId === "" ? null : row.watchItemId,
   };
 }
 
 /** Writes signals for a submission. The unique index makes a retry a no-op. */
 export async function saveSignals(
   app: Parameters<FastifyPluginAsync>[0],
-  input: { patientId: string; sourceType: "assessment" | "diary"; sourceId: string; drafts: SignalDraft[] },
+  input: {
+    patientId: string;
+    sourceType: "assessment" | "diary" | "checkin" | "message";
+    sourceId: string;
+    drafts: (SignalDraft & { watchItemId?: string })[];
+  },
 ): Promise<void> {
   if (input.drafts.length === 0) return;
 
@@ -45,6 +51,7 @@ export async function saveSignals(
         sourceType: input.sourceType,
         sourceId: input.sourceId,
         status: "saved",
+        watchItemId: draft.watchItemId ?? "",
         createdAt,
       })
       .onConflictDoNothing();

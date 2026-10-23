@@ -15,6 +15,7 @@ import type { Instrument } from "../instruments/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
 import { signalsForAssessment } from "../rules/signals.js";
+import { raiseWatchSignals } from "../watch-service.js";
 import { saveSignals } from "./signals.js";
 
 const REPEAT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -167,6 +168,13 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
         })
         .returning();
       if (!row) throw new Error("insert returned no row");
+
+      await raiseWatchSignals(app, {
+        patientId,
+        sourceType: "assessment",
+        sourceId: row.id,
+        event: { type: "assessment", instrumentId: instrument.id, total: scored.total },
+      });
 
       await saveSignals(app, {
         patientId,

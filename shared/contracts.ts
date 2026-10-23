@@ -166,6 +166,8 @@ export const signalSchema = z.object({
   createdAt: z.string(),
   takenAt: z.string().nullable(),
   closedAt: z.string().nullable(),
+  /** Set when the signal came from a rule the doctor wrote, not from the built-in set. */
+  watchItemId: z.string().nullable(),
 });
 
 export type Signal = z.infer<typeof signalSchema>;
@@ -275,3 +277,68 @@ export type AdherenceItem = {
 };
 
 export type DoctorAdherence = { today: string; items: AdherenceItem[] };
+
+export const watchKindSchema = z.enum([
+  "diary_below",
+  "diary_drop",
+  "score_threshold",
+  "missed_doses",
+  "message_keyword",
+]);
+
+export type WatchKind = z.infer<typeof watchKindSchema>;
+
+export const watchSeveritySchema = z.enum(["medium", "high", "critical"]);
+
+const watchBase = {
+  title: z.string().trim().min(3, "Название — не короче 3 символов").max(120),
+  severity: watchSeveritySchema,
+};
+
+/** What the doctor is watching, with the parameters that make it checkable. */
+export const watchCreateSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("diary_below"), threshold: z.number().int().min(1).max(10), ...watchBase }),
+  z.object({ kind: z.literal("diary_drop"), points: z.number().int().min(1).max(9), ...watchBase }),
+  z.object({
+    kind: z.literal("score_threshold"),
+    instrumentId: z.string().min(1),
+    threshold: z.number().int().min(0).max(100),
+    ...watchBase,
+  }),
+  z.object({ kind: z.literal("missed_doses"), days: z.number().int().min(1).max(14), ...watchBase }),
+  z.object({
+    kind: z.literal("message_keyword"),
+    terms: z.array(z.string().trim().min(2)).min(1).max(10),
+    ...watchBase,
+  }),
+]);
+
+export type WatchCreate = z.infer<typeof watchCreateSchema>;
+
+export type WatchItem = {
+  id: string;
+  patientId: string;
+  kind: WatchKind;
+  title: string;
+  severity: "medium" | "high" | "critical";
+  params: Record<string, unknown>;
+  status: "active" | "paused";
+  createdAt: string;
+  pausedAt: string | null;
+};
+
+/** Plain-language description of a rule, so the doctor does not have to read JSON. */
+export function describeWatch(item: Pick<WatchItem, "kind" | "params">): string {
+  switch (item.kind) {
+    case "diary_below":
+      return `самочувствие ${String(item.params.threshold)} или ниже`;
+    case "diary_drop":
+      return `падение самочувствия на ${String(item.params.points)} и больше`;
+    case "score_threshold":
+      return `сумма опросника ${String(item.params.threshold)} и выше`;
+    case "missed_doses":
+      return `${String(item.params.days)} пропуска приёма подряд`;
+    case "message_keyword":
+      return `слова в сообщении: ${(item.params.terms as string[]).join(", ")}`;
+  }
+}

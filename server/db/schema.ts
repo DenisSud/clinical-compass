@@ -96,11 +96,41 @@ export const signals = sqliteTable(
     createdAt: text("created_at").notNull(),
     takenAt: text("taken_at"),
     closedAt: text("closed_at"),
+    watchItemId: text("watch_item_id").notNull().default(""),
   },
   (table) => [
-    uniqueIndex("idx_signals_source").on(table.sourceType, table.sourceId, table.kind),
+    uniqueIndex("idx_signals_source").on(
+      table.sourceType,
+      table.sourceId,
+      table.kind,
+      table.watchItemId,
+    ),
     index("idx_signals_patient").on(table.patientId, table.status),
   ],
+);
+
+/**
+ * A rule the doctor wrote for one patient. Built-in rules always run and cannot be
+ * switched off; these are additions. They are paused, never deleted — a signal may
+ * still point at one.
+ */
+export const watchItems = sqliteTable(
+  "watch_items",
+  {
+    id: text("id").primaryKey(),
+    patientId: text("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+    doctorId: text("doctor_id").references(() => doctors.id, { onDelete: "set null" }),
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    severity: text("severity").notNull(),
+    params: text("params").notNull(),
+    status: text("status").notNull(),
+    createdAt: text("created_at").notNull(),
+    pausedAt: text("paused_at"),
+  },
+  (table) => [index("idx_watch_patient").on(table.patientId, table.status)],
 );
 
 export const planItems = sqliteTable(

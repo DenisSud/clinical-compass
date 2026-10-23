@@ -104,7 +104,12 @@ export function SignalsPanel({ onChanged }: { onChanged?: () => void }) {
                   {STATUS[signal.status]}
                 </span>
               </div>
-              <p style={{ margin: "6px 0 0", color: "#333", fontSize: 14 }}>{signal.detail}</p>
+              <p style={{ margin: "6px 0 0", color: "#333", fontSize: 14 }}>
+                {signal.watchItemId && (
+                  <span style={{ fontSize: 12, color: "#1f6feb", marginRight: 6 }}>по вашему правилу</span>
+                )}
+                {signal.detail}
+              </p>
 
               {signal.status === "saved" && (
                 <button

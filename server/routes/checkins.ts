@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, eq, gte } from "drizzle-orm";
+import { and, asc, desc, eq, gte } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import {
   checkinSubmitSchema,
@@ -11,6 +11,7 @@ import { requireAuth, requireRole } from "../auth/guard.js";
 import { planCheckins, planItems } from "../db/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
+import { raiseWatchSignals } from "../watch-service.js";
 
 const MAX_WINDOW_DAYS = 60;
 const DEFAULT_WINDOW_DAYS = 14;
@@ -117,6 +118,28 @@ export const checkinRoutes: FastifyPluginAsync = async (app) => {
         },
       })
       .returning();
+
+    const recent = await app.conn.db
+      .select({ date: planCheckins.checkinDate, status: planCheckins.status })
+      .from(planCheckins)
+      .where(eq(planCheckins.planItemId, item.id))
+      .orderBy(desc(planCheckins.checkinDate))
+      .limit(14);
+
+    let consecutiveSkips = 0;
+    let cursor = saved!.checkinDate;
+    for (const row of recent) {
+      if (row.date !== cursor || row.status !== "skipped") break;
+      consecutiveSkips += 1;
+      cursor = shiftDate(cursor, -1);
+    }
+
+    await raiseWatchSignals(app, {
+      patientId,
+      sourceType: "checkin",
+      sourceId: saved!.id,
+      event: { type: "checkin", consecutiveSkips },
+    });
 
     return reply.code(200).send({
       checkin: {

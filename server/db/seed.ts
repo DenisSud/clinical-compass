@@ -4,7 +4,7 @@ import { hashPassword } from "../auth/password.js";
 import { createDb } from "./client.js";
 import { score } from "../instruments/engine.js";
 import { instrument } from "../instruments/loader.js";
-import { assessments, diaryEntries, doctors, patients, planCheckins, planItems } from "./schema.js";
+import { assessments, diaryEntries, doctors, patients, planCheckins, planItems, watchItems } from "./schema.js";
 
 const DOCTOR_EMAIL = process.env.SEED_DOCTOR_EMAIL ?? "doctor@example.com";
 const PASSWORD = process.env.SEED_PASSWORD ?? "compass-demo-2026";
@@ -52,6 +52,34 @@ for (const demo of DEMO_PATIENTS) {
 }
 
 /** Demo history so the doctor's card has dynamics instead of empty tables. */
+const WATCH: Record<
+  string,
+  { kind: string; title: string; severity: string; params: Record<string, unknown> }[]
+> = {
+  "anna@example.com": [
+    {
+      kind: "message_keyword",
+      title: "Риск самоповреждения в переписке",
+      severity: "critical",
+      params: { terms: ["не хочу жить", "нет смысла", "не хочу больше"] },
+    },
+    {
+      kind: "missed_doses",
+      title: "Пропуски приёма два дня подряд",
+      severity: "high",
+      params: { days: 2 },
+    },
+  ],
+  "mikhail@example.com": [
+    {
+      kind: "diary_below",
+      title: "Самочувствие на тройку или ниже",
+      severity: "medium",
+      params: { threshold: 3 },
+    },
+  ],
+};
+
 const PLAN: Record<string, { title: string }> = {
   "anna@example.com": { title: "Сертралин 50 мг" },
   "mikhail@example.com": { title: "Сертралин 25 мг" },
@@ -212,6 +240,30 @@ for (const demo of DEMO_PATIENTS) {
     });
 
     console.log(`added plan and adherence history for ${demo.email}`);
+  }
+
+  const [hasWatch] = await db
+    .select({ id: watchItems.id })
+    .from(watchItems)
+    .where(eq(watchItems.patientId, patient.id))
+    .limit(1);
+
+  if (!hasWatch) {
+    const rules = WATCH[demo.email] ?? [];
+    for (const rule of rules) {
+      await db.insert(watchItems).values({
+        id: randomUUID(),
+        patientId: patient.id,
+        doctorId: doctor.id,
+        kind: rule.kind,
+        title: rule.title,
+        severity: rule.severity,
+        params: JSON.stringify(rule.params),
+        status: "active",
+        createdAt: daysAgo(7),
+      });
+    }
+    if (rules.length > 0) console.log(`added watch rules for ${demo.email}`);
   }
 }
 

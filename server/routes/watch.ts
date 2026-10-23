@@ -1,0 +1,108 @@
+import { randomUUID } from "node:crypto";
+import { asc, eq } from "drizzle-orm";
+import type { FastifyPluginAsync } from "fastify";
+import { watchCreateSchema } from "../../shared/contracts.js";
+import { requireAuth, requireRole } from "../auth/guard.js";
+import { watchItems } from "../db/schema.js";
+import { fail, forbidden, notFound } from "../http/errors.js";
+import { loadPatientForDoctor } from "../patient-access.js";
+import { toWatchItem } from "../watch-service.js";
+
+/** Everything but the label goes into params; the label lives in its own columns. */
+function paramsOf(input: { kind: string } & Record<string, unknown>): Record<string, unknown> {
+  const { kind: _kind, title: _title, severity: _severity, ...rest } = input;
+  return rest;
+}
+
+export const watchRoutes: FastifyPluginAsync = async (app) => {
+  app.get<{ Params: { id: string } }>(
+    "/patients/:id/watch",
+    { preHandler: requireRole("doctor") },
+    async (request, reply) => {
+      const lookup = await loadPatientForDoctor(app, requireAuth(request).userId, request.params.id);
+      if (!lookup.ok) {
+        return lookup.status === 404
+          ? notFound(reply, "Пациент не найден")
+          : forbidden(reply, "Этого пациента ведёт другой врач");
+      }
+
+      const rows = await app.conn.db
+        .select()
+        .from(watchItems)
+        .where(eq(watchItems.patientId, lookup.patient.id))
+        .orderBy(asc(watchItems.createdAt));
+
+      return { items: rows.map(toWatchItem) };
+    },
+  );
+
+  app.post<{ Params: { id: string } }>(
+    "/patients/:id/watch",
+    { preHandler: requireRole("doctor") },
+    async (request, reply) => {
+      const lookup = await loadPatientForDoctor(app, requireAuth(request).userId, request.params.id);
+      if (!lookup.ok) {
+        return lookup.status === 404
+          ? notFound(reply, "Пациент не найден")
+          : forbidden(reply, "Этого пациента ведёт другой врач");
+      }
+
+      const parsed = watchCreateSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return fail(reply, 400, "invalid_request", "Проверьте параметры правила");
+      }
+
+      const [row] = await app.conn.db
+        .insert(watchItems)
+        .values({
+          id: randomUUID(),
+          patientId: lookup.patient.id,
+          doctorId: requireAuth(request).userId,
+          kind: parsed.data.kind,
+          title: parsed.data.title,
+          severity: parsed.data.severity,
+          params: JSON.stringify(paramsOf(parsed.data)),
+          status: "active",
+          createdAt: new Date().toISOString(),
+        })
+        .returning();
+
+      return reply.code(201).send({ item: toWatchItem(row!) });
+    },
+  );
+
+  for (const action of ["pause", "resume"] as const) {
+    app.post<{ Params: { id: string } }>(
+      `/watch/:id/${action}`,
+      { preHandler: requireRole("doctor") },
+      async (request, reply) => {
+        const [row] = await app.conn.db
+          .select()
+          .from(watchItems)
+          .where(eq(watchItems.id, request.params.id))
+          .limit(1);
+
+        if (!row) return notFound(reply, "Правило не найдено");
+
+        const lookup = await loadPatientForDoctor(app, requireAuth(request).userId, row.patientId);
+        if (!lookup.ok) return forbidden(reply, "Этого пациента ведёт другой врач");
+
+        const wanted = action === "pause" ? "paused" : "active";
+        if (row.status === wanted) {
+          return fail(reply, 409, "wrong_status", "Правило уже в этом состоянии");
+        }
+
+        const [updated] = await app.conn.db
+          .update(watchItems)
+          .set({
+            status: wanted,
+            pausedAt: action === "pause" ? new Date().toISOString() : null,
+          })
+          .where(eq(watchItems.id, row.id))
+          .returning();
+
+        return { item: toWatchItem(updated!) };
+      },
+    );
+  }
+};

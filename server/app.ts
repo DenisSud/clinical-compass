@@ -12,6 +12,7 @@ import { planRoutes } from "./routes/plan.js";
 import { checkinRoutes } from "./routes/checkins.js";
 import { recommendationRoutes } from "./routes/recommendations.js";
 import { signalRoutes } from "./routes/signals.js";
+import { watchRoutes } from "./routes/watch.js";
 import { bindRoutes } from "./routes/bind.js";
 import { healthRoutes } from "./routes/health.js";
 import { bindingCodeRoutes } from "./routes/binding-code.js";
@@ -44,6 +45,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(messageRoutes, { prefix: "/api" });
   await app.register(recommendationRoutes, { prefix: "/api" });
   await app.register(checkinRoutes, { prefix: "/api" });
+  await app.register(watchRoutes, { prefix: "/api" });
 
   if (options.serveStatic) {
     await app.register(fastifyStatic, { root: join(here, "public") });

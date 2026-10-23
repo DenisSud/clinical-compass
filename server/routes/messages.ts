@@ -6,6 +6,7 @@ import { requireAuth, requireRole } from "../auth/guard.js";
 import { messages } from "../db/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
+import { raiseWatchSignals } from "../watch-service.js";
 
 function toMessage(row: typeof messages.$inferSelect): Message {
   return {
@@ -43,6 +44,13 @@ export const messageRoutes: FastifyPluginAsync = async (app) => {
       })
       .returning();
     if (!row) throw new Error("insert returned no row");
+
+    await raiseWatchSignals(app, {
+      patientId: row.patientId,
+      sourceType: "message",
+      sourceId: row.id,
+      event: { type: "message", text: row.body },
+    });
 
     return reply.code(201).send({ message: toMessage(row) });
   });
