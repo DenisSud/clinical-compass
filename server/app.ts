@@ -4,7 +4,10 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createDb } from "./db/client.js";
+import { authRoutes } from "./routes/auth.js";
 import { healthRoutes } from "./routes/health.js";
+import { meRoutes } from "./routes/me.js";
+import { patientRoutes } from "./routes/patients.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -20,6 +23,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.decorate("conn", createDb(options.dbPath ?? process.env.SQLITE_DB ?? "var/app.db"));
   await app.register(fastifyCookie);
   await app.register(healthRoutes, { prefix: "/api" });
+  await app.register(authRoutes, { prefix: "/api" });
+  await app.register(meRoutes, { prefix: "/api" });
+  await app.register(patientRoutes, { prefix: "/api" });
 
   if (options.serveStatic) {
     await app.register(fastifyStatic, { root: join(here, "public") });

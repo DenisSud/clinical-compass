@@ -1,27 +1,36 @@
-import { useEffect, useState } from "react";
-import type { HealthResponse } from "../../shared/contracts";
+import { useCallback, useEffect, useState } from "react";
+import type { MeResponse } from "../../shared/contracts";
+import { AuthScreen } from "./AuthScreen";
+import { DoctorHome } from "./DoctorHome";
+import { PatientHome } from "./PatientHome";
+import { fetchMe, signOut } from "./api";
 
 export function App() {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [me, setMe] = useState<MeResponse | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetch("/api/health")
-      .then((response) => (response.ok ? response.json() : Promise.reject(new Error(String(response.status)))))
-      .then(setHealth)
-      .catch((cause: unknown) => setError(String(cause)));
+  const refresh = useCallback(() => {
+    fetchMe()
+      .then(setMe)
+      .catch(() => setMe(null))
+      .finally(() => setLoading(false));
   }, []);
 
-  return (
-    <main style={{ fontFamily: "system-ui, sans-serif", padding: 32, lineHeight: 1.6 }}>
-      <h1>Клинический компас</h1>
-      {error && <p>Сервер недоступен: {error}</p>}
-      {!error && !health && <p>Проверяем связь с сервером…</p>}
-      {health && (
-        <p>
-          API: {health.status}, база: {health.db}, время: {health.time}
-        </p>
-      )}
-    </main>
+  useEffect(refresh, [refresh]);
+
+  const handleSignOut = useCallback(() => {
+    void signOut().finally(() => setMe(null));
+  }, []);
+
+  if (loading) {
+    return <p style={{ fontFamily: "system-ui, sans-serif", padding: 32 }}>Загрузка…</p>;
+  }
+
+  if (!me) return <AuthScreen onAuthenticated={refresh} />;
+
+  return me.role === "doctor" ? (
+    <DoctorHome profile={me.profile} onSignOut={handleSignOut} />
+  ) : (
+    <PatientHome profile={me.profile} onSignOut={handleSignOut} />
   );
 }

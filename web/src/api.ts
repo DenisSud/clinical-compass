@@ -1,0 +1,56 @@
+import type { Credentials, MeResponse, PatientListResponse, Role } from "../../shared/contracts";
+
+export class ApiError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
+async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
+  const response = await fetch(url, {
+    ...init,
+    headers: { "content-type": "application/json", ...init.headers },
+  });
+
+  if (response.status === 204) return undefined as T;
+
+  const body: unknown = await response.json().catch(() => null);
+  if (!response.ok) {
+    const error = body as { code?: string; message?: string } | null;
+    throw new ApiError(error?.code ?? "unknown", error?.message ?? "Не удалось выполнить запрос");
+  }
+  return body as T;
+}
+
+export async function fetchMe(): Promise<MeResponse | null> {
+  const response = await fetch("/api/me");
+  if (response.status === 401) return null;
+  if (!response.ok) throw new ApiError("unknown", "Сервер недоступен");
+  return (await response.json()) as MeResponse;
+}
+
+export function signUp(role: Role, credentials: Credentials): Promise<MeResponse> {
+  return request<MeResponse>(`/api/auth/${role}/signup`, {
+    method: "POST",
+    body: JSON.stringify(credentials),
+  });
+}
+
+export function signIn(role: Role, credentials: Credentials): Promise<MeResponse> {
+  return request<MeResponse>(`/api/auth/${role}/signin`, {
+    method: "POST",
+    body: JSON.stringify(credentials),
+  });
+}
+
+export function signOut(): Promise<void> {
+  return request<void>("/api/auth/signout", { method: "POST" });
+}
+
+export function fetchPatients(): Promise<PatientListResponse> {
+  return request<PatientListResponse>("/api/patients");
+}
