@@ -6,6 +6,8 @@ import type {
   Message,
   PlanItem,
   TherapyCard,
+  PatientCheckins,
+  DoctorAdherence,
   Signal,
   DoctorAssessment,
   InstrumentView,
@@ -215,4 +217,20 @@ export function fetchRecommendations(
   return request<{ cards: TherapyCard[]; missing: string[] }>(
     `/api/patients/${patientId}/recommendations`,
   );
+}
+
+export function fetchCheckins(): Promise<PatientCheckins> {
+  return request<PatientCheckins>("/api/checkins");
+}
+
+export function submitCheckin(input: {
+  planItemId: string;
+  status: "done" | "skipped";
+  reason?: string;
+}): Promise<{ checkin: { planItemId: string; status: string } }> {
+  return request("/api/checkins", { method: "POST", body: JSON.stringify(input) });
+}
+
+export function fetchPatientCheckins(patientId: string, days = 14): Promise<DoctorAdherence> {
+  return request<DoctorAdherence>(`/api/patients/${patientId}/checkins?days=${days}`);
 }

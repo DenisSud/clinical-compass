@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { AdherenceTable } from "./AdherenceTable";
 import { MessageThread } from "./MessageThread";
 import { PlanPanel } from "./PlanPanel";
 import type { DiaryEntry, DoctorAssessment, Message, PatientSummary, TherapyCard } from "../../shared/contracts";
@@ -57,6 +58,9 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
           Не удалось загрузить часть данных. Это не значит, что их нет — обновите страницу.
         </p>
       )}
+
+      <h3 style={{ fontSize: 15, marginTop: 20 }}>Приверженность</h3>
+      <AdherenceTable patientId={patient.id} />
 
       <h3 style={{ fontSize: 15, marginTop: 20 }}>Варианты терапии</h3>
       {cards === null && <p style={{ color: "#777" }}>Загрузка…</p>}

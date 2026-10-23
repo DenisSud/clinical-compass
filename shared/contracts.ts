@@ -232,3 +232,46 @@ export const therapyCardSchema = z.object({
 });
 
 export type TherapyCard = z.infer<typeof therapyCardSchema>;
+
+export const checkinStatusSchema = z.enum(["done", "skipped"]);
+
+export const checkinSubmitSchema = z.object({
+  planItemId: z.string().min(1),
+  status: checkinStatusSchema,
+  reason: z.string().trim().max(500).optional(),
+  checkinDate: z.string().optional(),
+});
+
+/** One prescription as the patient sees it today. */
+export type PatientCheckinItem = {
+  planItemId: string;
+  title: string;
+  kind: PlanItem["kind"];
+  status: "done" | "skipped" | null;
+  reason: string | null;
+};
+
+export type PatientCheckins = { today: string; items: PatientCheckinItem[] };
+
+/**
+ * Three states, never two. A day with no answer is not a missed dose, and a doctor
+ * who cannot tell them apart will read silence as non-adherence.
+ */
+export type AdherenceDay = {
+  date: string;
+  state: "done" | "skipped" | "no_data";
+  reason: string | null;
+};
+
+export type AdherenceItem = {
+  planItemId: string;
+  title: string;
+  kind: PlanItem["kind"];
+  startedAt: string;
+  days: AdherenceDay[];
+  done: number;
+  skipped: number;
+  noData: number;
+};
+
+export type DoctorAdherence = { today: string; items: AdherenceItem[] };

@@ -10,6 +10,7 @@ import {
   sendMessage,
 } from "./api";
 import { DiaryForm } from "./DiaryForm";
+import { TodayPlan } from "./TodayPlan";
 import { MessageThread } from "./MessageThread";
 import { Phq9Form } from "./Phq9Form";
 
@@ -144,6 +145,11 @@ export function PatientHome({
           {error && <p style={{ color: "#b42318", fontSize: 14 }}>{error}</p>}
         </>
       )}
+
+      <section style={CARD}>
+        <h2 style={{ fontSize: 16, marginTop: 0 }}>Сегодня</h2>
+        <TodayPlan />
+      </section>
 
       <section style={CARD}>
         <h2 style={{ fontSize: 16, marginTop: 0 }}>План лечения</h2>

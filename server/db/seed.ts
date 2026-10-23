@@ -4,7 +4,7 @@ import { hashPassword } from "../auth/password.js";
 import { createDb } from "./client.js";
 import { score } from "../instruments/engine.js";
 import { instrument } from "../instruments/loader.js";
-import { assessments, diaryEntries, doctors, patients } from "./schema.js";
+import { assessments, diaryEntries, doctors, patients, planCheckins, planItems } from "./schema.js";
 
 const DOCTOR_EMAIL = process.env.SEED_DOCTOR_EMAIL ?? "doctor@example.com";
 const PASSWORD = process.env.SEED_PASSWORD ?? "compass-demo-2026";
@@ -52,6 +52,31 @@ for (const demo of DEMO_PATIENTS) {
 }
 
 /** Demo history so the doctor's card has dynamics instead of empty tables. */
+const PLAN: Record<string, { title: string }> = {
+  "anna@example.com": { title: "Сертралин 50 мг" },
+  "mikhail@example.com": { title: "Сертралин 25 мг" },
+};
+
+const PLAN_DRAFT: Record<string, string> = {
+  "anna@example.com": "КПТ: 8 сессий",
+  "mikhail@example.com": "Дневник тревоги дважды в день",
+};
+
+// 6 days since the prescription: three taken, one skipped with a reason, one day silent.
+const PLAN_HISTORY: Record<string, { daysAgo: number; status: string; reason?: string }[]> = {
+  "anna@example.com": [
+    { daysAgo: 5, status: "done" },
+    { daysAgo: 4, status: "done" },
+    { daysAgo: 3, status: "skipped", reason: "Тошнило утром, пропустила приём" },
+    { daysAgo: 2, status: "done" },
+    { daysAgo: 1, status: "done" },
+  ],
+  "mikhail@example.com": [
+    { daysAgo: 4, status: "done" },
+    { daysAgo: 2, status: "skipped", reason: "Забыл взять таблетки на смену" },
+  ],
+};
+
 const HISTORY: Record<string, { answers: Record<string, number>; daysAgo: number }[]> = {
   "anna@example.com": [
     {
@@ -140,6 +165,53 @@ for (const demo of DEMO_PATIENTS) {
       });
     }
     console.log(`added diary history for ${demo.email}`);
+  }
+
+  const [hasPlan] = await db
+    .select({ id: planItems.id })
+    .from(planItems)
+    .where(eq(planItems.patientId, patient.id))
+    .limit(1);
+
+  if (!hasPlan) {
+    const confirmedAt = daysAgo(6);
+    const itemId = randomUUID();
+    await db.insert(planItems).values({
+      id: itemId,
+      patientId: patient.id,
+      kind: "medication",
+      title: PLAN[demo.email]?.title ?? "Сертралин 50 мг",
+      details: "Утром, после еды",
+      status: "active",
+      createdAt: confirmedAt,
+      confirmedAt,
+    });
+
+    // Done, skipped and a day nobody answered — all three states in the demo.
+    for (const day of PLAN_HISTORY[demo.email] ?? []) {
+      const createdAt = daysAgo(day.daysAgo);
+      await db.insert(planCheckins).values({
+        id: randomUUID(),
+        planItemId: itemId,
+        patientId: patient.id,
+        checkinDate: createdAt.slice(0, 10),
+        status: day.status,
+        reason: day.reason ?? null,
+        createdAt,
+      });
+    }
+
+    await db.insert(planItems).values({
+      id: randomUUID(),
+      patientId: patient.id,
+      kind: "therapy",
+      title: PLAN_DRAFT[demo.email] ?? "КПТ: 8 сессий",
+      details: "Черновик, пациент его не видит",
+      status: "draft",
+      createdAt: daysAgo(1),
+    });
+
+    console.log(`added plan and adherence history for ${demo.email}`);
   }
 }
 

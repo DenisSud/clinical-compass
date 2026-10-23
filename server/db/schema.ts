@@ -121,6 +121,27 @@ export const planItems = sqliteTable(
   (table) => [index("idx_plan_patient").on(table.patientId, table.status)],
 );
 
+export const planCheckins = sqliteTable(
+  "plan_checkins",
+  {
+    id: text("id").primaryKey(),
+    planItemId: text("plan_item_id")
+      .notNull()
+      .references(() => planItems.id, { onDelete: "cascade" }),
+    patientId: text("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+    checkinDate: text("checkin_date").notNull(),
+    status: text("status").notNull(),
+    reason: text("reason"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_checkins_item_day").on(table.planItemId, table.checkinDate),
+    index("idx_checkins_patient").on(table.patientId, table.checkinDate),
+  ],
+);
+
 export const messages = sqliteTable(
   "messages",
   {
