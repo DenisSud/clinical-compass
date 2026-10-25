@@ -85,5 +85,6 @@
   },
   "alert": {
     "bandId": "moderate"
-  }
+  },
+  "repeatAfterHours": 168
 }

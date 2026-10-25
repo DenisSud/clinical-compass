@@ -54,7 +54,9 @@ export function signalsForAssessment(input: {
     (band) => input.total >= band.min && input.total <= band.max,
   );
 
-  if (alertBand && actualBand && input.total >= alertBand.min) {
+  const bandIsSeverity = input.instrument.alert?.totalSignal !== false;
+
+  if (bandIsSeverity && alertBand && actualBand && input.total >= alertBand.min) {
     signals.push({
       kind: "severe_total",
       severity: "high",

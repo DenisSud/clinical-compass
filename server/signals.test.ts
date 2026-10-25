@@ -244,3 +244,37 @@ describe("the signal lifecycle", () => {
     await app.close();
   });
 });
+
+describe("ASQ does not multiply one answer into two findings", () => {
+  async function submitAsq(app: App, cookie: string, value: number) {
+    return app.inject({
+      method: "POST",
+      url: "/api/assessments/asq",
+      headers: { cookie },
+      payload: {
+        submissionId: crypto.randomUUID(),
+        answers: Object.fromEntries(["q1", "q2", "q3", "q4"].map((id) => [id, value])),
+      },
+    });
+  }
+
+  it("raises the critical signal and not a total-score signal on top of it", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie } = await boundPair(app);
+
+    await submitAsq(app, patientCookie, 1);
+
+    const signals = await app.inject({
+      method: "GET",
+      url: "/api/signals",
+      headers: { cookie: doctorCookie },
+    });
+    const kinds = (signals.json().signals as Array<{ kind: string }>).map((signal) => signal.kind);
+
+    // «Есть утвердительный ответ: 1 из 4» as a second card would read as a second
+    // finding, and the number is a count, not a severity.
+    expect(kinds).toContain("critical_item");
+    expect(kinds).not.toContain("severe_total");
+    await app.close();
+  });
+});

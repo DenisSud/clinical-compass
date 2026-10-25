@@ -30,8 +30,25 @@ export const instrumentSchema = z.object({
   options: z.array(optionSchema).min(2),
   items: z.array(itemSchema).min(1),
   bands: z.array(bandSchema).min(1),
+  /**
+   * How soon the instrument may be asked again. Zero means any time: a risk
+   * screener must not be locked for a week because the patient answered «нет»
+   * on Monday and is in crisis on Wednesday (DESIGN.md §2.1).
+   */
+  repeatAfterHours: z.number().int().nonnegative().default(168),
   /** Which band is worth a signal. Clinical policy about this instrument, so it lives in the data. */
-  alert: z.object({ bandId: z.string().min(1) }).optional(),
+  alert: z
+    .object({
+      bandId: z.string().min(1),
+      /**
+       * Whether the band also earns a total-score signal. False where the band is
+       * not a severity: ASQ counts affirmative answers, and those are already
+       * carried by the critical-item rule. Two cards for one answer read as two
+       * findings.
+       */
+      totalSignal: z.boolean().default(true),
+    })
+    .optional(),
   source: z.object({
     authors: z.string().min(1),
     validation_citation: z.string().nullable(),

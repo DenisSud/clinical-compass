@@ -18,7 +18,12 @@ import { signalsForAssessment } from "../rules/signals.js";
 import { raiseWatchSignals } from "../watch-service.js";
 import { saveSignals } from "./signals.js";
 
-const REPEAT_INTERVAL_MS = 7 * 24 * 60 * 60 * 1000;
+/**
+ * The interval belongs to the instrument, not to the route: PHQ-9 and GAD-7 are
+ * weekly, ASQ is not locked at all (repeatAfterHours: 0). A suicide-risk screener
+ * that answers «спросите через неделю» is a safety problem, not a rate limit.
+ */
+const HOUR_MS = 60 * 60 * 1000;
 
 function formatDay(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
@@ -28,8 +33,10 @@ function formatDay(iso: string): string {
 async function nextAttemptAt(
   app: Parameters<FastifyPluginAsync>[0],
   patientId: string,
-  instrumentId: string,
+  instrument: Instrument,
 ): Promise<string | null> {
+  const instrumentId = instrument.id;
+  if (instrument.repeatAfterHours === 0) return null;
   const [last] = await app.conn.db
     .select({ submittedAt: assessments.submittedAt })
     .from(assessments)
@@ -39,7 +46,7 @@ async function nextAttemptAt(
 
   if (!last) return null;
 
-  const opensAt = new Date(last.submittedAt).getTime() + REPEAT_INTERVAL_MS;
+  const opensAt = new Date(last.submittedAt).getTime() + instrument.repeatAfterHours * HOUR_MS;
   return opensAt > Date.now() ? new Date(opensAt).toISOString() : null;
 }
 
@@ -223,13 +230,13 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
         return reply.code(200).send({ assessment: toPatientAssessment(instrument, existing) });
       }
 
-      const nextAllowedAt = await nextAttemptAt(app, patientId, instrument.id);
+      const nextAllowedAt = await nextAttemptAt(app, patientId, instrument);
       if (nextAllowedAt && Date.now() < new Date(nextAllowedAt).getTime()) {
         return fail(
           reply,
           409,
           "too_soon",
-          `Опросник проходят раз в неделю. Следующий раз — ${formatDay(nextAllowedAt)}`,
+          `Этот опросник проходят не чаще раза в неделю. Следующий раз — ${formatDay(nextAllowedAt)}`,
         );
       }
 
@@ -282,15 +289,15 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
       .where(eq(assessments.patientId, requireAuth(request).userId))
       .orderBy(desc(assessments.submittedAt));
 
-    const lastInstrumentId = rows[0]?.instrumentId;
+    const lastInstrument = rows[0] ? findInstrument(rows[0].instrumentId) : undefined;
 
     return {
       assessments: rows.map((row) => {
         const instrument = findInstrument(row.instrumentId);
         return instrument ? toPatientAssessment(instrument, row) : degradedPatientAssessment(row);
       }),
-      nextAllowedAt: lastInstrumentId
-        ? await nextAttemptAt(app, requireAuth(request).userId, lastInstrumentId)
+      nextAllowedAt: lastInstrument
+        ? await nextAttemptAt(app, requireAuth(request).userId, lastInstrument)
         : null,
     };
   });

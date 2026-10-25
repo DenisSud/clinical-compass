@@ -100,5 +100,6 @@
   },
   "alert": {
     "bandId": "moderately-severe"
-  }
+  },
+  "repeatAfterHours": 168
 }
