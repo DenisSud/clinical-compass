@@ -30,7 +30,7 @@ export async function saveSignals(
   app: Parameters<FastifyPluginAsync>[0],
   input: {
     patientId: string;
-    sourceType: "assessment" | "diary" | "checkin" | "message";
+    sourceType: "assessment" | "diary" | "checkin" | "message" | "dose";
     sourceId: string;
     drafts: (SignalDraft & { watchItemId?: string })[];
   },

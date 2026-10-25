@@ -1,4 +1,4 @@
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const doctors = sqliteTable("doctors", {
   id: text("id").primaryKey(),
@@ -208,4 +208,62 @@ export const messages = sqliteTable(
     createdAt: text("created_at").notNull(),
   },
   (table) => [index("idx_messages_patient").on(table.patientId, table.createdAt)],
+);
+
+/**
+ * Назначение препарата: препарат, доза, расписание и даты. `drug_id` — ссылка на
+ * справочник корпуса (`server/knowledge`), а не на таблицу: справочник — файл, и
+ * свободный текст рядом нужен для препарата, которого в справочнике ещё нет.
+ * `times_of_day` — JSON-массив «ЧЧ:ММ»; `times_per_day` обязан совпадать с его длиной,
+ * это проверяет и схема, и CHECK в миграции.
+ */
+export const prescriptions = sqliteTable(
+  "prescription",
+  {
+    id: text("id").primaryKey(),
+    patientId: text("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+    drugId: text("drug_id"),
+    drugName: text("drug_name").notNull(),
+    doseValue: real("dose_value").notNull(),
+    doseUnit: text("dose_unit").notNull(),
+    timesPerDay: integer("times_per_day").notNull(),
+    timesOfDay: text("times_of_day").notNull(),
+    startsOn: text("starts_on").notNull(),
+    endsOn: text("ends_on"),
+    status: text("status").notNull(),
+    createdAt: text("created_at").notNull(),
+    confirmedAt: text("confirmed_at"),
+    confirmedBy: text("confirmed_by").references(() => doctors.id, { onDelete: "set null" }),
+    archivedAt: text("archived_at"),
+  },
+  (table) => [index("idx_prescriptions_patient").on(table.patientId, table.status)],
+);
+
+/**
+ * Событие приёма по конкретному запланированному времени, а не «отметка за сегодня»:
+ * пропуск — это разница между запланированным и фактическим временем. Нет строки —
+ * не «принял» и не «пропустил», а «не спрашивали».
+ */
+export const doseEvents = sqliteTable(
+  "dose_event",
+  {
+    id: text("id").primaryKey(),
+    prescriptionId: text("prescription_id")
+      .notNull()
+      .references(() => prescriptions.id, { onDelete: "cascade" }),
+    patientId: text("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+    scheduledAt: text("scheduled_at").notNull(),
+    status: text("status").notNull(),
+    takenAt: text("taken_at"),
+    reason: text("reason"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_dose_events_slot").on(table.prescriptionId, table.scheduledAt),
+    index("idx_dose_events_patient").on(table.patientId, table.scheduledAt),
+  ],
 );

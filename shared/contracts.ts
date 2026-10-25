@@ -286,6 +286,143 @@ export type AdherenceItem = {
 export type DoctorAdherence = { today: string; items: AdherenceItem[] };
 
 /**
+ * Назначение препарата (decisions.md Q32). Препарат бывает ссылкой на справочник
+ * (`drugId`) и свободным текстом (`drugName`) одновременно: справочник корпуса не
+ * покрывает всё, что врач выписывает, а выдумывать препарат ради ссылки нельзя.
+ * `timesOfDay` — единственное расписание: «раз в день» — это его длина.
+ */
+export const prescriptionStatusSchema = z.enum(["draft", "active", "archived"]);
+
+export const prescriptionSchema = z.object({
+  id: z.string(),
+  patientId: z.string(),
+  drugId: z.string().nullable(),
+  drugName: z.string(),
+  doseValue: z.number(),
+  doseUnit: z.string(),
+  timesPerDay: z.number(),
+  /** Настенные «ЧЧ:ММ» без часового пояса: расписание не сдвигается переводом часов. */
+  timesOfDay: z.array(z.string()),
+  startsOn: z.string(),
+  /** Пусто — курс открыт: длительность определяет врач. */
+  endsOn: z.string().nullable(),
+  status: prescriptionStatusSchema,
+  createdAt: z.string(),
+  confirmedAt: z.string().nullable(),
+  /** Врач, подтвердивший назначение. Без подтверждения пациент его не видит. */
+  confirmedBy: z.string().nullable(),
+  archivedAt: z.string().nullable(),
+});
+
+export type Prescription = z.infer<typeof prescriptionSchema>;
+
+/**
+ * Три состояния и ни одного сокращения: `no_data` — это не пропуск. Пропуск
+ * отличается от «нет данных» тем, что пациент сам сказал, что приём не состоялся.
+ */
+export const doseStatusSchema = z.enum(["taken", "skipped", "no_data"]);
+
+export const doseEventSchema = z.object({
+  id: z.string(),
+  prescriptionId: z.string(),
+  /** Запланированное время приёма, «ГГГГ-ММ-ДДTЧЧ:ММ». */
+  scheduledAt: z.string(),
+  status: doseStatusSchema,
+  /** Фактическое время приёма; null у пропуска и у «нет данных». */
+  takenAt: z.string().nullable(),
+  reason: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+export type DoseEvent = z.infer<typeof doseEventSchema>;
+
+/** `scheduled` — время ещё не наступило; это не «нет данных» и не пропуск. */
+export const doseSlotStateSchema = z.enum(["scheduled", "taken", "skipped", "no_data"]);
+
+export type DoseSlotState = z.infer<typeof doseSlotStateSchema>;
+
+/** Один запланированный приём в таблетнице: врачебное назначение плюс отметка пациента. */
+export const doseSlotSchema = z.object({
+  prescriptionId: z.string(),
+  drugName: z.string(),
+  doseValue: z.number(),
+  doseUnit: z.string(),
+  scheduledAt: z.string(),
+  state: doseSlotStateSchema,
+  takenAt: z.string().nullable(),
+  /** Насколько позже запланированного сделан приём, в минутах. Пропуск — это разница во времени. */
+  lateMinutes: z.number().nullable(),
+  reason: z.string().nullable(),
+  eventId: z.string().nullable(),
+});
+
+export type DoseSlot = z.infer<typeof doseSlotSchema>;
+
+export const adherenceSummarySchema = z.object({
+  /** Сколько приёмов в окне уже наступило. taken + skipped + noData = scheduled. */
+  scheduled: z.number(),
+  taken: z.number(),
+  skipped: z.number(),
+  noData: z.number(),
+  /** Пропуски подряд на текущий момент — по запланированным временам, не по дням. */
+  consecutiveSkips: z.number(),
+});
+
+export type AdherenceSummary = z.infer<typeof adherenceSummarySchema>;
+
+/** Таблетница как представление назначения: расписание, отметки и сводка, не таблица. */
+export const prescriptionViewSchema = z.object({
+  prescription: prescriptionSchema,
+  slots: z.array(doseSlotSchema),
+  adherence: adherenceSummarySchema,
+});
+
+export type PrescriptionView = z.infer<typeof prescriptionViewSchema>;
+
+const dayString = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const minuteString = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/);
+
+export const prescriptionCreateSchema = z
+  .object({
+    /** id документа справочника (server/knowledge); проверяется против корпуса. */
+    drugId: z.string().trim().min(1).nullable().optional(),
+    drugName: z.string().trim().min(1).max(200),
+    doseValue: z.number().positive().max(100_000),
+    doseUnit: z.string().trim().min(1).max(20),
+    timesPerDay: z.number().int().min(1).max(6),
+    timesOfDay: z.array(z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/)).min(1).max(6),
+    startsOn: dayString,
+    endsOn: dayString.nullable().optional(),
+  })
+  .refine((value) => value.timesOfDay.length === value.timesPerDay, {
+    message: "Число времён приёма должно совпадать с числом приёмов в день",
+    path: ["timesOfDay"],
+  })
+  .refine((value) => new Set(value.timesOfDay).size === value.timesOfDay.length, {
+    message: "Два приёма не могут стоять на одно время",
+    path: ["timesOfDay"],
+  })
+  .refine((value) => !value.endsOn || value.endsOn >= value.startsOn, {
+    message: "Дата конца раньше даты начала",
+    path: ["endsOn"],
+  });
+
+export type PrescriptionCreate = z.infer<typeof prescriptionCreateSchema>;
+
+export const doseSubmitSchema = z.object({
+  prescriptionId: z.string().min(1),
+  /** Конкретное запланированное время, за которое отвечает отметка. */
+  scheduledAt: minuteString,
+  status: doseStatusSchema,
+  reason: z.string().trim().max(500).optional(),
+});
+
+export type DoseSubmit = z.infer<typeof doseSubmitSchema>;
+
+/** Таблетница на сегодня: то, что пациент может отметить прямо сейчас. */
+export type DoseBoard = { today: string; doses: DoseSlot[] };
+
+/**
  * Факты, блокирующие решение. Перечень — из ОХЛП «Авиандр» (раздел 4.3), а не из
  * воображения: каждое поле там названо противопоказанием.
  *
