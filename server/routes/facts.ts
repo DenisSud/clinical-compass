@@ -9,6 +9,7 @@ import { requireAuth, requireRole } from "../auth/guard.js";
 import { patientFacts } from "../db/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
+import { createHash } from "node:crypto";
 import { signalsForFacts } from "../rules/signals.js";
 import { saveSignals } from "./signals.js";
 
@@ -115,11 +116,26 @@ export const factsRoutes: FastifyPluginAsync = async (app) => {
      * facts into a no-op instead of a second card. A card already raised is not closed
      * by a later answer — closure is the doctor's action with an outcome (Q17).
      */
+    const drafts = signalsForFacts(toFacts(row));
+
+    /*
+     * A second contraindication must not hide behind the first card. The unique index
+     * dedupes on (source_type, source_id, kind), so a constant source id would swallow
+     * every later answer: the patient adds an eGFR of 45 to a recorded pregnancy and
+     * the doctor keeps a card that names only the pregnancy. The id carries a
+     * fingerprint of what fired, so the same answers stay a no-op and a different set
+     * raises its own card.
+     */
+    const fingerprint = createHash("sha1")
+      .update(drafts.map((draft) => `${draft.kind}:${draft.detail}`).sort().join("|"))
+      .digest("hex")
+      .slice(0, 12);
+
     await saveSignals(app, {
       patientId,
       sourceType: "facts",
-      sourceId: patientId,
-      drafts: signalsForFacts(toFacts(row)),
+      sourceId: `${patientId}:${fingerprint}`,
+      drafts,
     });
 
     return toView(row);

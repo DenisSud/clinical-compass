@@ -215,6 +215,24 @@ describe("сохранённое противопоказание доходит
     await app.close();
   });
 
+  it("второе противопоказание не прячется за первой карточкой", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie } = await boundPair(app);
+
+    await putFacts(app, patientCookie, { pregnancy: "pregnant" });
+    await putFacts(app, patientCookie, { egfrMlMin: 45 });
+
+    const { signals } = (await listSignals(app, doctorCookie)).json();
+    const details = (signals as { detail: string }[]).map((signal) => signal.detail);
+
+    // A card that names both is what the doctor needs; the earlier pregnancy-only card
+    // may stay open, it is the doctor's to close.
+    expect(details.some((detail) => detail.includes("45") && detail.includes("беременность"))).toBe(
+      true,
+    );
+    await app.close();
+  });
+
   it("пациент сигналов не видит и после своих ответов", async () => {
     const app = await newApp();
     const { patientCookie } = await boundPair(app);
