@@ -1,0 +1,15 @@
+{
+  "id": "phq9-critical-item",
+  "title": "Критический пункт PHQ-9",
+  "when": [{ "fact": "assessment.criticalItem", "instrumentId": "phq-9" }],
+  "severity": "critical",
+  "output": {
+    "title": "Отмечен критический пункт опросника",
+    "detail": "В ответах отмечены пункты: {items}. Это повод посмотреть ответы, а не диагноз."
+  },
+  "source": {
+    "kind": "ours",
+    "ref": "docs/research/ai-decision-logic/decisions.md#Q29",
+    "status": "placeholder"
+  }
+}

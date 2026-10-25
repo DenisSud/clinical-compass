@@ -1,0 +1,15 @@
+{
+  "id": "phq9-worsening",
+  "title": "Ухудшение по шкале",
+  "when": [{ "fact": "assessment.totalIncrease", "instrumentId": "phq-9", "atLeast": 5 }],
+  "severity": "medium",
+  "output": {
+    "title": "Ухудшение на {increase} балла",
+    "detail": "Предыдущая сумма — {previousTotal}, текущая — {total}. Сравнение идёт внутри одной шкалы."
+  },
+  "source": {
+    "kind": "ours",
+    "ref": "docs/research/ai-decision-logic/sources-needed.md#1.2",
+    "status": "placeholder"
+  }
+}

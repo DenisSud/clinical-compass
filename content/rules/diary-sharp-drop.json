@@ -1,0 +1,15 @@
+{
+  "id": "diary-sharp-drop",
+  "title": "Резкое снижение самочувствия",
+  "when": [{ "fact": "diary.drop", "atLeast": 3 }],
+  "severity": "medium",
+  "output": {
+    "title": "Резкое снижение самочувствия на {drop}",
+    "detail": "Предыдущая оценка — {previousValue}, текущая — {value} из 10."
+  },
+  "source": {
+    "kind": "ours",
+    "ref": "docs/research/ai-decision-logic/sources-needed.md#1.3",
+    "status": "placeholder"
+  }
+}

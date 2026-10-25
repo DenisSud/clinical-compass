@@ -1,0 +1,67 @@
+{
+  "id": "aviandr-contraindications",
+  "title": "Противопоказания к «Авиандру»",
+  "when": [
+    {
+      "fact": "patientFact.epilepsyOrOrganicBrainDisease",
+      "is": "yes",
+      "label": "эпилепсия или органическое заболевание головного мозга"
+    },
+    {
+      "fact": "patientFact.maoInhibitors",
+      "is": "current",
+      "label": "приём ингибиторов МАО"
+    },
+    {
+      "fact": "patientFact.maoInhibitors",
+      "is": "stopped_under_2_weeks",
+      "label": "отмена ингибиторов МАО меньше двух недель назад"
+    },
+    {
+      "fact": "patientFact.egfrMlMin",
+      "below": 60,
+      "label": "снижение СКФ"
+    },
+    {
+      "fact": "patientFact.childPugh",
+      "is": "A",
+      "label": "печёночная недостаточность A по Чайлд-Пью"
+    },
+    {
+      "fact": "patientFact.childPugh",
+      "is": "B",
+      "label": "печёночная недостаточность B по Чайлд-Пью"
+    },
+    {
+      "fact": "patientFact.childPugh",
+      "is": "C",
+      "label": "печёночная недостаточность C по Чайлд-Пью"
+    },
+    {
+      "fact": "patientFact.pregnancy",
+      "is": "pregnant",
+      "label": "беременность"
+    },
+    {
+      "fact": "patientFact.pregnancy",
+      "is": "lactating",
+      "label": "грудное вскармливание"
+    },
+    {
+      "fact": "patientFact.galactoseIntolerance",
+      "is": "yes",
+      "label": "непереносимость галактозы"
+    }
+  ],
+  "severity": "critical",
+  "output": {
+    "title": "Противопоказание к «Авиандру»",
+    "detail": "У пациента отмечено: {fact}. Раздел 4.3 ОХЛП относит это к противопоказаниям; назначение обсуждает врач."
+  },
+  "source": {
+    "kind": "ohlp",
+    "ref": "docs/research/ai-decision-logic/research/ohlp-aviandr.md#4.3",
+    "quote": "эпилепсия и органические заболевания головного мозга; почечная недостаточность средней и тяжёлой степени (СКФ < 60 мл/мин); печеночная недостаточность любой степени (Чайлд-Пью A, B, C); беременность и период грудного вскармливания; непереносимость галактозы",
+    "status": "confirmed"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "adherence-three-missed-doses",
+  "title": "Три пропуска приёма подряд",
+  "when": [{ "fact": "adherence.consecutiveMissedDoses", "atLeast": 3 }],
+  "severity": "medium",
+  "output": {
+    "title": "Пропуски приёма подряд: {missedDoses}",
+    "detail": "Пропущено подряд: {missedDoses}. Один пропущенный день — отсутствие данных, не сигнал; сигналом считается третий пропуск подряд."
+  },
+  "source": {
+    "kind": "ours",
+    "ref": "docs/research/ai-decision-logic/decisions.md#Q15",
+    "status": "placeholder"
+  }
+}
