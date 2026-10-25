@@ -37,20 +37,34 @@ import type { DoseSlotState } from "../shared/contracts.js";
 type State = {
   facts: Partial<PatientFacts>;
   assessment: { instrument: Instrument; answers: Record<string, number> } | null;
+  /** Прошлая сумма и шкала, которой она принадлежит: сравнение идёт только внутри шкалы. */
   previousTotal: number | null;
+  previousInstrumentId: string | null;
   diary: { value: number; previousValue: number | null } | null;
-  adherence: { consecutiveMissedDoses: number } | null;
+  /** Отметки по конкретным запланированным временам: ключ — «ГГГГ-ММ-ДДTЧЧ:ММ». */
+  marks: Record<string, DoseSlotState>;
+  /** Пропуски без назначения: когда расписание не нужно, а правило проверить надо. */
+  manualSkips: number | null;
   schedule: Schedule | null;
+  startsOn: string;
+  endsOn: string | null;
 };
+
+const TODAY = new Date().toLocaleDateString("sv-SE");
+const NOW = new Date().toLocaleString("sv-SE").replace(" ", "T").slice(0, 16);
 
 function emptyState(): State {
   return {
     facts: {},
     assessment: null,
     previousTotal: null,
+    previousInstrumentId: null,
     diary: null,
-    adherence: null,
+    marks: {},
+    manualSkips: null,
     schedule: null,
+    startsOn: shiftDay(TODAY, -2),
+    endsOn: null,
   };
 }
 
@@ -85,7 +99,7 @@ function ruleFacts(): RuleFacts {
           }
         : null,
     diary: state.diary,
-    adherence: state.adherence,
+    adherence: adherenceForRules(),
     patientFacts: factsForRules(),
   };
 }
@@ -121,7 +135,9 @@ function factsTable(): void {
     const critical = criticalItems(state.assessment.instrument, state.assessment.answers);
     console.log(
       `\nОтветы: «${state.assessment.instrument.title}» — сумма ${scored.total}, диапазон «${scored.band.label}»` +
-        (state.previousTotal !== null ? `, прошлая сумма ${state.previousTotal}` : ""),
+        (state.previousTotal !== null
+          ? `, прошлая сумма ${state.previousTotal} (шкала ${state.previousInstrumentId ?? state.assessment.instrument.id})`
+          : ""),
     );
     if (critical.length > 0) console.log(`  отмечены пункты: ${critical.join(", ")}`);
   }
@@ -131,7 +147,8 @@ function factsTable(): void {
         (state.diary.previousValue !== null ? `, предыдущая оценка ${state.diary.previousValue}` : ""),
     );
   }
-  if (state.adherence) console.log(`\nПропусков приёма подряд: ${state.adherence.consecutiveMissedDoses}`);
+  const adherence = adherenceForRules();
+  if (adherence) console.log(`\nПропусков приёма подряд: ${adherence.consecutiveMissedDoses}`);
 }
 
 /** Условие словами: врач и Антон не должны читать JSON, чтобы понять правило. */
@@ -260,33 +277,52 @@ function dump(): void {
   signalsTable();
 }
 
+/**
+ * Отметить последние n наступивших приёмов пропуском. Если столько не наступило —
+ * отказ, а не тихое обрезание: два разных числа на одном экране читаются как ошибка.
+ */
+function markLastSkips(n: number): boolean {
+  const past = scheduleRows().filter((row) => row.scheduledAt <= NOW && row.state !== "scheduled");
+  if (n > past.length) {
+    console.log(`В окне всего ${past.length} наступивших приёмов — ${n} пропусков отметить нельзя.`);
+    return false;
+  }
+  for (const row of past.slice(-n)) state.marks[row.scheduledAt] = "skipped";
+  return true;
+}
+
+/** Слоты расписания с их состоянием. Один источник и для таблетницы, и для правила. */
+function scheduleRows() {
+  if (!state.schedule) return [];
+
+  const slots = plannedSlots(state.schedule, state.startsOn, state.endsOn ?? TODAY);
+  return slots.map((slot) => ({
+    scheduledAt: slot,
+    state: slotState({ scheduledAt: slot, mark: state.marks[slot] ? { status: state.marks[slot] } : undefined, now: NOW }),
+  }));
+}
+
+function adherenceForRules(): { consecutiveMissedDoses: number } | null {
+  if (state.schedule) return { consecutiveMissedDoses: trailingSkips(scheduleRows()).length };
+  if (state.manualSkips !== null) return { consecutiveMissedDoses: state.manualSkips };
+  return null;
+}
+
 function pillbox(): void {
   if (!state.schedule) {
     console.log("Назначения нет. Сначала: таблетница 08:00,20:00");
     return;
   }
 
-  const today = new Date().toLocaleDateString("sv-SE");
-  const from = shiftDay(today, -2);
-  const slots = plannedSlots(state.schedule, from, today);
-  const now = new Date().toLocaleString("sv-SE").replace(" ", "T").slice(0, 16);
-
-  // Отметки — те же, что ставит пациент: приём отмечен, пропуск подтверждён,
-  // пусто — значит «нет данных», а не «пропустил».
-  const marks: Record<string, { status: DoseSlotState }> = {};
-  if (state.adherence) {
-    const missed = slots.filter((slot) => slot <= now).slice(-state.adherence.consecutiveMissedDoses);
-    for (const slot of missed) marks[slot] = { status: "skipped" };
-  }
-
-  const rows = slots.map((slot) => ({
-    scheduledAt: slot,
-    state: slotState({ scheduledAt: slot, mark: marks[slot], now }),
-  }));
-
-  head(`ТАБЛЕТНИЦА · ${state.schedule.timesOfDay.join(" и ")} · с ${state.schedule.startsOn}`);
+  const rows = scheduleRows();
+  head(
+    `ТАБЛЕТНИЦА · ${state.schedule.timesOfDay.join(" и ")} · с ${state.startsOn}` +
+      (state.endsOn ? ` по ${state.endsOn}` : "") +
+      ` · сейчас ${NOW}`,
+  );
   for (const row of rows) {
-    console.log(`  ${row.scheduledAt}  ${row.state}`);
+    const late = row.state === "scheduled" && row.scheduledAt <= NOW ? " (время наступило)" : "";
+    console.log(`  ${row.scheduledAt}  ${row.state}${late}`);
   }
 
   const skips = trailingSkips(rows);
@@ -345,11 +381,16 @@ const SCENARIOS: Record<string, Scenario> = {
         run: () => {
           const today = new Date().toLocaleDateString("sv-SE");
           state.schedule = { startsOn: shiftDay(today, -2), endsOn: null, timesOfDay: ["08:00", "20:00"] };
-          state.adherence = null;
+          state.startsOn = shiftDay(today, -2);
+          state.endsOn = null;
+          state.marks = {};
         },
       },
       { say: "Смотрим расписание до отметок", run: () => pillbox() },
-      { say: "Пациент подтвердил три пропуска подряд", run: () => { state.adherence = { consecutiveMissedDoses: 3 }; } },
+      {
+        say: "Пациент подтвердил три пропуска подряд",
+        run: () => markLastSkips(3),
+      },
       { say: "Смотрим: расписание и сигнал приверженности", run: () => { pillbox(); dump(); } },
     ],
   },
@@ -388,15 +429,17 @@ const HELP = `
                                childPugh=B, беременность=pregnant, галактоза=no,
                                факт эпилепсия=null — снова «не спрашивали»
   шкала <id> [все=N] [q9=1]    phq-9, gad-7, asq
-  прошлый <балл>               прошлая сумма, чтобы проверить ухудшение
+  прошлый <балл> [от <шкала>]  прошлая сумма и шкала, которой она принадлежит
   дневник <1-10> [было <1-10>] самочувствие сегодня
-  пропуски <n>                 пропусков подряд
-  таблетница <08:00,20:00>     назначение на два приёма в день
+  пропуски <n>                 отметить последние n наступивших приёмов пропуском
+  отметка 08:00=пропуск        отметка на конкретное время: пропуск, принял, нет
+  таблетница 08:00,20:00 [с -5 по -1]  назначение; окно курса в днях от сегодня
   сценарий [1-5]               сценарии выше, с объяснением шагов
   сброс / выход
 
 После каждой команды печатается всё состояние: факты, каждое правило (сработало
-или почему нет) и сигналы, которые увидел бы врач.
+или почему нет) и сигналы, которые увидел бы врач. Время, которое ещё не наступило,
+остаётся scheduled: отметка на будущее — не приём и не пропуск.
 `;
 
 function setFact(raw: string): void {
@@ -490,10 +533,11 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
     case "прошлый": {
       const value = Number(rest[0]);
       if (Number.isNaN(value)) {
-        console.log("Формат: прошлый <балл>");
+        console.log("Формат: прошлый <балл> [от <шкала>]");
         return;
       }
       state.previousTotal = value;
+      state.previousInstrumentId = rest[1] === "от" ? (rest[2] ?? null) : (state.assessment?.instrument.id ?? null);
       dump();
       return;
     }
@@ -514,8 +558,38 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
         console.log("Формат: пропуски <n>");
         return;
       }
-      state.adherence = { consecutiveMissedDoses: value };
-      if (state.schedule) pillbox();
+      if (state.schedule) {
+        if (!markLastSkips(value)) return;
+        pillbox();
+      } else {
+        state.manualSkips = value;
+      }
+      dump();
+      return;
+    }
+    case "отметка": {
+      const [time, raw] = tail.split("=");
+      if (!time || !raw) {
+        console.log("Формат: отметка 08:00=пропуск | принял | нет");
+        return;
+      }
+      const status: DoseSlotState | null =
+        raw === "пропуск" ? "skipped" : raw === "принял" ? "taken" : raw === "нет" ? "no_data" : null;
+      if (status === null) {
+        console.log("Статус: пропуск, принял или нет");
+        return;
+      }
+      if (!state.schedule) {
+        console.log("Сначала назначение: таблетница 08:00,20:00");
+        return;
+      }
+      const slot = `${TODAY}T${time}`;
+      if (!scheduleRows().some((row) => row.scheduledAt === slot)) {
+        console.log(`В расписании нет приёма на ${slot}`);
+        return;
+      }
+      state.marks[slot] = status;
+      pillbox();
       dump();
       return;
     }
@@ -525,8 +599,22 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
         console.log("Формат: таблетница 08:00,20:00");
         return;
       }
-      const today = new Date().toLocaleDateString("sv-SE");
-      state.schedule = { startsOn: shiftDay(today, -2), endsOn: null, timesOfDay: times.sort() };
+      // Необязательное окно курса: «с -5 по -1» — дни относительно сегодня.
+      let startsOn = shiftDay(TODAY, -2);
+      let endsOn: string | null = null;
+      const from = rest.findIndex((token) => token === "с");
+      if (from >= 0) startsOn = shiftDay(TODAY, Number(rest[from + 1] ?? -2));
+      const to = rest.findIndex((token) => token === "по");
+      if (to >= 0) endsOn = shiftDay(TODAY, Number(rest[to + 1] ?? 0));
+
+      state.schedule = {
+        startsOn,
+        endsOn,
+        timesOfDay: times.sort(),
+      };
+      state.startsOn = startsOn;
+      state.endsOn = endsOn;
+      state.marks = {};
       pillbox();
       dump();
       return;
