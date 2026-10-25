@@ -54,7 +54,31 @@ describe("signal wording follows the instrument", () => {
     const signals = await app.inject({ method: "GET", url: "/api/signals", headers: { cookie: doctorCookie } });
     const total = signals.json().signals.find((signal: { kind: string }) => signal.kind === "severe_total");
 
-    expect(total.title).toBe("Умеренно выраженные проявления: 16 из 27");
+    // Шкала в заголовке: «16 из 27» без имени заставляло угадывать инструмент.
+    expect(total.title).toBe("PHQ-9: умеренно выраженные проявления — 16 из 27");
+    await app.close();
+  });
+
+  it("names the questionnaire, so «10 из 21» cannot be read as PHQ-9", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie } = await boundPair(app);
+
+    await app.inject({
+      method: "POST",
+      url: "/api/assessments/gad-7",
+      headers: { cookie: patientCookie },
+      payload: {
+        submissionId: "gad7-band-test",
+        answers: Object.fromEntries(Array.from({ length: 7 }, (_, index) => [`q${index + 1}`, 2])),
+      },
+    });
+
+    const signals = await app.inject({ method: "GET", url: "/api/signals", headers: { cookie: doctorCookie } });
+    const total = signals
+      .json()
+      .signals.find((signal: { kind: string }) => signal.kind === "severe_total");
+
+    expect(total.title).toBe("GAD-7: умеренные проявления — 14 из 21");
     await app.close();
   });
 
@@ -66,7 +90,7 @@ describe("signal wording follows the instrument", () => {
     const signals = await app.inject({ method: "GET", url: "/api/signals", headers: { cookie: doctorCookie } });
     const total = signals.json().signals.find((signal: { kind: string }) => signal.kind === "severe_total");
 
-    expect(total.title).toBe("Выраженные проявления: 24 из 27");
+    expect(total.title).toBe("PHQ-9: выраженные проявления — 24 из 27");
     await app.close();
   });
 });

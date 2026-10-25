@@ -18,6 +18,7 @@ import { stdin, stdout } from "node:process";
 
 import type { PatientFacts } from "../shared/contracts.js";
 import { patientFactsSchema } from "../shared/contracts.js";
+import { factAnswerText, factState } from "../shared/facts.js";
 import type { PreviousAssessment, RuleCondition, RuleFacts } from "../shared/rules.js";
 import { criticalItems, score } from "../server/instruments/engine.js";
 import { instrument as findInstrument, patientInstruments } from "../server/instruments/loader.js";
@@ -161,8 +162,14 @@ function factsTable(): void {
 
   console.log("Факты пациента:");
   for (const [key, label] of names) {
-    const value = facts[key];
-    const shown = value === null ? "— не спрашивали" : String(value);
+    // Те же слова, что у пациента и у врача: «да» — отмечено, «нет» — не отмечено,
+    // «не знаю» — не спрашивали. Сырое значение не отличает ответ от пустоты (#9).
+    const status = factState(key, facts);
+    const answer = factAnswerText(key, facts);
+    const shown =
+      status === "not_asked"
+        ? "— не спрашивали"
+        : `${answer ?? "—"} (${status === "marked" ? "отмечено" : "не отмечено"})`;
     console.log(`  ${label.padEnd(44, ".")} ${shown}`);
   }
 
@@ -339,12 +346,9 @@ function signalDrafts(): SignalDraft[] {
 
 function signalsTable(): void {
   const drafts = signalDrafts();
-  // Приверженность: правило объявлено, но карточку с препаратом и пропущенными
-  // временами собирает маршрут назначения — движок сигналов её не создаёт.
-  const adherence = evaluateRule(requireRule("adherence-three-missed-doses"), ruleFacts());
 
   console.log("\nСигналы, которые увидит врач:");
-  if (drafts.length === 0 && adherence === null) {
+  if (drafts.length === 0) {
     console.log("  ни одного — и это ответ, а не пустота: правила не нашли повода.");
     return;
   }
@@ -366,12 +370,6 @@ function signalsTable(): void {
     console.log(`  правило «${rule.id}» · ${status} · ${rule.source.ref}`);
   }
 
-  if (adherence !== null) {
-    console.log(
-      `\n  Пропуски приёма: правило «${adherence.ruleId}» сработало, карточку собирает маршрут назначения.`,
-    );
-    console.log(`  ${adherence.detail}`);
-  }
 }
 
 function dump(): void {
@@ -714,12 +712,12 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
         console.log("Продукт не принимает пропуск без причины: пропуски 3 проспал");
         return;
       }
-      if (state.schedule) {
-        if (!markLastSkips(value, reason)) return;
-        pillbox();
-      } else {
-        state.manualSkips = value;
+      if (!state.schedule) {
+        console.log("Продукт считает пропуски только по назначению: сначала таблетница 08:00,20:00");
+        return;
       }
+      if (!markLastSkips(value, reason)) return;
+      pillbox();
       dump();
       return;
     }

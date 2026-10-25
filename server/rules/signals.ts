@@ -157,7 +157,9 @@ function bandSignalForAssessment(input: {
   return {
     kind: "severe_total",
     severity: "high",
-    title: `${actualBand.label}: ${input.total} из ${topScore}`,
+    // Шкала названа в заголовке: «10 из 21» без неё заставляет врача угадывать
+    // инструмент по максимуму (Q24, Q28). Тот же довод, что у критического пункта.
+    title: `${input.instrument.shortTitle ?? input.instrument.title}: ${actualBand.label.toLowerCase()} — ${input.total} из ${topScore}`,
     detail: `Сумма ответов попала в диапазон «${actualBand.label}» (${actualBand.min}–${actualBand.max}).`,
     ruleId: null,
   };
@@ -229,11 +231,16 @@ export function signalsForAdherence(input: {
   const listed = input.skipped.slice(-MAX_LISTED_SKIPS);
   const times = listed.map((slot) => formatSlot(slot.scheduledAt));
   const reasons = listed.flatMap((slot) => (slot.reason === null ? [] : [slot.reason]));
+  // Список времён может быть короче серии; без этой оговорки он читается как полный.
+  const scope =
+    input.skipped.length > listed.length
+      ? `последние ${listed.length} из ${input.skipped.length}: ${times.join(", ")}`
+      : `приёмы ${times.join(", ")}`;
 
   return signals.map((signal) => ({
     ...signal,
     detail:
-      `${signal.detail} «${input.drugName}», ${input.doseValue} ${input.doseUnit}: пропущены приёмы ${times.join(", ")}.` +
+      `${signal.detail} «${input.drugName}», ${input.doseValue} ${input.doseUnit}: пропущены ${scope}.` +
       (reasons.length > 0 ? ` Причины: ${reasons.join("; ")}.` : ""),
   }));
 }
