@@ -46,6 +46,8 @@ type State = {
   /** Прошлая сумма и шкала, которой она принадлежит: сравнение идёт только внутри пары «шкала + версия». */
   previousTotal: number | null;
   previousInstrumentId: string | null;
+  /** Версия прошлой отправки: смена версии ломает сопоставимость (#39). */
+  previousVersion: string | null;
   diary: { value: number; previousValue: number | null } | null;
   /** Отметки по конкретным запланированным временам: ключ — «ГГГГ-ММ-ДДTЧЧ:ММ». */
   marks: Record<string, DoseSlotState>;
@@ -65,6 +67,7 @@ function emptyState(): State {
     assessment: null,
     previousTotal: null,
     previousInstrumentId: null,
+    previousVersion: null,
     diary: null,
     marks: {},
     manualSkips: null,
@@ -122,7 +125,7 @@ function previousForRules(): PreviousAssessment | null {
 
   return {
     instrumentId,
-    instrumentVersion: findInstrument(instrumentId)?.version ?? "",
+    instrumentVersion: state.previousVersion ?? findInstrument(instrumentId)?.version ?? "",
     total: state.previousTotal,
   };
 }
@@ -159,7 +162,7 @@ function factsTable(): void {
     console.log(
       `\nОтветы: «${state.assessment.instrument.title}» — сумма ${scored.total}, диапазон «${scored.band.label}»` +
         (state.previousTotal !== null
-          ? `, прошлая сумма ${state.previousTotal} (шкала ${state.previousInstrumentId ?? state.assessment.instrument.id}, версия ${findInstrument(state.previousInstrumentId ?? state.assessment.instrument.id)?.version ?? "—"})`
+          ? `, прошлая сумма ${state.previousTotal} (шкала ${state.previousInstrumentId ?? state.assessment.instrument.id}, версия ${state.previousVersion ?? findInstrument(state.previousInstrumentId ?? state.assessment.instrument.id)?.version ?? "—"})`
           : ""),
     );
     if (critical.length > 0) console.log(`  отмечены пункты: ${critical.join(", ")}`);
@@ -366,6 +369,14 @@ function markLastSkips(n: number): boolean {
   return true;
 }
 
+/** «-1» или «25.10» — в дату ГГГГ-ММ-ДД. */
+function resolveDay(token: string): string {
+  if (/^-\d+$/.test(token)) return shiftDay(TODAY, Number(token));
+  const match = /^(\d{1,2})\.(\d{1,2})$/.exec(token);
+  if (match) return `${TODAY.slice(0, 4)}-${match[2]!.padStart(2, "0")}-${match[1]!.padStart(2, "0")}`;
+  return token;
+}
+
 /** Слоты расписания с их состоянием. Один источник и для таблетницы, и для правила. */
 function scheduleRows() {
   if (!state.schedule) return [];
@@ -518,11 +529,12 @@ const HELP = `
   факт <поле>=<значение>       эпилепсия=yes, mao=stopped_under_2_weeks, egfr=45,
                                childPugh=B, беременность=pregnant, галактоза=no,
                                факт эпилепсия=null — снова «не спрашивали»
-  шкала <id> [все=N] [q9=1]    phq-9, gad-7, asq
-  прошлый <балл> [от <шкала>]  прошлая сумма и шкала, которой она принадлежит
+  шкала <id> [все=N] [q9=1]    phq-9, gad-7, asq; без «все» нужны все пункты
+  прошлый <балл> [от <шкала> [версия X]]  прошлая сумма, шкала и версия
   дневник <1-10> [было <1-10>] самочувствие сегодня
   пропуски <n>                 отметить последние n наступивших приёмов пропуском
-  отметка 08:00=пропуск        отметка на конкретное время: пропуск, принял, нет
+  отметка [-1 | 25.10] 08:00=пропуск   отметка на конкретное время и день:
+                               пропуск, принял, нет; на будущее — отказ
   таблетница 08:00,20:00 [с -5 по -1]  назначение; окно курса в днях от сегодня
   сценарий [1-6]               сценарии выше, с объяснением шагов
   сброс / выход
@@ -599,8 +611,13 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
         console.log(`Шкалы пациента: ${patientInstruments().map((i) => i.id).join(", ")}`);
         return;
       }
+      const instrument = findInstrument(id);
+      if (!instrument) {
+        console.log(`Нет шкалы ${id}. Есть: ${patientInstruments().map((i) => i.id).join(", ")}`);
+        return;
+      }
       const preset: Record<string, number> = {};
-      let fallback = 0;
+      let fallback: number | null = null;
       for (const pair of pairs) {
         const [key, raw] = pair.split("=");
         const value = Number(raw);
@@ -611,8 +628,21 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
         if (key === "все") fallback = value;
         else if (key) preset[key] = value;
       }
+
+      // Продукт на неполные ответы отвечает 400 («Ответьте на все пункты»), поэтому
+      // площадка не подставляет нули молча: это была бы не та сумма, что посчитает сервер.
+      if (fallback === null) {
+        const answered = instrument.items.filter((item) => item.id in preset).length;
+        if (answered !== instrument.items.length) {
+          console.log(
+            `Отвечено ${answered} из ${instrument.items.length} — продукт такую отправку отклоняет. ` +
+              `Укажи все=N или каждый пункт (${instrument.items.map((item) => item.id).join(", ")}).`,
+          );
+          return;
+        }
+      }
       try {
-        applyAssessment(id, preset, fallback);
+        applyAssessment(id, preset, fallback ?? 0);
       } catch (error) {
         console.log((error as Error).message);
         return;
@@ -628,6 +658,7 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
       }
       state.previousTotal = value;
       state.previousInstrumentId = rest[1] === "от" ? (rest[2] ?? null) : (state.assessment?.instrument.id ?? null);
+      state.previousVersion = rest[3] === "версия" ? (rest[4] ?? null) : null;
       dump();
       return;
     }
@@ -658,9 +689,9 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
       return;
     }
     case "отметка": {
-      const [time, raw] = tail.split("=");
-      if (!time || !raw) {
-        console.log("Формат: отметка 08:00=пропуск | принял | нет");
+      const [when, raw] = tail.split("=");
+      if (!when || !raw) {
+        console.log("Формат: отметка [день] 08:00=пропуск | принял | нет, день: -1 или 25.10");
         return;
       }
       const status: DoseSlotState | null =
@@ -673,7 +704,19 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
         console.log("Сначала назначение: таблетница 08:00,20:00");
         return;
       }
-      const slot = `${TODAY}T${time}`;
+      const parts = when.trim().split(/\s+/);
+      const time = parts.pop() ?? "";
+      const day = parts.length > 0 ? resolveDay(parts[0]!) : TODAY;
+      const slot = `${day}T${time}`;
+
+      if (!/^\d{2}:\d{2}$/.test(time) || !/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+        console.log("Формат: отметка [-1 | 25.10] 08:00=пропуск | принял | нет");
+        return;
+      }
+      if (slot > NOW) {
+        console.log(`Продукт отклонил бы это: ${slot} ещё не наступило (409 dose_in_future).`);
+        return;
+      }
       if (!scheduleRows().some((row) => row.scheduledAt === slot)) {
         console.log(`В расписании нет приёма на ${slot}`);
         return;
