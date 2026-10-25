@@ -123,9 +123,9 @@ export function PatientHome({
                   aria-label="Код привязки"
                   style={{
                     padding: "10px 12px",
-                    borderRadius: 8,
-                    border: "1px solid #d0d7de",
-                    fontFamily: "ui-monospace, monospace",
+                    borderRadius: "var(--radius-surface)",
+                    border: "1px solid var(--border-divider)",
+                    fontFamily: "var(--font-mono)",
                     letterSpacing: 2,
                     textTransform: "uppercase",
                     width: 180,
@@ -204,12 +204,12 @@ export function PatientHome({
           {entries.status === "ready" && entries.data.length > 0 && (
             <ul className="stack" style={{ gap: 10, margin: 0, padding: 0, listStyle: "none" }}>
               {entries.data.map((entry) => (
-                <li key={entry.id} style={{ borderTop: "1px solid #eaeef2", paddingTop: 10 }}>
+                <li key={entry.id} style={{ borderTop: "1px solid var(--border-hairline)", paddingTop: 10 }}>
                   <strong>{entry.value}</strong>
                   <span className="hint" style={{ marginLeft: 4 }}>
                     / 10 — {formatDate(entry.entryDate)}
                   </span>
-                  {entry.comment && <p style={{ margin: "4px 0 0", color: "#333" }}>{entry.comment}</p>}
+                  {entry.comment && <p style={{ margin: "4px 0 0", color: "var(--text-body)" }}>{entry.comment}</p>}
                 </li>
               ))}
             </ul>
@@ -280,12 +280,12 @@ export function PatientHome({
           {assessments.status === "ready" && assessments.data.assessments.length > 0 && (
             <ul className="stack" style={{ gap: 8, margin: 0, padding: 0, listStyle: "none" }}>
               {assessments.data.assessments.map((assessment) => (
-                <li key={assessment.id} style={{ borderTop: "1px solid #eaeef2", paddingTop: 10 }}>
+                <li key={assessment.id} style={{ borderTop: "1px solid var(--border-hairline)", paddingTop: 10 }}>
                   <details>
                     <summary style={{ minHeight: 32, cursor: "pointer" }}>
                       {formatDate(assessment.submittedAt)} — {assessment.instrumentTitle}
                     </summary>
-                    <ul style={{ margin: "8px 0 0", paddingLeft: 20, color: "#333", fontSize: 14 }}>
+                    <ul style={{ margin: "8px 0 0", paddingLeft: 20, color: "var(--text-body)", fontSize: 14 }}>
                       {assessment.answers.map((answer) => (
                         <li key={answer.itemId}>
                           {answer.text} — <em>{answer.label}</em>
@@ -316,9 +316,9 @@ export function PatientHome({
           {plan.status === "ready" && plan.data.length > 0 && (
             <ul className="stack" style={{ gap: 10, margin: 0, padding: 0, listStyle: "none" }}>
               {plan.data.map((item) => (
-                <li key={item.id} style={{ borderLeft: "3px solid #1a7f37", paddingLeft: 12 }}>
+                <li key={item.id} style={{ borderLeft: "3px solid var(--signal-done)", paddingLeft: 12 }}>
                   <strong>{item.title}</strong>
-                  {item.details && <p style={{ margin: "2px 0 0", color: "#333" }}>{item.details}</p>}
+                  {item.details && <p style={{ margin: "2px 0 0", color: "var(--text-body)" }}>{item.details}</p>}
                 </li>
               ))}
             </ul>

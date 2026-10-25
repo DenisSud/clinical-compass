@@ -80,10 +80,10 @@ export function PlanPanel({ patientId, onChanged }: { patientId: string; onChang
               key={item.id}
               style={{
                 padding: 12,
-                borderRadius: 10,
-                border: "1px solid #d0d7de",
-                borderLeft: `4px solid ${item.status === "active" ? "#1a7f37" : "#d0d7de"}`,
-                background: item.status === "archived" ? "#fafbfc" : "white",
+                borderRadius: "var(--radius-surface)",
+                border: "1px solid var(--border-divider)",
+                borderLeft: `4px solid ${item.status === "active" ? "var(--signal-done)" : "var(--border-divider)"}`,
+                background: item.status === "archived" ? "var(--surface-inset)" : "var(--surface-card)",
               }}
             >
               <div className="row" style={{ alignItems: "baseline" }}>
@@ -92,7 +92,7 @@ export function PlanPanel({ patientId, onChanged }: { patientId: string; onChang
                   {KIND[item.kind]} · {STATUS[item.status]}
                 </span>
               </div>
-              {item.details && <p style={{ margin: "4px 0 0", color: "#333", fontSize: 14 }}>{item.details}</p>}
+              {item.details && <p style={{ margin: "4px 0 0", color: "var(--text-body)", fontSize: 14 }}>{item.details}</p>}
               <div className="row" style={{ marginTop: 10 }}>
                 {item.status === "draft" && (
                   <Button
@@ -125,7 +125,7 @@ export function PlanPanel({ patientId, onChanged }: { patientId: string; onChang
             value={kind}
             onChange={(event) => setKind(event.target.value as PlanItem["kind"])}
             aria-label="Тип назначения"
-            style={{ padding: 8, borderRadius: 8, border: "1px solid #d0d7de" }}
+            style={{ padding: 8, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
           >
             {Object.entries(KIND).map(([value, label]) => (
               <option key={value} value={value}>
@@ -142,8 +142,8 @@ export function PlanPanel({ patientId, onChanged }: { patientId: string; onChang
               flex: "1 1 160px",
               minWidth: 0,
               padding: 8,
-              borderRadius: 8,
-              border: "1px solid #d0d7de",
+              borderRadius: "var(--radius-surface)",
+              border: "1px solid var(--border-divider)",
             }}
           />
         </div>
@@ -152,7 +152,7 @@ export function PlanPanel({ patientId, onChanged }: { patientId: string; onChang
           onChange={(event) => setDetails(event.target.value)}
           placeholder="Как принимать, как часто (необязательно)"
           aria-label="Как принимать, как часто"
-          style={{ padding: 8, borderRadius: 8, border: "1px solid #d0d7de" }}
+          style={{ padding: 8, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
         />
         <Button type="submit" disabled={blocked}>
           {busy === "create" ? "Сохраняем…" : "Добавить в черновик"}

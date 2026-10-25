@@ -3,9 +3,9 @@ import type { DoctorAdherence } from "../../shared/contracts";
 import { fetchPatientCheckins } from "./api";
 
 const STATE_COLOR = {
-  done: "#1a7f37",
-  skipped: "#d1242f",
-  no_data: "#d8dee4",
+  done: "var(--signal-done)",
+  skipped: "var(--signal-critical)",
+  no_data: "var(--border-divider)",
 } as const;
 
 const STATE_LABEL = {
@@ -31,14 +31,14 @@ export function AdherenceTable({ patientId }: { patientId: string }) {
 
   if (failed) {
     return (
-      <p style={{ color: "#b42318", fontSize: 14 }}>
+      <p style={{ color: "var(--signal-critical)", fontSize: 14 }}>
         Не удалось загрузить приверженность. Это не значит, что пропусков нет — обновите страницу.
       </p>
     );
   }
-  if (data === null) return <p style={{ color: "#777" }}>Загрузка…</p>;
+  if (data === null) return <p style={{ color: "var(--text-muted)" }}>Загрузка…</p>;
   if (data.items.length === 0) {
-    return <p style={{ color: "#777" }}>В действующем плане пока нет назначений.</p>;
+    return <p style={{ color: "var(--text-muted)" }}>В действующем плане пока нет назначений.</p>;
   }
 
   return (
@@ -47,7 +47,7 @@ export function AdherenceTable({ patientId }: { patientId: string }) {
         <div key={item.planItemId}>
           <div className="row" style={{ justifyContent: "space-between", fontSize: 14 }}>
             <strong>{item.title}</strong>
-            <span style={{ color: "#555", whiteSpace: "nowrap" }}>
+            <span style={{ color: "var(--text-muted)", whiteSpace: "nowrap" }}>
               выполнено {item.done} · пропущено {item.skipped} · нет сведений {item.noData}
             </span>
           </div>
@@ -59,7 +59,7 @@ export function AdherenceTable({ patientId }: { patientId: string }) {
                 style={{
                   width: 14,
                   height: 14,
-                  borderRadius: 3,
+                  borderRadius: "var(--radius-surface)",
                   background: STATE_COLOR[day.state],
                 }}
               />
@@ -69,7 +69,7 @@ export function AdherenceTable({ patientId }: { patientId: string }) {
             .filter((day) => day.reason)
             .slice(-2)
             .map((day) => (
-              <p key={day.date} style={{ margin: "4px 0 0", fontSize: 13, color: "#b54708" }}>
+              <p key={day.date} style={{ margin: "4px 0 0", fontSize: 13, color: "var(--signal-high)" }}>
                 {day.date}: {day.reason}
               </p>
             ))}

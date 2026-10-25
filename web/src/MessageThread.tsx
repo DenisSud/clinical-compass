@@ -44,7 +44,7 @@ export function MessageThread({
 
   return (
     <div>
-      {messages.length === 0 && <p style={{ color: "#777", marginTop: 0 }}>Сообщений пока нет.</p>}
+      {messages.length === 0 && <p style={{ color: "var(--text-muted)", marginTop: 0 }}>Сообщений пока нет.</p>}
       <ul style={{ listStyle: "none", padding: 0, margin: "0 0 12px", display: "grid", gap: 8 }}>
         {messages.map((message) => {
           const mine = message.authorRole === "patient";
@@ -53,14 +53,14 @@ export function MessageThread({
               key={message.id}
               style={{
                 padding: "10px 12px",
-                borderRadius: 10,
-                background: mine ? "#f5f7fa" : "#eef4ff",
+                borderRadius: "var(--radius-surface)",
+                background: mine ? "var(--surface-inset)" : "var(--surface-muted)",
                 marginLeft: mine ? 0 : 24,
                 marginRight: mine ? 24 : 0,
               }}
             >
               <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{message.body}</p>
-              <p style={{ margin: "6px 0 0", fontSize: 12, color: "#777" }}>
+              <p style={{ margin: "6px 0 0", fontSize: 12, color: "var(--text-muted)" }}>
                 {message.authorRole === "patient" ? "Пациент" : "Врач"} · {formatTime(message.createdAt)}
               </p>
             </li>
@@ -74,9 +74,9 @@ export function MessageThread({
           onChange={(event) => setBody(event.target.value)}
           placeholder={placeholder}
           rows={3}
-          style={{ padding: 10, borderRadius: 8, border: "1px solid #d0d7de", fontFamily: "inherit", boxSizing: "border-box" }}
+          style={{ padding: 10, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)", fontFamily: "inherit", boxSizing: "border-box" }}
         />
-        {error && <p style={{ color: "#b42318", fontSize: 14, margin: 0 }}>{error}</p>}
+        {error && <p style={{ color: "var(--signal-critical)", fontSize: 14, margin: 0 }}>{error}</p>}
         <button
           type="submit"
           disabled={busy}
@@ -84,10 +84,10 @@ export function MessageThread({
             justifySelf: "start",
             minHeight: 44,
             padding: "8px 14px",
-            borderRadius: 8,
+            borderRadius: "var(--radius-surface)",
             border: "none",
-            background: "#1f6feb",
-            color: "white",
+            background: "var(--action-primary)",
+            color: "var(--action-primary-ink)",
             cursor: busy ? "progress" : "pointer",
             opacity: busy ? 0.5 : 1,
           }}

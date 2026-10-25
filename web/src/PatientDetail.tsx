@@ -179,13 +179,13 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
                 {recommendations.data.cards.length > 0 && (
                   <ul className="stack" style={{ gap: 10, margin: 0, padding: 0, listStyle: "none" }}>
                     {recommendations.data.cards.map((card) => (
-                      <li key={card.id} style={{ padding: 12, borderRadius: 10, border: "1px solid #d0d7de" }}>
+                      <li key={card.id} style={{ padding: 12, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}>
                         <strong>{card.title}</strong>
                         <p style={{ margin: "6px 0 0", fontSize: 14 }}>
                           <em>Основание:</em> {card.basis}
                         </p>
                         {card.missing.length > 0 && (
-                          <p style={{ margin: "6px 0 0", fontSize: 14, color: "#b54708" }}>
+                          <p style={{ margin: "6px 0 0", fontSize: 14, color: "var(--signal-high)" }}>
                             Не хватает: {card.missing.join("; ")}
                           </p>
                         )}
@@ -194,7 +194,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
                             href={card.source.url}
                             target="_blank"
                             rel="noreferrer"
-                            style={{ fontSize: 13, color: "#1f6feb" }}
+                            style={{ fontSize: 13, color: "var(--link)" }}
                           >
                             Источник
                           </a>
@@ -204,11 +204,11 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
                   </ul>
                 )}
                 {recommendations.data.missing.length > 0 && (
-                  <div style={{ marginTop: 10, padding: 12, borderRadius: 10, background: "#fffaeb" }}>
-                    <p style={{ margin: 0, fontSize: 14, color: "#b54708" }}>
+                  <div style={{ marginTop: 10, padding: 12, borderRadius: "var(--radius-surface)", background: "var(--surface-signal-high-tint)" }}>
+                    <p style={{ margin: 0, fontSize: 14, color: "var(--signal-high)" }}>
                       <strong>Чего не хватает для рекомендаций:</strong>
                     </p>
-                    <ul style={{ margin: "6px 0 0", paddingLeft: 20, fontSize: 14, color: "#b54708" }}>
+                    <ul style={{ margin: "6px 0 0", paddingLeft: 20, fontSize: 14, color: "var(--signal-high)" }}>
                       {recommendations.data.missing.map((line) => (
                         <li key={line}>{line}</li>
                       ))}
@@ -277,7 +277,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
             {assessments.status === "ready" && assessments.data.length > 0 && (
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
                 <thead>
-                  <tr style={{ textAlign: "left", color: "#777" }}>
+                  <tr style={{ textAlign: "left", color: "var(--text-muted)" }}>
                     <th style={{ padding: "6px 0", fontWeight: 500 }}>Дата</th>
                     <th style={{ fontWeight: 500 }}>Сумма</th>
                     <th style={{ fontWeight: 500 }}>Диапазон</th>
@@ -285,12 +285,12 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
                 </thead>
                 <tbody>
                   {assessments.data.map((assessment) => (
-                    <tr key={assessment.id} style={{ borderTop: "1px solid #eaeef2", verticalAlign: "top" }}>
+                    <tr key={assessment.id} style={{ borderTop: "1px solid var(--border-hairline)", verticalAlign: "top" }}>
                       <td style={{ padding: "8px 8px 8px 0" }}>{formatDate(assessment.submittedAt)}</td>
                       <td style={{ paddingRight: 8 }}>
                         {assessment.total}
                         {assessment.criticalItems.length > 0 && (
-                          <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: "#b42318" }}>
+                          <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--signal-critical)" }}>
                             критический пункт
                           </span>
                         )}
@@ -315,12 +315,12 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
             {entries.status === "ready" && entries.data.length > 0 && (
               <ul className="stack" style={{ gap: 10, margin: 0, padding: 0, listStyle: "none" }}>
                 {entries.data.map((entry) => (
-                  <li key={entry.id} style={{ borderTop: "1px solid #eaeef2", paddingTop: 10 }}>
+                  <li key={entry.id} style={{ borderTop: "1px solid var(--border-hairline)", paddingTop: 10 }}>
                     <strong>{entry.value}</strong>
                     <span className="hint" style={{ marginLeft: 4 }}>
                       / 10 — {formatDate(entry.entryDate)}
                     </span>
-                    {entry.comment && <p style={{ margin: "4px 0 0", color: "#333" }}>{entry.comment}</p>}
+                    {entry.comment && <p style={{ margin: "4px 0 0", color: "var(--text-body)" }}>{entry.comment}</p>}
                   </li>
                 ))}
               </ul>

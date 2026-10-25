@@ -10,9 +10,9 @@ export const SIGNAL_SEVERITY_LABEL: Record<Signal["severity"], string> = {
 };
 
 export const SIGNAL_SEVERITY_COLOR: Record<Signal["severity"], string> = {
-  critical: "#b42318",
-  high: "#b54708",
-  medium: "#475467",
+  critical: "var(--signal-critical)",
+  high: "var(--signal-high)",
+  medium: "var(--signal-medium)",
 };
 
 export const SIGNAL_STATUS_LABEL: Record<Signal["status"], string> = {

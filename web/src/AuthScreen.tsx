@@ -36,9 +36,9 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void })
   }
 
   return (
-    <main style={{ maxWidth: 420, margin: "0 auto", padding: 32, fontFamily: "system-ui, sans-serif" }}>
+    <main style={{ maxWidth: 420, margin: "0 auto", padding: 32, fontFamily: "var(--font-sans)" }}>
       <h1 style={{ fontSize: 24, marginBottom: 4 }}>Клинический компас</h1>
-      <p style={{ color: "#555", marginTop: 0 }}>Поддержка принятия решений при тревоге и депрессии</p>
+      <p style={{ color: "var(--text-muted)", marginTop: 0 }}>Поддержка принятия решений при тревоге и депрессии</p>
 
       <div role="tablist" style={{ display: "flex", gap: 8, margin: "24px 0 12px" }}>
         {(["patient", "doctor"] as const).map((option) => (
@@ -51,10 +51,10 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void })
             style={{
               flex: 1,
               padding: "8px 12px",
-              borderRadius: 8,
-              border: "1px solid " + (role === option ? "#1f6feb" : "#d0d7de"),
-              background: role === option ? "#1f6feb" : "white",
-              color: role === option ? "white" : "#24292f",
+              borderRadius: "var(--radius-surface)",
+              border: "1px solid " + (role === option ? "var(--action-primary)" : "var(--border-divider)"),
+              background: role === option ? "var(--action-primary)" : "var(--surface-card)",
+              color: role === option ? "var(--action-primary-ink)" : "var(--text-strong)",
               cursor: "pointer",
             }}
           >
@@ -72,7 +72,7 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void })
             autoComplete="email"
             value={email}
             onChange={(event) => setEmail(event.target.value)}
-            style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #d0d7de" }}
+            style={{ padding: "8px 10px", borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
           />
         </label>
 
@@ -85,21 +85,21 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void })
             autoComplete={mode === "signup" ? "new-password" : "current-password"}
             value={password}
             onChange={(event) => setPassword(event.target.value)}
-            style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #d0d7de" }}
+            style={{ padding: "8px 10px", borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
           />
         </label>
 
-        {error && <p style={{ color: "#b42318", margin: 0, fontSize: 14 }}>{error}</p>}
+        {error && <p style={{ color: "var(--signal-critical)", margin: 0, fontSize: 14 }}>{error}</p>}
 
         <button
           type="submit"
           disabled={busy}
           style={{
             padding: "10px 12px",
-            borderRadius: 8,
+            borderRadius: "var(--radius-surface)",
             border: "none",
-            background: "#1f6feb",
-            color: "white",
+            background: "var(--action-primary)",
+            color: "var(--action-primary-ink)",
             fontSize: 15,
             cursor: busy ? "progress" : "pointer",
           }}
@@ -117,12 +117,12 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void })
       <button
         type="button"
         onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
-        style={{ marginTop: 16, background: "none", border: "none", color: "#1f6feb", cursor: "pointer", padding: 0 }}
+        style={{ marginTop: 16, background: "none", border: "none", color: "var(--link)", cursor: "pointer", padding: 0 }}
       >
         {mode === "signup" ? "У меня уже есть аккаунт" : "Создать аккаунт"}
       </button>
 
-      <p style={{ marginTop: 32, fontSize: 13, color: serverUp === false ? "#b42318" : "#777" }}>
+      <p style={{ marginTop: 32, fontSize: 13, color: serverUp === false ? "var(--signal-critical)" : "var(--text-muted)" }}>
         {serverUp === null && "Проверяем связь с сервером…"}
         {serverUp === true && "Сервер на связи"}
         {serverUp === false && "Сервер недоступен — данные не сохранятся"}

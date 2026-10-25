@@ -33,7 +33,7 @@ export function DiaryForm({ onSaved }: { onSaved: () => void }) {
 
   return (
     <form onSubmit={submit}>
-      <p style={{ display: "block", fontSize: 14, color: "#555", margin: "0 0 8px" }}>
+      <p style={{ display: "block", fontSize: 14, color: "var(--text-muted)", margin: "0 0 8px" }}>
         Насколько вы сегодня себя чувствуете? 1 — очень плохо, 10 — хорошо.
       </p>
       <div className="diary-scale">
@@ -48,9 +48,9 @@ export function DiaryForm({ onSaved }: { onSaved: () => void }) {
             }}
             style={{
               minHeight: 44,
-              borderRadius: 8,
-              border: value === option ? "2px solid #1f6feb" : "1px solid #d0d7de",
-              background: value === option ? "#eef4ff" : "white",
+              borderRadius: "var(--radius-surface)",
+              border: value === option ? "2px solid var(--action-primary)" : "1px solid var(--border-divider)",
+              background: value === option ? "var(--surface-muted)" : "var(--surface-card)",
               fontWeight: value === option ? 600 : 400,
               cursor: "pointer",
             }}
@@ -59,7 +59,7 @@ export function DiaryForm({ onSaved }: { onSaved: () => void }) {
           </button>
         ))}
       </div>
-      <p style={{ color: "#777", fontSize: 13, margin: "6px 0 0" }}>
+      <p style={{ color: "var(--text-muted)", fontSize: 13, margin: "6px 0 0" }}>
         {value === null ? "Выберите оценку — без выбора запись не сохранится." : " "}
       </p>
       <textarea
@@ -71,14 +71,14 @@ export function DiaryForm({ onSaved }: { onSaved: () => void }) {
           width: "100%",
           marginTop: 12,
           padding: 10,
-          borderRadius: 8,
-          border: "1px solid #d0d7de",
+          borderRadius: "var(--radius-surface)",
+          border: "1px solid var(--border-divider)",
           fontFamily: "inherit",
           boxSizing: "border-box",
         }}
       />
-      {error && <p style={{ color: "#b42318", fontSize: 14 }}>{error}</p>}
-      {saved && <p style={{ color: "#1a7f37", fontSize: 14 }}>Запись сохранена.</p>}
+      {error && <p style={{ color: "var(--signal-critical)", fontSize: 14 }}>{error}</p>}
+      {saved && <p style={{ color: "var(--signal-done)", fontSize: 14 }}>Запись сохранена.</p>}
       <button
         type="submit"
         disabled={busy || value === null}
@@ -87,10 +87,10 @@ export function DiaryForm({ onSaved }: { onSaved: () => void }) {
           minHeight: 44,
           opacity: busy || value === null ? 0.5 : 1,
           padding: "10px 16px",
-          borderRadius: 8,
+          borderRadius: "var(--radius-surface)",
           border: "none",
-          background: "#1f6feb",
-          color: "white",
+          background: "var(--action-primary)",
+          color: "var(--action-primary-ink)",
           cursor: busy || value === null ? "default" : "pointer",
         }}
       >

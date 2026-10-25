@@ -89,7 +89,7 @@ export function WatchPanel({ patientId }: { patientId: string }) {
   return (
     <div>
       {items.data.length === 0 && (
-        <p style={{ color: "#555", marginTop: 0 }}>
+        <p style={{ color: "var(--text-muted)", marginTop: 0 }}>
           Своих правил нет. Работают только встроенные: критический ответ опросника, тяжёлая сумма,
           ухудшение, низкое самочувствие и резкое падение.
         </p>
@@ -102,18 +102,18 @@ export function WatchPanel({ patientId }: { patientId: string }) {
               key={item.id}
               style={{
                 padding: 10,
-                borderRadius: 8,
-                border: "1px solid #d0d7de",
+                borderRadius: "var(--radius-surface)",
+                border: "1px solid var(--border-divider)",
                 opacity: item.status === "paused" ? 0.55 : 1,
               }}
             >
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                 <strong style={{ fontSize: 14 }}>{item.title}</strong>
-                <span style={{ fontSize: 12, color: item.severity === "critical" ? "#b42318" : "#555" }}>
+                <span style={{ fontSize: 12, color: item.severity === "critical" ? "var(--signal-critical)" : "var(--text-muted)" }}>
                   {SEVERITY_LABEL[item.severity]}
                 </span>
               </div>
-              <div style={{ fontSize: 13, color: "#555", marginTop: 2 }}>{describeWatch(item)}</div>
+              <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>{describeWatch(item)}</div>
               <button
                 type="button"
                 disabled={toggleBusy !== null}
@@ -122,7 +122,7 @@ export function WatchPanel({ patientId }: { patientId: string }) {
                   marginTop: 6,
                   border: "none",
                   background: "none",
-                  color: "#1f6feb",
+                  color: "var(--link)",
                   cursor: toggleBusy !== null ? "default" : "pointer",
                   opacity: toggleBusy !== null ? 0.5 : 1,
                   padding: 0,
@@ -148,7 +148,7 @@ export function WatchPanel({ patientId }: { patientId: string }) {
         <button
           type="button"
           onClick={() => setAdding(true)}
-          style={{ marginTop: 10, padding: "8px 14px", borderRadius: 8, border: "1px solid #d0d7de", background: "white", cursor: "pointer" }}
+          style={{ marginTop: 10, padding: "8px 14px", borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)", background: "var(--surface-card)", cursor: "pointer" }}
         >
           Добавить риск
         </button>
@@ -159,7 +159,7 @@ export function WatchPanel({ patientId }: { patientId: string }) {
           <select
             value={kind}
             onChange={(event) => setKind(event.target.value as WatchKind)}
-            style={{ padding: 8, borderRadius: 8, border: "1px solid #d0d7de" }}
+            style={{ padding: 8, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
           >
             {Object.entries(KIND_LABEL).map(([key, label]) => (
               <option key={key} value={key}>
@@ -172,7 +172,7 @@ export function WatchPanel({ patientId }: { patientId: string }) {
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="Название для врача, например «Риск самоповреждения»"
-            style={{ padding: 8, borderRadius: 8, border: "1px solid #d0d7de" }}
+            style={{ padding: 8, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
           />
 
           {kind === "message_keyword" ? (
@@ -180,16 +180,16 @@ export function WatchPanel({ patientId }: { patientId: string }) {
               value={terms}
               onChange={(event) => setTerms(event.target.value)}
               placeholder="Слова через запятую"
-              style={{ padding: 8, borderRadius: 8, border: "1px solid #d0d7de" }}
+              style={{ padding: 8, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
             />
           ) : (
-            <label style={{ fontSize: 13, color: "#555" }}>
+            <label style={{ fontSize: 13, color: "var(--text-muted)" }}>
               {kind === "missed_doses" ? "Пропусков подряд" : kind === "diary_drop" ? "Падение в баллах" : "Порог"}
               <input
                 type="number"
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
-                style={{ marginLeft: 8, width: 80, padding: 6, borderRadius: 8, border: "1px solid #d0d7de" }}
+                style={{ marginLeft: 8, width: 80, padding: 6, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
               />
             </label>
           )}
@@ -197,7 +197,7 @@ export function WatchPanel({ patientId }: { patientId: string }) {
           <select
             value={severity}
             onChange={(event) => setSeverity(event.target.value as WatchItem["severity"])}
-            style={{ padding: 8, borderRadius: 8, border: "1px solid #d0d7de" }}
+            style={{ padding: 8, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
           >
             <option value="medium">средняя</option>
             <option value="high">высокая</option>

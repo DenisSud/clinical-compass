@@ -41,7 +41,7 @@ export function TodayPlan() {
 
   if (failed) {
     return (
-      <p style={{ color: "#b42318", fontSize: 14 }}>
+      <p style={{ color: "var(--signal-critical)", fontSize: 14 }}>
         Не удалось загрузить назначения. Это не значит, что их нет — обновите страницу.
       </p>
     );
@@ -53,10 +53,10 @@ export function TodayPlan() {
 
   return (
     <div>
-      {error && <p style={{ color: "#b42318", fontSize: 14, marginTop: 0 }}>{error}</p>}
+      {error && <p style={{ color: "var(--signal-critical)", fontSize: 14, marginTop: 0 }}>{error}</p>}
       <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
         {items.map((item) => (
-          <li key={item.planItemId} style={{ padding: 12, borderRadius: 10, border: "1px solid #d0d7de" }}>
+          <li key={item.planItemId} style={{ padding: 12, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}>
             <strong style={{ fontSize: 15 }}>{item.title}</strong>
 
             {item.status === null && editing !== item.planItemId && (
@@ -68,10 +68,10 @@ export function TodayPlan() {
                   style={{
                     minHeight: 44,
                     padding: "0 16px",
-                    borderRadius: 8,
-                    border: "1px solid #1f6feb",
-                    background: "#1f6feb",
-                    color: "white",
+                    borderRadius: "var(--radius-surface)",
+                    border: "1px solid var(--action-primary)",
+                    background: "var(--action-primary)",
+                    color: "var(--action-primary-ink)",
                     opacity: busy ? 0.5 : 1,
                     cursor: busy ? "progress" : "pointer",
                   }}
@@ -89,9 +89,9 @@ export function TodayPlan() {
                   style={{
                     minHeight: 44,
                     padding: "0 16px",
-                    borderRadius: 8,
-                    border: "1px solid #d0d7de",
-                    background: "white",
+                    borderRadius: "var(--radius-surface)",
+                    border: "1px solid var(--border-divider)",
+                    background: "var(--surface-card)",
                     opacity: busy ? 0.5 : 1,
                     cursor: busy ? "default" : "pointer",
                   }}
@@ -103,7 +103,7 @@ export function TodayPlan() {
 
             {editing === item.planItemId && (
               <div style={{ marginTop: 8 }}>
-                <label htmlFor={`reason-${item.planItemId}`} style={{ fontSize: 14, color: "#555" }}>
+                <label htmlFor={`reason-${item.planItemId}`} style={{ fontSize: 14, color: "var(--text-muted)" }}>
                   Что помешало?
                 </label>
                 <textarea
@@ -111,7 +111,7 @@ export function TodayPlan() {
                   value={reason}
                   onChange={(event) => setReason(event.target.value)}
                   rows={2}
-                  style={{ width: "100%", marginTop: 4, padding: 8, borderRadius: 8, border: "1px solid #d0d7de" }}
+                  style={{ width: "100%", marginTop: 4, padding: 8, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
                 />
                 <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
                   <button
@@ -121,10 +121,10 @@ export function TodayPlan() {
                     style={{
                       minHeight: 44,
                       padding: "0 16px",
-                      borderRadius: 8,
-                      border: "1px solid #1f6feb",
-                      background: "#1f6feb",
-                      color: "white",
+                      borderRadius: "var(--radius-surface)",
+                      border: "1px solid var(--action-primary)",
+                      background: "var(--action-primary)",
+                      color: "var(--action-primary-ink)",
                       opacity: busy || reason.trim().length < 3 ? 0.5 : 1,
                       cursor: busy || reason.trim().length < 3 ? "default" : "pointer",
                     }}
@@ -137,9 +137,9 @@ export function TodayPlan() {
                     style={{
                       minHeight: 44,
                       padding: "0 16px",
-                      borderRadius: 8,
-                      border: "1px solid #d0d7de",
-                      background: "white",
+                      borderRadius: "var(--radius-surface)",
+                      border: "1px solid var(--border-divider)",
+                      background: "var(--surface-card)",
                       cursor: "pointer",
                     }}
                   >
@@ -155,9 +155,9 @@ export function TodayPlan() {
             {item.status !== null && editing !== item.planItemId && (
               <div style={{ marginTop: 6, fontSize: 14 }}>
                 {item.status === "done" ? (
-                  <span style={{ color: "#1a7f37" }}>Выполнено</span>
+                  <span style={{ color: "var(--signal-done)" }}>Выполнено</span>
                 ) : (
-                  <span style={{ color: "#b54708" }}>Пропущено: {item.reason}</span>
+                  <span style={{ color: "var(--signal-high)" }}>Пропущено: {item.reason}</span>
                 )}{" "}
                 <button
                   type="button"
@@ -168,7 +168,7 @@ export function TodayPlan() {
                   style={{
                     border: "none",
                     background: "none",
-                    color: "#1f6feb",
+                    color: "var(--link)",
                     cursor: "pointer",
                     fontSize: 14,
                     padding: 0,

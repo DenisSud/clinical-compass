@@ -6,10 +6,10 @@ import { LoadError } from "./ui";
 const BUTTON = {
   minHeight: 44,
   padding: "10px 16px",
-  borderRadius: 8,
+  borderRadius: "var(--radius-surface)",
   border: "none",
-  background: "#1f6feb",
-  color: "white",
+  background: "var(--action-primary)",
+  color: "var(--action-primary-ink)",
   cursor: "pointer",
 } as const;
 
@@ -58,7 +58,7 @@ export function Phq9Form({ onSaved }: { onSaved: () => void }) {
 
   return (
     <form onSubmit={submit}>
-      <p style={{ color: "#555", marginTop: 0 }}>{instrument.intro}</p>
+      <p style={{ color: "var(--text-muted)", marginTop: 0 }}>{instrument.intro}</p>
       <ol style={{ paddingLeft: 20, display: "grid", gap: 16 }}>
         {instrument.items.map((item, index) => (
           <li key={item.id}>
@@ -68,7 +68,7 @@ export function Phq9Form({ onSaved }: { onSaved: () => void }) {
             <p style={{ margin: "0 0 8px" }}>{item.text}</p>
             <div style={{ display: "grid", gap: 4 }}>
               {instrument.options.map((option) => (
-                <label key={option.value} style={{ display: "flex", gap: 8, fontSize: 14, color: "#333" }}>
+                <label key={option.value} style={{ display: "flex", gap: 8, fontSize: 14, color: "var(--text-body)" }}>
                   <input
                     type="radio"
                     name={item.id}
@@ -82,7 +82,7 @@ export function Phq9Form({ onSaved }: { onSaved: () => void }) {
           </li>
         ))}
       </ol>
-      {error && <p style={{ color: "#b42318", fontSize: 14 }}>{error}</p>}
+      {error && <p style={{ color: "var(--signal-critical)", fontSize: 14 }}>{error}</p>}
       <button type="submit" disabled={busy || !complete} style={{ ...BUTTON, opacity: !busy && complete ? 1 : 0.5, cursor: !busy && complete ? "pointer" : "default" }}>
         {busy ? "Отправляем…" : "Отправить ответы"}
       </button>
@@ -92,7 +92,7 @@ export function Phq9Form({ onSaved }: { onSaved: () => void }) {
           вопросы.
         </p>
       )}
-      <p style={{ color: "#777", fontSize: 13, marginBottom: 0 }}>{instrument.sourceNote}</p>
+      <p style={{ color: "var(--text-muted)", fontSize: 13, marginBottom: 0 }}>{instrument.sourceNote}</p>
     </form>
   );
 }

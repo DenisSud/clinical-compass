@@ -24,7 +24,7 @@ export function App() {
   }, []);
 
   if (loading) {
-    return <p style={{ fontFamily: "system-ui, sans-serif", padding: 32 }}>Загрузка…</p>;
+    return <p style={{ fontFamily: "var(--font-sans)", padding: 32 }}>Загрузка…</p>;
   }
 
   if (!me) return <AuthScreen onAuthenticated={refresh} />;
