@@ -24,6 +24,7 @@ import { instrument as findInstrument, patientInstruments } from "../server/inst
 import type { Instrument } from "../server/instruments/schema.js";
 import { evaluateRule, findRule, listRules, requireRule } from "../server/rules/registry.js";
 import {
+  signalsForAdherence,
   signalsForAssessment,
   signalsForDiary,
   signalsForFacts,
@@ -51,9 +52,14 @@ type State = {
   diary: { value: number; previousValue: number | null } | null;
   /** Отметки по конкретным запланированным временам: ключ — «ГГГГ-ММ-ДДTЧЧ:ММ». */
   marks: Record<string, DoseSlotState>;
+  /** Причина пропуска, как её вводит пациент: продукт без неё пропуск не принимает. */
+  reasons: Record<string, string>;
   /** Пропуски без назначения: когда расписание не нужно, а правило проверить надо. */
   manualSkips: number | null;
   schedule: Schedule | null;
+  drugName: string;
+  doseValue: number;
+  doseUnit: string;
   startsOn: string;
   endsOn: string | null;
 };
@@ -70,8 +76,12 @@ function emptyState(): State {
     previousVersion: null,
     diary: null,
     marks: {},
+    reasons: {},
     manualSkips: null,
     schedule: null,
+    drugName: "Авиандр",
+    doseValue: 20,
+    doseUnit: "мг",
     startsOn: shiftDay(TODAY, -2),
     endsOn: null,
   };
@@ -307,6 +317,23 @@ function signalDrafts(): SignalDraft[] {
 
   drafts.push(...signalsForFacts(factsForRules()));
 
+  // Карточку пропусков собирает движок вместе с препаратом, дозой, временами и
+  // причинами; без этого вызова площадка показывала бы меньше карточек, чем врач.
+  if (state.schedule) {
+    const skipped = scheduleRows()
+      .filter((row) => row.state === "skipped")
+      .slice(-adherenceForRules()!.consecutiveMissedDoses)
+      .map((row) => ({ scheduledAt: row.scheduledAt, reason: state.reasons[row.scheduledAt] ?? null }));
+    drafts.push(
+      ...signalsForAdherence({
+        skipped,
+        drugName: state.drugName,
+        doseValue: state.doseValue,
+        doseUnit: state.doseUnit,
+      }),
+    );
+  }
+
   return drafts;
 }
 
@@ -359,13 +386,16 @@ function dump(): void {
  * Отметить последние n наступивших приёмов пропуском. Если столько не наступило —
  * отказ, а не тихое обрезание: два разных числа на одном экране читаются как ошибка.
  */
-function markLastSkips(n: number): boolean {
+function markLastSkips(n: number, reason: string): boolean {
   const past = scheduleRows().filter((row) => row.scheduledAt <= NOW && row.state !== "scheduled");
   if (n > past.length) {
     console.log(`В окне всего ${past.length} наступивших приёмов — ${n} пропусков отметить нельзя.`);
     return false;
   }
-  for (const row of past.slice(-n)) state.marks[row.scheduledAt] = "skipped";
+  for (const row of past.slice(-n)) {
+    state.marks[row.scheduledAt] = "skipped";
+    state.reasons[row.scheduledAt] = reason;
+  }
   return true;
 }
 
@@ -475,7 +505,7 @@ const SCENARIOS: Record<string, Scenario> = {
       { say: "Смотрим расписание до отметок", run: () => pillbox() },
       {
         say: "Пациент подтвердил три пропуска подряд",
-        run: () => markLastSkips(3),
+        run: () => markLastSkips(3, "не было препарата"),
       },
       { say: "Смотрим: расписание и сигнал приверженности", run: () => { pillbox(); dump(); } },
     ],
@@ -532,9 +562,9 @@ const HELP = `
   шкала <id> [все=N] [q9=1]    phq-9, gad-7, asq; без «все» нужны все пункты
   прошлый <балл> [от <шкала> [версия X]]  прошлая сумма, шкала и версия
   дневник <1-10> [было <1-10>] самочувствие сегодня
-  пропуски <n>                 отметить последние n наступивших приёмов пропуском
-  отметка [-1 | 25.10] 08:00=пропуск   отметка на конкретное время и день:
-                               пропуск, принял, нет; на будущее — отказ
+  пропуски <n> <причина>       отметить последние n наступивших приёмов пропуском
+  отметка [-1 | 25.10] 08:00=пропуск(уехал)  отметка на время и день: пропуск
+                               (причина обязательна), принял, нет; будущее — отказ
   таблетница 08:00,20:00 [с -5 по -1]  назначение; окно курса в днях от сегодня
   сценарий [1-6]               сценарии выше, с объяснением шагов
   сброс / выход
@@ -675,12 +705,17 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
     }
     case "пропуски": {
       const value = Number(rest[0]);
+      const reason = rest.slice(1).join(" ").trim();
       if (Number.isNaN(value)) {
-        console.log("Формат: пропуски <n>");
+        console.log("Формат: пропуски <n> <причина>");
+        return;
+      }
+      if (reason === "") {
+        console.log("Продукт не принимает пропуск без причины: пропуски 3 проспал");
         return;
       }
       if (state.schedule) {
-        if (!markLastSkips(value)) return;
+        if (!markLastSkips(value, reason)) return;
         pillbox();
       } else {
         state.manualSkips = value;
@@ -694,10 +729,23 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
         console.log("Формат: отметка [день] 08:00=пропуск | принял | нет, день: -1 или 25.10");
         return;
       }
+      const withReason = /^(пропуск|принял|нет)\((.*)\)$/.exec(raw);
+      const statusWord = withReason?.[1] ?? raw;
+      const reason = withReason?.[2] ?? null;
       const status: DoseSlotState | null =
-        raw === "пропуск" ? "skipped" : raw === "принял" ? "taken" : raw === "нет" ? "no_data" : null;
+        statusWord === "пропуск"
+          ? "skipped"
+          : statusWord === "принял"
+            ? "taken"
+            : statusWord === "нет"
+              ? "no_data"
+              : null;
       if (status === null) {
-        console.log("Статус: пропуск, принял или нет");
+        console.log("Статус: пропуск, принял или нет; причину можно указать в скобках");
+        return;
+      }
+      if (status === "skipped" && reason === null) {
+        console.log("Продукт не принимает пропуск без причины: отметка 08:00=пропуск(уехал)");
         return;
       }
       if (!state.schedule) {
@@ -722,6 +770,7 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
         return;
       }
       state.marks[slot] = status;
+      if (reason !== null) state.reasons[slot] = reason;
       pillbox();
       dump();
       return;
