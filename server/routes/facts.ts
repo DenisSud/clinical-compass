@@ -9,6 +9,8 @@ import { requireAuth, requireRole } from "../auth/guard.js";
 import { patientFacts } from "../db/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
+import { signalsForFacts } from "../rules/signals.js";
+import { saveSignals } from "./signals.js";
 
 type FactsRow = typeof patientFacts.$inferSelect;
 
@@ -105,6 +107,20 @@ export const factsRoutes: FastifyPluginAsync = async (app) => {
       .from(patientFacts)
       .where(eq(patientFacts.patientId, patientId))
       .limit(1);
+
+    /*
+     * A contraindication written and never raised is a rule the doctor does not read
+     * (issue #37). The facts row is one per patient, so `sourceId` is the patient: the
+     * unique index on (source_type, source_id, kind) turns the second write of the same
+     * facts into a no-op instead of a second card. A card already raised is not closed
+     * by a later answer — closure is the doctor's action with an outcome (Q17).
+     */
+    await saveSignals(app, {
+      patientId,
+      sourceType: "facts",
+      sourceId: patientId,
+      drafts: signalsForFacts(toFacts(row)),
+    });
 
     return toView(row);
   });

@@ -93,22 +93,47 @@ export function requireRule(id: string): Rule {
  * One rule against one patient's facts. Pure: no database, no clock, no model.
  * Returns null when the rule does not fire — an unknown fact ("не спрашивали")
  * never fires a rule.
+ *
+ * Every matching check reaches the card, not only the first one: a patient with an
+ * eGFR of 45 and a pregnancy has two contraindications from one rule, and a card that
+ * names one of them tells the doctor the other does not exist (issue #38).
  */
 export function evaluateRule(rule: Rule, facts: RuleFacts): RuleMatch | null {
-  for (const condition of rule.when) {
-    const values = matchCondition(condition, facts);
-    if (values === null) continue;
+  const matched = rule.when
+    .map((condition) => matchCondition(condition, facts))
+    .filter((values): values is Record<string, string> => values !== null);
+  if (matched.length === 0) return null;
 
-    return {
-      ruleId: rule.id,
-      title: render(rule.output.title, values),
-      severity: rule.severity,
-      detail: render(rule.output.detail, values),
-      source: rule.source,
-    };
+  const values = joinMatches(matched);
+
+  return {
+    ruleId: rule.id,
+    title: render(rule.output.title, values),
+    severity: rule.severity,
+    detail: render(rule.output.detail, values),
+    source: rule.source,
+  };
+}
+
+/**
+ * One template name, several matches: the doctor reads them as a list. With a single
+ * match the value is the same string the rule produced before, so rules that check
+ * one thing word themselves exactly as they did (#38).
+ */
+function joinMatches(matched: Record<string, string>[]): Record<string, string> {
+  const collected = new Map<string, string[]>();
+
+  for (const values of matched) {
+    for (const [name, value] of Object.entries(values)) {
+      const seen = collected.get(name);
+      if (seen === undefined) collected.set(name, [value]);
+      else if (!seen.includes(value)) seen.push(value);
+    }
   }
 
-  return null;
+  return Object.fromEntries(
+    [...collected].map(([name, values]) => [name, values.join("; ")]),
+  );
 }
 
 function matchCondition(

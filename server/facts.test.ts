@@ -26,6 +26,12 @@ const putFacts = (app: App, cookie: string, payload: Record<string, unknown>) =>
     json: () => any;
   }>;
 
+const listSignals = (app: App, cookie: string) =>
+  app.inject({ method: "GET", url: "/api/signals", headers: { cookie } }) as unknown as Promise<{
+    statusCode: number;
+    json: () => any;
+  }>;
+
 describe("факты, блокирующие решение", () => {
   it("не спрашивали и «нет» — разные вещи: пустые факты остаются null", async () => {
     const app = await newApp();
@@ -130,5 +136,92 @@ describe("факты, блокирующие решение", () => {
     const res = await putFacts(app, doctorCookie, { pregnancy: "no" });
 
     expect(res.statusCode).toBe(403);
+  });
+});
+
+describe("сохранённое противопоказание доходит до врача", () => {
+  it("СКФ 45 поднимает критический сигнал по правилу ОХЛП", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie } = await boundPair(app);
+
+    await putFacts(app, patientCookie, { egfrMlMin: 45 });
+
+    const { signals } = (await listSignals(app, doctorCookie)).json();
+    expect(signals).toHaveLength(1);
+    expect(signals[0]).toMatchObject({
+      kind: "contraindication",
+      severity: "critical",
+      ruleId: "aviandr-contraindications",
+      ruleTitle: "Противопоказания к «Авиандру»",
+      status: "saved",
+    });
+    expect(signals[0].ruleSource).toMatchObject({ kind: "ohlp", status: "confirmed" });
+    expect(signals[0].detail).toContain("снижение СКФ");
+    await app.close();
+  });
+
+  it("карточка называет оба противопоказания, а не первое", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie } = await boundPair(app);
+
+    await putFacts(app, patientCookie, { egfrMlMin: 45, pregnancy: "pregnant" });
+
+    const { signals } = (await listSignals(app, doctorCookie)).json();
+    expect(signals).toHaveLength(1);
+    expect(signals[0].detail).toContain("снижение СКФ");
+    expect(signals[0].detail).toContain("беременность");
+    await app.close();
+  });
+
+  it("повторная запись тех же фактов не плодит дублей", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie } = await boundPair(app);
+
+    await putFacts(app, patientCookie, { egfrMlMin: 45 });
+    const again = await putFacts(app, patientCookie, { egfrMlMin: 45 });
+
+    expect(again.statusCode).toBe(200);
+    expect((await listSignals(app, doctorCookie)).json().signals).toHaveLength(1);
+    await app.close();
+  });
+
+  it("«нет» и «не спрашивали» сигнала не создают", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie } = await boundPair(app);
+
+    await putFacts(app, patientCookie, {
+      epilepsyOrOrganicBrainDisease: "no",
+      maoInhibitors: "none",
+      egfrMlMin: 90,
+      childPugh: null,
+      pregnancy: "no",
+      galactoseIntolerance: "no",
+    });
+
+    expect((await listSignals(app, doctorCookie)).json().signals).toEqual([]);
+    await app.close();
+  });
+
+  it("отмена противопоказания не закрывает уже поднятый сигнал", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie } = await boundPair(app);
+
+    await putFacts(app, patientCookie, { pregnancy: "pregnant" });
+    await putFacts(app, patientCookie, { pregnancy: null });
+
+    const { signals } = (await listSignals(app, doctorCookie)).json();
+    expect(signals).toHaveLength(1);
+    expect(signals[0].status).toBe("saved");
+    await app.close();
+  });
+
+  it("пациент сигналов не видит и после своих ответов", async () => {
+    const app = await newApp();
+    const { patientCookie } = await boundPair(app);
+
+    await putFacts(app, patientCookie, { egfrMlMin: 45 });
+
+    expect((await listSignals(app, patientCookie)).statusCode).toBe(403);
+    await app.close();
   });
 });

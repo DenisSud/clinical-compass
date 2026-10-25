@@ -1,3 +1,4 @@
+import type { PatientFacts } from "../../shared/contracts.js";
 import type { RuleFacts, RuleSeverity } from "../../shared/rules.js";
 import { criticalItems } from "../instruments/engine.js";
 import type { Instrument } from "../instruments/schema.js";
@@ -37,11 +38,23 @@ const SIGNAL_RULES = [
 export const SIGNAL_RULE_IDS: readonly string[] = SIGNAL_RULES.map(({ ruleId }) => ruleId);
 
 /**
+ * Rules that read the facts row. They are listed apart from `SIGNAL_RULES` because
+ * they fire on `PUT /api/facts`, not on a submission: `SIGNAL_RULE_IDS` is the
+ * assessment-and-diary contract the parity test pins, and a fact rule cannot be raised
+ * by a questionnaire that never sees the facts.
+ */
+const FACT_SIGNAL_RULES = [
+  { kind: "contraindication", ruleId: "aviandr-contraindications" },
+] as const;
+
+type SignalRule = { kind: string; ruleId: string };
+
+/**
  * Facts in, signals out. This module supplies only what the registry cannot know how
  * to read; every threshold and every word shown to the doctor comes from the rule file.
  */
-function signalsFromRules(facts: RuleFacts): SignalDraft[] {
-  return SIGNAL_RULES.flatMap(({ kind, ruleId }) => {
+function signalsFromRules(rules: readonly SignalRule[], facts: RuleFacts): SignalDraft[] {
+  return rules.flatMap(({ kind, ruleId }) => {
     const match = evaluateRule(requireRule(ruleId), facts);
     if (match === null) return [];
 
@@ -73,7 +86,7 @@ export function signalsForAssessment(input: {
   total: number;
   previousTotal: number | null;
 }): SignalDraft[] {
-  const signals = signalsFromRules({
+  const signals = signalsFromRules(SIGNAL_RULES, {
     ...NO_FACTS,
     assessment: {
       instrumentId: input.instrument.id,
@@ -125,9 +138,28 @@ function bandSignalForAssessment(input: {
 }
 
 export function signalsForDiary(input: { value: number; previousValue: number | null }): SignalDraft[] {
-  return signalsFromRules({
+  return signalsFromRules(SIGNAL_RULES, {
     ...NO_FACTS,
     assessment: null,
     diary: { value: input.value, previousValue: input.previousValue },
+  });
+}
+
+/**
+ * Patient facts in, signals out. Called by `PUT /api/facts`, which is the only moment
+ * a fact appears: a contraindication stored and never raised is a rule the doctor
+ * never reads (issue #37). The playground calls this same function, so «the facts
+ * produce a signal» is one statement in the product and in the playground (issue #42).
+ *
+ * An unanswered fact is `null`, and "no" is an answer: neither matches a condition, so
+ * neither raises anything. A signal already raised is not withdrawn here — closing it
+ * takes the doctor's outcome (decisions.md Q17).
+ */
+export function signalsForFacts(patientFacts: PatientFacts): SignalDraft[] {
+  return signalsFromRules(FACT_SIGNAL_RULES, {
+    assessment: null,
+    diary: null,
+    adherence: null,
+    patientFacts,
   });
 }

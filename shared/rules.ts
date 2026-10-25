@@ -29,11 +29,13 @@ export const ruleSourceSchema = z.strictObject({
 export type RuleSource = z.infer<typeof ruleSourceSchema>;
 
 /**
- * One check against the facts we hold. A rule lists several checks and fires on
- * the first that matches, so a set of contraindications stays one rule.
+ * One check against the facts we hold. A rule lists several checks joined by "or",
+ * so a set of contraindications stays one rule. More than one check may match at
+ * once: the semantics stay "or", but the card then names every match, not the first
+ * (issue #38).
  *
  * `patientFact.*` checks carry their own `label`: the doctor must read which fact
- * fired, and the rule file must say it in words the doctor sees.
+ * matched, and the rule file must say it in words the doctor sees.
  */
 export const ruleConditionSchema = z.discriminatedUnion("fact", [
   z.strictObject({
@@ -93,12 +95,16 @@ export type RuleCondition = z.infer<typeof ruleConditionSchema>;
 export const ruleSchema = z.strictObject({
   id: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/),
   title: z.string().min(1),
-  /** Checks are joined by "or": the first one that matches fires the rule. */
+  /**
+   * Checks are joined by "or". Several of them may match at once, and the template
+   * receives all matched values: «СКФ 45 и беременность» is one rule with two matches,
+   * and naming only the first hides the other from the doctor (issue #38).
+   */
   when: z.array(ruleConditionSchema).min(1),
   severity: ruleSeveritySchema,
   output: z.strictObject({
     title: z.string().min(1),
-    /** Template: `{name}` is filled from the fact that fired. */
+    /** Template: `{name}` is filled from the checks that matched, joined by `; `. */
     detail: z.string().min(1),
   }),
   source: ruleSourceSchema,

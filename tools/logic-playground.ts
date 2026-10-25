@@ -22,7 +22,13 @@ import type { RuleCondition, RuleFacts } from "../shared/rules.js";
 import { criticalItems, score } from "../server/instruments/engine.js";
 import { instrument as findInstrument, patientInstruments } from "../server/instruments/loader.js";
 import type { Instrument } from "../server/instruments/schema.js";
-import { evaluateRule, listRules } from "../server/rules/registry.js";
+import { evaluateRule, findRule, listRules, requireRule } from "../server/rules/registry.js";
+import {
+  signalsForAssessment,
+  signalsForDiary,
+  signalsForFacts,
+  type SignalDraft,
+} from "../server/rules/signals.js";
 import {
   plannedSlots,
   shiftDay,
@@ -246,26 +252,67 @@ function rulesTable(): void {
   }
 }
 
+/**
+ * Сигналы — тем же кодом, что сервер: `signalsForAssessment`, `signalsForDiary`,
+ * `signalsForFacts`. Раздел «Правила» выше объясняет, почему правило молчит; этот
+ * показывает ровно ту карточку, которая уйдёт врачу (#42).
+ */
+function signalDrafts(): SignalDraft[] {
+  const assessment = state.assessment;
+  const drafts: SignalDraft[] = [];
+
+  if (assessment) {
+    const scored = score(assessment.instrument, assessment.answers);
+    drafts.push(
+      ...signalsForAssessment({
+        instrument: assessment.instrument,
+        answers: assessment.answers,
+        total: scored.total,
+        previousTotal: state.previousTotal,
+      }),
+    );
+  }
+  if (state.diary) drafts.push(...signalsForDiary(state.diary));
+
+  drafts.push(...signalsForFacts(factsForRules()));
+
+  return drafts;
+}
+
 function signalsTable(): void {
-  const facts = ruleFacts();
-  const fired = listRules()
-    .map((rule) => evaluateRule(rule, facts))
-    .filter((match): match is NonNullable<typeof match> => match !== null);
+  const drafts = signalDrafts();
+  // Приверженность: правило объявлено, но карточку с препаратом и пропущенными
+  // временами собирает маршрут назначения — движок сигналов её не создаёт.
+  const adherence = evaluateRule(requireRule("adherence-three-missed-doses"), ruleFacts());
 
   console.log("\nСигналы, которые увидит врач:");
-  if (fired.length === 0) {
+  if (drafts.length === 0 && adherence === null) {
     console.log("  ни одного — и это ответ, а не пустота: правила не нашли повода.");
     return;
   }
 
-  for (const match of fired) {
+  for (const draft of drafts) {
+    console.log(`\n  [${draft.severity.toUpperCase()}] ${draft.title}`);
+    console.log(`  ${draft.detail}`);
+
+    const rule = draft.ruleId === null ? undefined : findRule(draft.ruleId);
+    if (rule === undefined) {
+      console.log("  без правила: сигнал шкалы, а не файл из content/rules");
+      continue;
+    }
+
     const status =
-      match.source.status === "placeholder"
+      rule.source.status === "placeholder"
         ? "наше правило, источник ещё не подтверждён"
-        : `источник: ${match.source.kind}`;
-    console.log(`\n  [${match.severity.toUpperCase()}] ${match.title}`);
-    console.log(`  ${match.detail}`);
-    console.log(`  правило «${match.ruleId}» · ${status} · ${match.source.ref}`);
+        : `источник: ${rule.source.kind}`;
+    console.log(`  правило «${rule.id}» · ${status} · ${rule.source.ref}`);
+  }
+
+  if (adherence !== null) {
+    console.log(
+      `\n  Пропуски приёма: правило «${adherence.ruleId}» сработало, карточку собирает маршрут назначения.`,
+    );
+    console.log(`  ${adherence.detail}`);
   }
 }
 
@@ -401,6 +448,21 @@ const SCENARIOS: Record<string, Scenario> = {
       { say: "Смотрим: критический сигнал есть, суммы-сигнала нет", run: () => dump() },
     ],
   },
+  "6": {
+    title: "Два противопоказания сразу: карточка называет оба",
+    steps: [
+      { say: "Заполняем СКФ 45 — одно противопоказание", run: () => setFact("скф=45") },
+      { say: "Смотрим карточку: названо одно", run: () => dump() },
+      {
+        say: "Добавляем беременность: в файле правила это второе независимое условие",
+        run: () => setFact("беременность=pregnant"),
+      },
+      {
+        say: "Смотрим: одна карточка и в ней оба признака, а не только СКФ (#38)",
+        run: () => dump(),
+      },
+    ],
+  },
 };
 
 async function runScenario(key: string): Promise<void> {
@@ -434,7 +496,7 @@ const HELP = `
   пропуски <n>                 отметить последние n наступивших приёмов пропуском
   отметка 08:00=пропуск        отметка на конкретное время: пропуск, принял, нет
   таблетница 08:00,20:00 [с -5 по -1]  назначение; окно курса в днях от сегодня
-  сценарий [1-5]               сценарии выше, с объяснением шагов
+  сценарий [1-6]               сценарии выше, с объяснением шагов
   сброс / выход
 
 После каждой команды печатается всё состояние: факты, каждое правило (сработало

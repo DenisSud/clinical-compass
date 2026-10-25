@@ -109,6 +109,27 @@ describe("executing one rule", () => {
     expect(match!.source.status).toBe("confirmed");
   });
 
+  it("names every matched contraindication, not only the first", () => {
+    const match = evaluateRule(ruleById("aviandr-contraindications"), {
+      ...NO_FACTS,
+      patientFacts: { ...NO_PATIENT_FACTS, egfrMlMin: 45, pregnancy: "pregnant" },
+    });
+
+    expect(match!.detail).toContain("снижение СКФ");
+    expect(match!.detail).toContain("беременность");
+  });
+
+  it("words a one-condition match exactly as before joining was added", () => {
+    const match = evaluateRule(ruleById("aviandr-contraindications"), {
+      ...NO_FACTS,
+      patientFacts: { ...NO_PATIENT_FACTS, pregnancy: "lactating" },
+    });
+
+    expect(match!.detail).toBe(
+      "У пациента отмечено: грудное вскармливание. Раздел 4.3 ОХЛП относит это к противопоказаниям; назначение обсуждает врач.",
+    );
+  });
+
   it("does not fire on an unanswered fact", () => {
     const rule = ruleById("aviandr-contraindications");
 
