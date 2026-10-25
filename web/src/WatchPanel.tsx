@@ -89,45 +89,37 @@ export function WatchPanel({ patientId }: { patientId: string }) {
   return (
     <div>
       {items.data.length === 0 && (
-        <p style={{ color: "var(--text-muted)", marginTop: 0 }}>
+        <p className="muted">
           Своих правил нет. Работают только встроенные: критический ответ опросника, тяжёлая сумма,
           ухудшение, низкое самочувствие и резкое падение.
         </p>
       )}
 
       {items.data.length > 0 && (
-        <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 8 }}>
+        <ul className="watch-list">
           {items.data.map((item) => (
             <li
               key={item.id}
-              style={{
-                padding: 10,
-                borderRadius: "var(--radius-surface)",
-                border: "1px solid var(--border-divider)",
-                opacity: item.status === "paused" ? 0.55 : 1,
-              }}
+              className={item.status === "paused" ? "watch-item watch-item--paused" : "watch-item"}
             >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                <strong style={{ fontSize: 14 }}>{item.title}</strong>
-                <span style={{ fontSize: 12, color: item.severity === "critical" ? "var(--signal-critical)" : "var(--text-muted)" }}>
+              <div className="watch-item__head">
+                <strong className="watch-item__title">{item.title}</strong>
+                <span
+                  className={
+                    item.severity === "critical"
+                      ? "watch-item__severity watch-item__severity--critical"
+                      : "watch-item__severity"
+                  }
+                >
                   {SEVERITY_LABEL[item.severity]}
                 </span>
               </div>
-              <div style={{ fontSize: 13, color: "var(--text-muted)", marginTop: 2 }}>{describeWatch(item)}</div>
-              <button
-                type="button"
+              <div className="watch-item__detail">{describeWatch(item)}</div>
+              <Button
+                variant="quiet"
+                className="watch-item__toggle"
                 disabled={toggleBusy !== null}
                 onClick={() => void toggle(item)}
-                style={{
-                  marginTop: 6,
-                  border: "none",
-                  background: "none",
-                  color: "var(--link)",
-                  cursor: toggleBusy !== null ? "default" : "pointer",
-                  opacity: toggleBusy !== null ? 0.5 : 1,
-                  padding: 0,
-                  fontSize: 13,
-                }}
               >
                 {toggleBusy === item.id
                   ? item.status === "active"
@@ -136,7 +128,7 @@ export function WatchPanel({ patientId }: { patientId: string }) {
                   : item.status === "active"
                     ? "Приостановить"
                     : "Включить обратно"}
-              </button>
+              </Button>
             </li>
           ))}
         </ul>
@@ -145,22 +137,14 @@ export function WatchPanel({ patientId }: { patientId: string }) {
       {toggleError && <p className="notice notice--error">{toggleError}</p>}
 
       {!adding && (
-        <button
-          type="button"
-          onClick={() => setAdding(true)}
-          style={{ marginTop: 10, padding: "8px 14px", borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)", background: "var(--surface-card)", cursor: "pointer" }}
-        >
+        <Button className="watch-add" onClick={() => setAdding(true)}>
           Добавить риск
-        </button>
+        </Button>
       )}
 
       {adding && (
-        <form onSubmit={submit} style={{ marginTop: 10, display: "grid", gap: 8 }}>
-          <select
-            value={kind}
-            onChange={(event) => setKind(event.target.value as WatchKind)}
-            style={{ padding: 8, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
-          >
+        <form onSubmit={submit} className="watch-form">
+          <select value={kind} onChange={(event) => setKind(event.target.value as WatchKind)}>
             {Object.entries(KIND_LABEL).map(([key, label]) => (
               <option key={key} value={key}>
                 {label}
@@ -172,7 +156,6 @@ export function WatchPanel({ patientId }: { patientId: string }) {
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             placeholder="Название для врача, например «Риск самоповреждения»"
-            style={{ padding: 8, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
           />
 
           {kind === "message_keyword" ? (
@@ -180,16 +163,15 @@ export function WatchPanel({ patientId }: { patientId: string }) {
               value={terms}
               onChange={(event) => setTerms(event.target.value)}
               placeholder="Слова через запятую"
-              style={{ padding: 8, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
             />
           ) : (
-            <label style={{ fontSize: 13, color: "var(--text-muted)" }}>
+            <label className="watch-form__label">
               {kind === "missed_doses" ? "Пропусков подряд" : kind === "diary_drop" ? "Падение в баллах" : "Порог"}
               <input
                 type="number"
+                className="watch-form__number"
                 value={value}
                 onChange={(event) => setValue(event.target.value)}
-                style={{ marginLeft: 8, width: 80, padding: 6, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
               />
             </label>
           )}
@@ -197,7 +179,6 @@ export function WatchPanel({ patientId }: { patientId: string }) {
           <select
             value={severity}
             onChange={(event) => setSeverity(event.target.value as WatchItem["severity"])}
-            style={{ padding: 8, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
           >
             <option value="medium">средняя</option>
             <option value="high">высокая</option>
@@ -209,7 +190,7 @@ export function WatchPanel({ patientId }: { patientId: string }) {
             <p className="hint">Название — не короче 3 символов, иначе правило не сохранится.</p>
           )}
 
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="row">
             <Button
               type="submit"
               variant="primary"

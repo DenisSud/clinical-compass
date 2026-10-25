@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { DoctorSignal, Signal } from "../../shared/contracts";
 import { ApiRequestError, closeSignal, takeSignal } from "./api";
 import { Button, Empty, LoadError, type Load } from "./ui";
@@ -90,6 +90,34 @@ export function sortSignals<T extends Signal>(signals: T[]): T[] {
       SEVERITY_RANK[left.severity] - SEVERITY_RANK[right.severity] ||
       right.createdAt.localeCompare(left.createdAt),
   );
+}
+
+/**
+ * signal-semantics.md §3: no more than three cards of one level on the screen before
+ * the rest folds into «Ещё N». The number is the research's, not a style choice.
+ */
+export const SIGNALS_PER_LEVEL = 3;
+
+const SEVERITY_ORDER: Signal["severity"][] = ["critical", "high", "medium"];
+
+export type SeveritySection<T extends Signal> = {
+  level: Signal["severity"];
+  visible: T[];
+  folded: T[];
+};
+
+/**
+ * Critical is never folded (#35): DESIGN.md §2.1 puts a missed signal above
+ * compactness, and a critical signal behind a closed «Ещё N» is exactly the miss this
+ * screen exists to prevent. The other levels fold after three.
+ */
+export function sectionBySeverity<T extends Signal>(sorted: T[]): SeveritySection<T>[] {
+  return SEVERITY_ORDER.flatMap((level) => {
+    const items = sorted.filter((signal) => signal.severity === level);
+    if (items.length === 0) return [];
+    const keep = level === "critical" ? items.length : SIGNALS_PER_LEVEL;
+    return [{ level, visible: items.slice(0, keep), folded: items.slice(keep) }];
+  });
 }
 
 function formatDate(iso: string): string {
@@ -229,7 +257,25 @@ export function SignalsPanel({
           {closed.length === 0 ? "Сигналов нет." : "Открытых сигналов нет."}
         </Empty>
       )}
-      {open.length > 0 && <ul className="signal-list">{open.map(renderCard)}</ul>}
+      {open.length > 0 && (
+        <div className="signal-groups">
+          {sectionBySeverity(open).map((section) => (
+            <Fragment key={section.level}>
+              <ul className="signal-list">{section.visible.map(renderCard)}</ul>
+
+              {section.folded.length > 0 && (
+                <details className={`signal-more signal-more--${section.level}`}>
+                  <summary>
+                    <SeverityMark severity={section.level} />Ещё {section.folded.length}:{" "}
+                    {SIGNAL_SEVERITY_LABEL[section.level]}
+                  </summary>
+                  <ul className="signal-list">{section.folded.map(renderCard)}</ul>
+                </details>
+              )}
+            </Fragment>
+          ))}
+        </div>
+      )}
 
       {closed.length > 0 && (
         <details className="closed-group">

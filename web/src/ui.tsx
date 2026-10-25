@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 /** Every network read is loading, failed or ready. Failed never renders as empty (DESIGN.md §2.5). */
 export type Load<T> = { status: "loading" } | { status: "failed" } | { status: "ready"; data: T };
@@ -41,8 +41,40 @@ export function Tabs<T extends string>({
   value: T;
   onChange: (id: T) => void;
 }) {
+  const bar = useRef<HTMLDivElement | null>(null);
+  const [overflowing, setOverflowing] = useState(false);
+
+  /*
+   * On a phone the row scrolls instead of wrapping (#35). The fade on its edge says
+   * there is more to the right, and it may only be there when something really is cut
+   * off — a fade over a tab that is entirely on screen reads as «этот раздел недоступен».
+   * So the row is measured: on resize, when the number of tabs changes, and once the
+   * font has loaded, because Lato's metrics decide the last few pixels.
+   */
+  useEffect(() => {
+    const node = bar.current;
+    if (!node) return;
+    let live = true;
+    const measure = () => setOverflowing(node.scrollWidth > node.clientWidth + 1);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(node);
+    void document.fonts?.ready.then(() => {
+      if (live) measure();
+    });
+    return () => {
+      live = false;
+      observer.disconnect();
+    };
+  }, [items.length]);
+
   return (
-    <div className="tabs" role="tablist" aria-label={label}>
+    <div
+      ref={bar}
+      className={overflowing ? "tabs tabs--overflow" : "tabs"}
+      role="tablist"
+      aria-label={label}
+    >
       {items.map((item) => (
         <button
           key={item.id}

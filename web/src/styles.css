@@ -182,6 +182,52 @@ th {
   font-weight: 600;
 }
 
+/*
+ * Five patient tabs in one row on a phone: «Врач» used to drop onto the second line as
+ * a full-width box of its own (#35). The row scrolls instead, keeps the order the tabs
+ * were written in and keeps the 44 px targets. Tighter side padding than on a wide
+ * screen is what buys the fifth label its room: the five labels need 329 px, the row
+ * has 333 px at 375.
+ */
+@media (max-width: 520px) {
+  .tabs {
+    flex-wrap: nowrap;
+    gap: 0;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    padding-right: var(--space-1);
+  }
+
+  .tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Grow into spare width, never shrink below the label: a tab is read, not truncated. */
+  .tab {
+    flex: 1 0 auto;
+    padding: 0 var(--space-2);
+  }
+}
+
+/*
+ * The fade is drawn by the component only when the row is measured wider than its box
+ * (see Tabs in ui.tsx), so it always covers clipped content and never dims a tab that is
+ * entirely on screen. It is an alpha ramp, not a colour: it takes no palette value.
+ */
+.tabs--overflow {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 1) calc(100% - var(--space-4)),
+    rgba(0, 0, 0, 0)
+  );
+  mask-image: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 1) calc(100% - var(--space-4)),
+    rgba(0, 0, 0, 0)
+  );
+}
+
 /* ---------- blocks ---------- */
 
 .card {
@@ -374,6 +420,13 @@ th {
   margin: 0;
   padding: 0;
   list-style: none;
+}
+
+/* One block per severity level, so a folded «Ещё N» sits under the third card of its
+ * own level and never under a different one (signal-semantics.md #32 §3). */
+.signal-groups {
+  display: grid;
+  gap: 12px;
 }
 
 .signal {
@@ -575,9 +628,23 @@ th {
   border-radius: var(--radius-surface);
 }
 
-.closed-group > summary {
+/*
+ * The rest of a level: «Ещё N: важно» (signal-semantics.md #32 §3). Same frame as the
+ * closed group; the header carries both the level word and the level mark, so a folded
+ * card is still counted and still says what it is. Level colours on white are 5.43:1
+ * and 7.69:1 — AA for text (tokens.css header).
+ */
+.signal-more {
+  padding: 0 14px;
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+}
+
+.closed-group > summary,
+.signal-more > summary {
   display: flex;
   align-items: center;
+  gap: var(--space-2);
   min-height: 44px;
   font-size: 14px;
   font-weight: 600;
@@ -585,8 +652,113 @@ th {
   cursor: pointer;
 }
 
-.closed-group .signal-list {
+/* After the shared rule on purpose: same specificity, so the level wins the last word. */
+.signal-more--high > summary {
+  color: var(--signal-high);
+}
+
+.signal-more--medium > summary {
+  color: var(--signal-medium);
+}
+
+.closed-group .signal-list,
+.signal-more .signal-list {
   padding-bottom: 12px;
+}
+
+/* ---------- doctor: watch rules ----------
+ *
+ * The doctor's own rules use the same classes and tokens as the rest of the card, so
+ * they stop being a second visual language (#35). Every target is 44 px (DESIGN.md
+ * §3.9). Field borders take --brand-slate, as the login fields do: --border-divider is
+ * 1.71:1 on white and a field's only edge has to reach 3:1 (WCAG 1.4.11).
+ */
+
+.watch-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.watch-item {
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+}
+
+/* A paused rule is quieter in surface, not in contrast: opacity 0.55 pushed its title
+   under 4.5:1, and the rule's own text still has to be readable (DESIGN.md §2.4). */
+.watch-item--paused {
+  background: var(--surface-inset);
+}
+
+.watch-item__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.watch-item__title {
+  font-size: var(--text-body);
+}
+
+.watch-item__severity {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.watch-item__severity--critical {
+  color: var(--signal-critical);
+}
+
+.watch-item__detail {
+  margin-top: 2px;
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.watch-item__toggle {
+  margin-top: var(--space-2);
+}
+
+.watch-add {
+  margin-top: var(--space-3);
+}
+
+.watch-form {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 480px;
+  margin-top: var(--space-3);
+}
+
+.watch-form select,
+.watch-form input {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid var(--brand-slate);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--text-strong);
+}
+
+.watch-form__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.watch-form__number {
+  width: 88px;
 }
 
 /* ---------- doctor: patients ---------- */
