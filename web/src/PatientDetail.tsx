@@ -3,12 +3,7 @@ import { AdherenceTable } from "./AdherenceTable";
 import { WatchPanel } from "./WatchPanel";
 import { MessageThread } from "./MessageThread";
 import { PlanPanel } from "./PlanPanel";
-import {
-  SIGNAL_SEVERITY_COLOR,
-  SIGNAL_SEVERITY_LABEL,
-  SIGNAL_STATUS_LABEL,
-  sortSignals,
-} from "./SignalsPanel";
+import { SIGNAL_STATUS_LABEL, SignalSeverity, signalClassName, sortSignals } from "./SignalsPanel";
 import type {
   DiaryEntry,
   DoctorAssessment,
@@ -60,14 +55,9 @@ function PatientSignals({ patientId }: { patientId: string }) {
   return (
     <ul className="signal-list">
       {sortSignals(signals.data).map((signal) => (
-        <li
-          key={signal.id}
-          className={signal.severity === "critical" ? "signal signal--critical" : "signal"}
-        >
+        <li key={signal.id} className={signalClassName(signal)}>
           <div className="signal__head">
-            <span className="signal__severity" style={{ color: SIGNAL_SEVERITY_COLOR[signal.severity] }}>
-              {SIGNAL_SEVERITY_LABEL[signal.severity]}
-            </span>
+            <SignalSeverity severity={signal.severity} closed={signal.status === "closed"} />
             <span className="signal__status">{SIGNAL_STATUS_LABEL[signal.status]}</span>
           </div>
           <h4 className="signal__title">{signal.title}</h4>

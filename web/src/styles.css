@@ -43,7 +43,16 @@ th {
   overflow-wrap: anywhere;
 }
 
-/* ---------- app shell ---------- */
+/* ---------- app shell ----------
+ *
+ * Two shells, one stylesheet. The control points are the ones the references were
+ * drawn on (issues #30, #31): phone 375, tablet 768, desktop 1440. Nothing here
+ * may scroll sideways at 375 px (WCAG 2.2 §1.4.10 reflow).
+ *
+ * Doctor: a wide screen, list and card side by side (DESIGN.md §3.10, #30 §4.4).
+ * Patient: one narrow column that stays narrow on a desktop, so the line length and
+ * the 44 px targets (DESIGN.md §3.9) do not change with the device.
+ */
 
 .app {
   min-height: 100vh;
@@ -117,7 +126,11 @@ th {
   max-width: 1120px;
 }
 
-@media (min-width: 720px) {
+.page--patient {
+  max-width: 560px;
+}
+
+@media (min-width: 768px) {
   .page {
     padding: 24px 24px 48px;
   }
@@ -233,15 +246,19 @@ th {
   gap: 8px;
 }
 
-/* ---------- buttons ---------- */
+/* ---------- buttons ----------
+ * 44 px is the floor everywhere, not only on a phone: DESIGN.md §3.9 is a rule about
+ * the target, and signal-semantics.md §7.8 closes the disagreement with WCAG 2.5.8
+ * in one direction.
+ */
 
 .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  min-height: 36px;
-  padding: 0 14px;
+  min-height: 44px;
+  padding: 0 16px;
   border: var(--border-width) solid var(--border-divider);
   border-radius: var(--radius-surface);
   background: var(--surface-card);
@@ -258,8 +275,8 @@ th {
 }
 
 .button--quiet {
-  min-height: 32px;
-  padding: 0 4px;
+  min-height: 44px;
+  padding: 0 8px;
   border-color: transparent;
   background: none;
   color: var(--link);
@@ -271,15 +288,24 @@ th {
   cursor: not-allowed;
 }
 
-@media (max-width: 600px) {
-  .button {
-    min-height: 44px;
-    padding: 0 16px;
-  }
+/* One answer of the PHQ-9: the radio is 13 px, the label around it is the target. */
+.choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-body);
+  color: var(--text-body);
+  cursor: pointer;
+}
 
-  .button--quiet {
-    min-height: 44px;
-  }
+/* Any bare disclosure header is a target too. */
+.details-summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
 }
 
 /* ---------- disclosure (invite a patient) ---------- */
@@ -334,7 +360,13 @@ th {
   letter-spacing: 2px;
 }
 
-/* ---------- doctor: signals ---------- */
+/* ---------- doctor: signals ----------
+ *
+ * Encoding follows signal-semantics.md #32 §1.1 channel by channel: word (always),
+ * shape (second), colour (third, and never alone). Stripped of colour the three
+ * levels must still be told apart, because forced-colors removes every one of these
+ * tones (#32 §4.4).
+ */
 
 .signal-list {
   display: grid;
@@ -347,15 +379,24 @@ th {
 .signal {
   padding: 12px 14px;
   border: var(--border-width) solid var(--border-divider);
-  border-left: var(--signal-bar-high) solid var(--signal-bar);
   border-radius: var(--radius-surface);
   background: var(--surface-card);
 }
 
+/* High — 4 px neutral bar and an outline triangle. */
+.signal--high {
+  border-left: var(--signal-bar-high) solid var(--signal-bar);
+}
+
+/* Medium — no bar at all: thickness is not the channel that separates it (#32 §1.1, §7.2). */
+.signal--medium {
+  border-left: var(--border-width) solid var(--border-divider);
+}
+
 /*
- * The critical signal is the one loud thing on the screen (DESIGN.md §2.3, §3.1):
- * larger title, thicker dark frame and a wider bar. Strip the colour and it still
- * outranks everything else on the page.
+ * Critical — the one loud thing on the screen (DESIGN.md §2.3, §3.1): 8 px bar,
+ * 2 px dark frame, 20 px title, filled triangle. Nothing else on the screen carries
+ * two of those at once.
  */
 .signal--critical {
   padding: 16px 18px;
@@ -365,28 +406,63 @@ th {
 
 .signal__head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 6px 12px;
 }
 
 .signal__severity {
-  display: block;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.signal--critical .signal__severity {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--signal-critical);
+}
+
+.signal--high .signal__severity {
+  color: var(--signal-high);
+}
+
+.signal--medium .signal__severity {
+  color: var(--signal-medium);
+}
+
+/* The mark inherits the level colour through currentColor, so a level is set once. */
+.signal__mark {
+  flex: none;
+  display: block;
+}
+
+.signal__mark-fill,
+.signal__mark-glyph {
+  fill: currentColor;
+}
+
+.signal__mark-outline {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+/* The exclamation inside a filled triangle is a cut-out, not a second colour. */
+.signal__mark-cut {
+  fill: var(--text-invert);
 }
 
 .signal__title {
   margin: 4px 0 0;
   font-size: 15px;
   font-weight: 600;
-}
-
-.signal--critical .signal__severity {
-  font-size: 13px;
-  font-weight: 700;
 }
 
 .signal--critical .signal__title {
@@ -407,6 +483,56 @@ th {
 
 .signal--critical .signal__status {
   border-color: var(--border-strong);
+}
+
+/*
+ * Closed — never louder than the open card of the same level (#32 §6). No bar, no
+ * level colour, no icon, 1 px frame, 15 px title; what separates it is the word
+ * «закрыт», the absent action and the mandatory outcome text. A closed «критично»
+ * that kept its frame and fill would be the loudest thing in the patient's history.
+ */
+.signal--closed {
+  padding: 12px 14px;
+  border: var(--border-width) solid var(--border-divider);
+}
+
+.signal--closed .signal__severity {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.signal--closed .signal__title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.signal--closed .signal__status {
+  padding: 0;
+  border-color: transparent;
+  background: none;
+  color: var(--text-muted);
+}
+
+/* Colour is forced away here; the word, the shape and the bar width are what is left. */
+@media (forced-colors: active) {
+  .signal {
+    border-color: CanvasText;
+  }
+
+  .signal__mark-fill,
+  .signal__mark-glyph {
+    fill: CanvasText;
+  }
+
+  .signal__mark-outline {
+    fill: none;
+    stroke: CanvasText;
+  }
+
+  .signal__mark-cut {
+    fill: Canvas;
+  }
 }
 
 .signal__meta {

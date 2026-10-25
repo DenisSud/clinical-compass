@@ -68,7 +68,7 @@ export function Phq9Form({ onSaved }: { onSaved: () => void }) {
             <p style={{ margin: "0 0 8px" }}>{item.text}</p>
             <div style={{ display: "grid", gap: 4 }}>
               {instrument.options.map((option) => (
-                <label key={option.value} style={{ display: "flex", gap: 8, fontSize: 14, color: "var(--text-body)" }}>
+                <label key={option.value} className="choice">
                   <input
                     type="radio"
                     name={item.id}

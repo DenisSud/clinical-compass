@@ -3,17 +3,77 @@ import type { DoctorSignal, Signal } from "../../shared/contracts";
 import { ApiRequestError, closeSignal, takeSignal } from "./api";
 import { Button, Empty, LoadError, type Load } from "./ui";
 
+/**
+ * Level labels are tokens, not phrases: one family, equal length, readable as a
+ * word and as an icon (signal-semantics.md #32 §1.1, §7.11).
+ */
 export const SIGNAL_SEVERITY_LABEL: Record<Signal["severity"], string> = {
   critical: "критично",
   high: "важно",
-  medium: "обратить внимание",
+  medium: "к сведению",
 };
 
-export const SIGNAL_SEVERITY_COLOR: Record<Signal["severity"], string> = {
-  critical: "var(--signal-critical)",
-  high: "var(--signal-high)",
-  medium: "var(--signal-medium)",
-};
+/**
+ * Shape is the second channel after the word (#32 §1.1, §4.3): filled triangle for
+ * critical, outline triangle for high, outline circle for medium. It has to carry
+ * the level without colour — in greyscale, at deuteranopia and in forced-colors.
+ */
+function SeverityMark({ severity }: { severity: Signal["severity"] }) {
+  const filled = severity === "critical";
+  const glyph = filled ? "signal__mark-cut" : "signal__mark-glyph";
+
+  return (
+    <svg
+      className="signal__mark"
+      viewBox="0 0 16 16"
+      width="16"
+      height="16"
+      aria-hidden="true"
+      focusable="false"
+    >
+      {severity === "medium" ? (
+        <>
+          <circle cx="8" cy="8" r="6.6" className="signal__mark-outline" />
+          <rect x="7.1" y="4.2" width="1.8" height="5" className={glyph} />
+          <circle cx="8" cy="11.3" r="0.9" className={glyph} />
+        </>
+      ) : (
+        <>
+          <path
+            d="M8 2.4 14.2 13.6H1.8Z"
+            className={filled ? "signal__mark-fill" : "signal__mark-outline"}
+          />
+          <rect x="7.1" y="5.8" width="1.8" height="4.4" className={glyph} />
+          <circle cx="8" cy="11.9" r="0.9" className={glyph} />
+        </>
+      )}
+    </svg>
+  );
+}
+
+/**
+ * Severity owns the card's form; a closed signal drops every accent and keeps only
+ * the word (#32 §6).
+ */
+export function signalClassName(signal: Pick<Signal, "severity" | "status">): string {
+  return signal.status === "closed" ? "signal signal--closed" : `signal signal--${signal.severity}`;
+}
+
+/** Word plus shape — the two channels that survive greyscale and forced-colors. */
+export function SignalSeverity({
+  severity,
+  closed = false,
+}: {
+  severity: Signal["severity"];
+  closed?: boolean;
+}) {
+  return (
+    <span className="signal__severity">
+      {!closed && <SeverityMark severity={severity} />}
+      {SIGNAL_SEVERITY_LABEL[severity]}
+    </span>
+  );
+}
 
 export const SIGNAL_STATUS_LABEL: Record<Signal["status"], string> = {
   saved: "новый",
@@ -92,14 +152,9 @@ export function SignalsPanel({
     const failure = failures[signal.id];
 
     return (
-      <li
-        key={signal.id}
-        className={signal.severity === "critical" ? "signal signal--critical" : "signal"}
-      >
+      <li key={signal.id} className={signalClassName(signal)}>
         <div className="signal__head">
-          <span className="signal__severity" style={{ color: SIGNAL_SEVERITY_COLOR[signal.severity] }}>
-            {SIGNAL_SEVERITY_LABEL[signal.severity]}
-          </span>
+          <SignalSeverity severity={signal.severity} closed={signal.status === "closed"} />
           <span className="signal__status">{SIGNAL_STATUS_LABEL[signal.status]}</span>
         </div>
         <h3 className="signal__title">{signal.title}</h3>

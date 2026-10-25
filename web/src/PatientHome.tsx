@@ -95,7 +95,7 @@ export function PatientHome({
     new Date(assessments.data.nextAllowedAt).getTime() > Date.now();
 
   return (
-    <main className="page">
+    <main className="page page--patient">
       {bindDone && profile.doctor && (
         <Card>
           <p className="notice">Код принят — вы привязаны к врачу.</p>
@@ -282,7 +282,7 @@ export function PatientHome({
               {assessments.data.assessments.map((assessment) => (
                 <li key={assessment.id} style={{ borderTop: "1px solid var(--border-hairline)", paddingTop: 10 }}>
                   <details>
-                    <summary style={{ minHeight: 32, cursor: "pointer" }}>
+                    <summary className="details-summary">
                       {formatDate(assessment.submittedAt)} — {assessment.instrumentTitle}
                     </summary>
                     <ul style={{ margin: "8px 0 0", paddingLeft: 20, color: "var(--text-body)", fontSize: 14 }}>
