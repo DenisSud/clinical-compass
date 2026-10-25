@@ -1,7 +1,7 @@
 {
-  "id": "phq9-worsening",
+  "id": "worsening",
   "title": "Ухудшение по шкале",
-  "when": [{ "fact": "assessment.totalIncrease", "instrumentId": "phq-9", "atLeast": 5 }],
+  "when": [{ "fact": "assessment.totalIncrease", "atLeast": 5 }],
   "severity": "medium",
   "output": {
     "title": "Ухудшение на {increase} балла",

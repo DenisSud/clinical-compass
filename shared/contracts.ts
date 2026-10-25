@@ -156,6 +156,18 @@ export const instrumentViewSchema = z.object({
 
 export type InstrumentView = z.infer<typeof instrumentViewSchema>;
 
+/**
+ * Where a rule came from. `status` is the honesty marker: a placeholder says the
+ * source is ours until the clinical materials arrive (decisions.md Q31).
+ */
+export const signalRuleSourceSchema = z.object({
+  kind: z.enum(["guideline", "ohlp", "ours"]),
+  ref: z.string(),
+  status: z.enum(["placeholder", "confirmed"]),
+});
+
+export type SignalRuleSource = z.infer<typeof signalRuleSourceSchema>;
+
 export const signalSchema = z.object({
   id: z.string(),
   patientId: z.string(),
@@ -170,6 +182,13 @@ export const signalSchema = z.object({
   closedAt: z.string().nullable(),
   /** Set when the signal came from a rule the doctor wrote, not from the built-in set. */
   watchItemId: z.string().nullable(),
+  /**
+   * The registry rule behind the card. Null for the instrument-band signal and for
+   * the doctor's own rules, where there is no rule file to point at.
+   */
+  ruleId: z.string().nullable(),
+  ruleTitle: z.string().nullable(),
+  ruleSource: signalRuleSourceSchema.nullable(),
 });
 
 export type Signal = z.infer<typeof signalSchema>;

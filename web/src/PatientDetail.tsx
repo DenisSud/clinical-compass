@@ -3,7 +3,7 @@ import { AdherenceTable } from "./AdherenceTable";
 import { WatchPanel } from "./WatchPanel";
 import { MessageThread } from "./MessageThread";
 import { PlanPanel } from "./PlanPanel";
-import { SIGNAL_STATUS_LABEL, SignalSeverity, signalClassName, sortSignals } from "./SignalsPanel";
+import { SIGNAL_STATUS_LABEL, SignalRule, SignalSeverity, signalClassName, sortSignals } from "./SignalsPanel";
 import type {
   DiaryEntry,
   DoctorAssessment,
@@ -66,6 +66,7 @@ function PatientSignals({ patientId }: { patientId: string }) {
             {signal.watchItemId && " · по вашему правилу"}
           </p>
           <p className="signal__detail">{signal.detail}</p>
+          <SignalRule signal={signal} />
           {signal.outcome && (
             <p className="hint">
               <em>Результат:</em> {signal.outcome}

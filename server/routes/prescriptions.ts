@@ -286,6 +286,10 @@ export const prescriptionRoutes: FastifyPluginAsync = async (app) => {
             detail:
               `«${row.drugName}», ${row.doseValue} ${row.doseUnit}. Пропущены приёмы: ${listed.join(", ")}.` +
               (reasons.length > 0 ? ` Причины: ${reasons.join("; ")}.` : ""),
+            // The rule file declares this signal too, and its threshold is pinned to
+            // MISSED_DOSES_SIGNAL by the parity test; the card still carries the drug and
+            // the missed times, which the rule template does not have (next slice).
+            ruleId: null,
           },
         ],
       });

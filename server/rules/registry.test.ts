@@ -52,13 +52,13 @@ describe("rule files", () => {
   });
 
   it("refuses a rule without a source instead of registering it", () => {
-    const { source: _source, ...withoutSource } = ruleById("phq9-critical-item");
+    const { source: _source, ...withoutSource } = ruleById("critical-item");
 
     expect(() => parseRule(withoutSource)).toThrow(InvalidRule);
   });
 
   it("refuses a source with an empty reference", () => {
-    const rule = ruleById("phq9-critical-item");
+    const rule = ruleById("critical-item");
 
     expect(() => parseRule({ ...rule, source: { ...rule.source, ref: "" } })).toThrow(InvalidRule);
   });
@@ -74,7 +74,7 @@ describe("rule files", () => {
 
 describe("executing one rule", () => {
   it("fires the critical-item rule and names the flagged items", () => {
-    const match = evaluateRule(ruleById("phq9-critical-item"), {
+    const match = evaluateRule(ruleById("critical-item"), {
       ...NO_FACTS,
       assessment: { instrumentId: "phq-9", total: 12, previousTotal: null, criticalItems: ["q9"] },
     });
@@ -86,7 +86,7 @@ describe("executing one rule", () => {
   });
 
   it("fires the worsening rule and prints both totals", () => {
-    const match = evaluateRule(ruleById("phq9-worsening"), {
+    const match = evaluateRule(ruleById("worsening"), {
       ...NO_FACTS,
       assessment: { instrumentId: "phq-9", total: 18, previousTotal: 10, criticalItems: [] },
     });
@@ -117,7 +117,7 @@ describe("executing one rule", () => {
   });
 
   it("does not fire below the threshold", () => {
-    const rule = ruleById("phq9-worsening");
+    const rule = ruleById("worsening");
 
     const match = evaluateRule(rule, {
       ...NO_FACTS,
@@ -134,7 +134,7 @@ describe("executing one rule", () => {
       diary: { value: 2, previousValue: 6 },
       adherence: { consecutiveMissedDoses: 3 },
     };
-    const rule = ruleById("phq9-worsening");
+    const rule = ruleById("worsening");
 
     expect(evaluateRule(rule, facts)).toEqual(evaluateRule(rule, facts));
     expect(listRules()).toEqual(listRules());

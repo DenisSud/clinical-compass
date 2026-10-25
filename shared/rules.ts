@@ -42,8 +42,12 @@ export const ruleConditionSchema = z.discriminatedUnion("fact", [
   }),
   z.strictObject({
     fact: z.literal("assessment.totalIncrease"),
-    instrumentId: z.string().min(1),
+    instrumentId: z.string().min(1).optional(),
     atLeast: z.number().int().positive(),
+  }),
+  z.strictObject({
+    fact: z.literal("diary.value"),
+    atMost: z.number().int().positive(),
   }),
   z.strictObject({
     fact: z.literal("diary.drop"),

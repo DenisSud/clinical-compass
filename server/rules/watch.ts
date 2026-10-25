@@ -29,6 +29,7 @@ export function signalsForWatchItems(items: WatchItem[], event: WatchEvent): Wat
       severity: item.severity,
       title: item.title,
       detail,
+      ruleId: null,
       watchItemId: item.id,
     });
   }

@@ -1,5 +1,5 @@
 import { Fragment, useState } from "react";
-import type { DoctorSignal, Signal } from "../../shared/contracts";
+import type { DoctorSignal, Signal, SignalRuleSource } from "../../shared/contracts";
 import { ApiRequestError, closeSignal, takeSignal } from "./api";
 import { Button, Empty, LoadError, type Load } from "./ui";
 
@@ -82,6 +82,43 @@ export const SIGNAL_STATUS_LABEL: Record<Signal["status"], string> = {
 };
 
 const SEVERITY_RANK: Record<Signal["severity"], number> = { critical: 0, high: 1, medium: 2 };
+
+const RULE_ORIGIN: Record<SignalRuleSource["kind"], string> = {
+  guideline: "источник: КР",
+  ohlp: "источник: ОХЛП",
+  ours: "наше правило",
+};
+
+/**
+ * Which rule raised the card and where the rule came from. The doctor reads this;
+ * the patient has no signal route at all (DESIGN.md §2.2). A placeholder says so in
+ * words, so an ours-for-now rule never reads as one taken from the guidelines.
+ */
+export function SignalRule({
+  signal,
+}: {
+  signal: Pick<Signal, "ruleId" | "ruleTitle" | "ruleSource">;
+}) {
+  if (!signal.ruleId || !signal.ruleTitle || !signal.ruleSource) return null;
+
+  const source = signal.ruleSource;
+  const origin =
+    source.status === "placeholder"
+      ? "плейсхолдер, источник ещё не подтверждён"
+      : RULE_ORIGIN[source.kind];
+
+  return (
+    <p
+      className={
+        source.status === "placeholder"
+          ? "signal__source signal__source--placeholder"
+          : "signal__source"
+      }
+    >
+      Правило «{signal.ruleTitle}» · {origin} · {source.ref}
+    </p>
+  );
+}
 
 /** Severity first, newest second — the order the doctor reads, not the order the server sent (§3.7). */
 export function sortSignals<T extends Signal>(signals: T[]): T[] {
@@ -191,6 +228,7 @@ export function SignalsPanel({
           {signal.watchItemId && " · по вашему правилу"}
         </p>
         <p className="signal__detail">{signal.detail}</p>
+        <SignalRule signal={signal} />
 
         {signal.status === "saved" && (
           <div className="signal__actions">

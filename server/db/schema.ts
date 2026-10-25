@@ -121,6 +121,7 @@ export const signals = sqliteTable(
     takenAt: text("taken_at"),
     closedAt: text("closed_at"),
     watchItemId: text("watch_item_id").notNull().default(""),
+    ruleId: text("rule_id").notNull().default(""),
   },
   (table) => [
     uniqueIndex("idx_signals_source").on(

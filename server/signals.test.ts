@@ -278,3 +278,40 @@ describe("ASQ does not multiply one answer into two findings", () => {
     await app.close();
   });
 });
+
+describe("the card says which rule fired", () => {
+  it("names the rule and its placeholder source for the doctor", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie } = await boundPair(app);
+    await submit(app, patientCookie, 0, { q9: 1 });
+
+    const [signal] = (await listSignals(app, doctorCookie)).json().signals;
+
+    expect(signal.kind).toBe("critical_item");
+    expect(signal.ruleId).toBe("critical-item");
+    expect(signal.ruleTitle).toBe("Критический пункт опросника");
+    expect(signal.ruleSource).toMatchObject({
+      kind: "ours",
+      ref: "docs/research/ai-decision-logic/decisions.md#Q29",
+      status: "placeholder",
+    });
+    await app.close();
+  });
+
+  it("points a diary card at the rule that raised it", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie } = await boundPair(app);
+    await app.inject({
+      method: "POST",
+      url: "/api/diary",
+      headers: { cookie: patientCookie },
+      payload: { submissionId: "d-1", value: 2 },
+    });
+
+    const [signal] = (await listSignals(app, doctorCookie)).json().signals;
+
+    expect(signal.ruleId).toBe("diary-low-wellbeing");
+    expect(signal.ruleSource.status).toBe("placeholder");
+    await app.close();
+  });
+});

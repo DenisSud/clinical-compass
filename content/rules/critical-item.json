@@ -1,7 +1,7 @@
 {
-  "id": "phq9-critical-item",
-  "title": "Критический пункт PHQ-9",
-  "when": [{ "fact": "assessment.criticalItem", "instrumentId": "phq-9" }],
+  "id": "critical-item",
+  "title": "Критический пункт опросника",
+  "when": [{ "fact": "assessment.criticalItem" }],
   "severity": "critical",
   "output": {
     "title": "Отмечен критический пункт опросника",

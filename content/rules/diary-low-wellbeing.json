@@ -1,0 +1,15 @@
+{
+  "id": "diary-low-wellbeing",
+  "title": "Очень низкое самочувствие",
+  "when": [{ "fact": "diary.value", "atMost": 3 }],
+  "severity": "high",
+  "output": {
+    "title": "Самочувствие {value} из 10",
+    "detail": "Пациент оценил самочувствие как очень низкое."
+  },
+  "source": {
+    "kind": "ours",
+    "ref": "docs/research/ai-decision-logic/sources-needed.md#1.3",
+    "status": "placeholder"
+  }
+}

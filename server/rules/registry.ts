@@ -22,6 +22,7 @@ export class InvalidRule extends Error {}
 const FACT_VALUES: Record<RuleCondition["fact"], readonly string[]> = {
   "assessment.criticalItem": ["items"],
   "assessment.totalIncrease": ["total", "previousTotal", "increase"],
+  "diary.value": ["value"],
   "diary.drop": ["value", "previousValue", "drop"],
   "adherence.consecutiveMissedDoses": ["missedDoses"],
   "patientFact.epilepsyOrOrganicBrainDisease": ["fact"],
@@ -73,6 +74,21 @@ export function listRules(): Rule[] {
   return cache;
 }
 
+/** The stored signal's rule, or undefined once the file behind it is gone. */
+export function findRule(id: string): Rule | undefined {
+  return listRules().find((rule) => rule.id === id);
+}
+
+/**
+ * The rule the signal engine names. A missing file is broken content, not a quiet
+ * no-op: a rule that stopped firing must be louder than a signal that never existed.
+ */
+export function requireRule(id: string): Rule {
+  const rule = findRule(id);
+  if (!rule) throw new InvalidRule(`правило ${id} названо в коде, но файла в content/rules нет`);
+  return rule;
+}
+
 /**
  * One rule against one patient's facts. Pure: no database, no clock, no model.
  * Returns null when the rule does not fire — an unknown fact ("не спрашивали")
@@ -112,7 +128,10 @@ function matchCondition(
 
     case "assessment.totalIncrease": {
       const assessment = facts.assessment;
-      if (assessment === null || assessment.instrumentId !== condition.instrumentId) return null;
+      if (assessment === null) return null;
+      if (condition.instrumentId !== undefined && assessment.instrumentId !== condition.instrumentId) {
+        return null;
+      }
       if (assessment.previousTotal === null) return null;
 
       const increase = assessment.total - assessment.previousTotal;
@@ -123,6 +142,12 @@ function matchCondition(
         previousTotal: String(assessment.previousTotal),
         increase: String(increase),
       };
+    }
+
+    case "diary.value": {
+      const diary = facts.diary;
+      if (diary === null || diary.value > condition.atMost) return null;
+      return { value: String(diary.value) };
     }
 
     case "diary.drop": {

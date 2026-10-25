@@ -6,9 +6,13 @@ import { requireAuth, requireRole } from "../auth/guard.js";
 import { patients, signals } from "../db/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
+import { findRule } from "../rules/registry.js";
 import type { SignalDraft } from "../rules/signals.js";
 
 export function toSignal(row: typeof signals.$inferSelect): Signal {
+  const ruleId = row.ruleId === "" ? null : row.ruleId;
+  const rule = ruleId === null ? undefined : findRule(ruleId);
+
   return {
     id: row.id,
     patientId: row.patientId,
@@ -22,6 +26,11 @@ export function toSignal(row: typeof signals.$inferSelect): Signal {
     takenAt: row.takenAt,
     closedAt: row.closedAt,
     watchItemId: row.watchItemId === "" ? null : row.watchItemId,
+    ruleId,
+    // Read from the registry rather than stored twice: the card always shows the rule
+    // as it is written now, not a copy that can go stale (decisions.md Q31).
+    ruleTitle: rule?.title ?? null,
+    ruleSource: rule?.source ?? null,
   };
 }
 
@@ -52,6 +61,7 @@ export async function saveSignals(
         sourceId: input.sourceId,
         status: "saved",
         watchItemId: draft.watchItemId ?? "",
+        ruleId: draft.ruleId ?? "",
         createdAt,
       })
       .onConflictDoNothing();
