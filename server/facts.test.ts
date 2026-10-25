@@ -1,4 +1,7 @@
 import { describe, expect, it } from "vitest";
+import type { PatientFacts } from "../shared/contracts.js";
+import { FACT_QUESTIONS, factAnswerText, factState } from "../shared/facts.js";
+import { findRule } from "./rules/registry.js";
 import { newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
 
 async function boundPair(app: App) {
@@ -241,5 +244,71 @@ describe("сохранённое противопоказание доходит
 
     expect((await listSignals(app, patientCookie)).statusCode).toBe(403);
     await app.close();
+  });
+});
+
+describe("экран фактов читает те же данные, что и правило", () => {
+  const NOTHING_ANSWERED: PatientFacts = {
+    epilepsyOrOrganicBrainDisease: null,
+    maoInhibitors: null,
+    egfrMlMin: null,
+    childPugh: null,
+    pregnancy: null,
+    galactoseIntolerance: null,
+  };
+
+  const factsWith = (key: keyof PatientFacts, value: unknown): PatientFacts =>
+    ({ ...NOTHING_ANSWERED, [key]: value }) as PatientFacts;
+
+  it("дата ответа видна и пациенту, и врачу; до ответов её нет", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+
+    const before = await app.inject({ method: "GET", url: "/api/facts", headers: { cookie: patientCookie } });
+    expect(before.json().answeredAt).toBeNull();
+
+    await putFacts(app, patientCookie, { galactoseIntolerance: "no" });
+
+    const mine = await app.inject({ method: "GET", url: "/api/facts", headers: { cookie: patientCookie } });
+    const theirs = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/facts`,
+      headers: { cookie: doctorCookie },
+    });
+
+    // Источник ответа — пациент и дата; это одна дата на всю строку ответов, а не на вопрос.
+    expect(Number.isNaN(Date.parse(mine.json().answeredAt))).toBe(false);
+    expect(theirs.json().answeredAt).toBe(mine.json().answeredAt);
+    await app.close();
+  });
+
+  it("каждый ответ, на котором срабатывает правило, в анкете есть и помечен как отмеченный", () => {
+    const rule = findRule("aviandr-contraindications");
+    expect(rule).toBeDefined();
+
+    for (const condition of rule?.when ?? []) {
+      if ("below" in condition) {
+        const key = condition.fact.replace("patientFact.", "") as keyof PatientFacts;
+        const question = FACT_QUESTIONS.find((candidate) => candidate.key === key);
+        expect(question?.kind).toBe("number");
+        expect(factState(key, factsWith(key, condition.below - 1))).toBe("marked");
+        continue;
+      }
+
+      if (!("is" in condition)) continue;
+
+      const key = condition.fact.replace("patientFact.", "") as keyof PatientFacts;
+      const question = FACT_QUESTIONS.find((candidate) => candidate.key === key);
+      // Вариант, который читает правило, обязан быть среди ответов, и это «отмечено»,
+      // а не «не отмечено»: иначе пациент ответил бы «да», а экран показал бы «нет».
+      const answer =
+        question?.kind === "choice"
+          ? question.answers.find((option) => option.value === condition.is)
+          : undefined;
+
+      expect(answer, `варианта ${condition.is} нет в вопросе про ${condition.fact}`).toBeDefined();
+      expect(answer?.state).toBe("marked");
+      expect(factAnswerText(key, factsWith(key, condition.is))).toBe(answer?.label);
+    }
   });
 });

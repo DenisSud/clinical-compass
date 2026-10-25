@@ -3,6 +3,7 @@ import type {
   DiaryEntry,
   Message,
   PatientAssessment,
+  PatientFactsView,
   PatientProfile,
   PlanItem,
 } from "../../shared/contracts";
@@ -11,17 +12,19 @@ import {
   bindToDoctor,
   fetchMyAssessments,
   fetchMyDiary,
+  fetchMyFacts,
   fetchMyMessages,
   fetchMyPlan,
   sendMessage,
 } from "./api";
 import { DiaryForm } from "./DiaryForm";
+import { FactsForm } from "./FactsForm";
 import { TodayPlan } from "./TodayPlan";
 import { MessageThread } from "./MessageThread";
 import { Phq9Form } from "./Phq9Form";
 import { Button, Card, Empty, LoadError, Tabs, loading, track, type Load } from "./ui";
 
-type PatientTab = "today" | "diary" | "questionnaire" | "plan" | "doctor";
+type PatientTab = "today" | "diary" | "questionnaire" | "facts" | "plan" | "doctor";
 
 type MyAssessments = { assessments: PatientAssessment[]; nextAllowedAt: string | null };
 
@@ -45,6 +48,7 @@ export function PatientHome({
   const [entries, setEntries] = useState<Load<DiaryEntry[]>>(loading());
   const [plan, setPlan] = useState<Load<PlanItem[]>>(loading());
   const [messages, setMessages] = useState<Load<Message[]>>(loading());
+  const [facts, setFacts] = useState<Load<PatientFactsView>>(loading());
   const [openForm, setOpenForm] = useState<"phq9" | null>(null);
   const [answersSaved, setAnswersSaved] = useState(false);
 
@@ -64,12 +68,17 @@ export function PatientHome({
     track(setMessages, fetchMyMessages().then((response) => response.messages));
   }, []);
 
+  const reloadFacts = useCallback(() => {
+    track(setFacts, fetchMyFacts());
+  }, []);
+
   useEffect(() => {
     reloadAssessments();
     reloadDiary();
     reloadPlan();
     reloadMessages();
-  }, [reloadAssessments, reloadDiary, reloadPlan, reloadMessages]);
+    reloadFacts();
+  }, [reloadAssessments, reloadDiary, reloadPlan, reloadMessages, reloadFacts]);
 
   async function bind(event: React.FormEvent) {
     event.preventDefault();
@@ -93,6 +102,18 @@ export function PatientHome({
     assessments.status === "ready" &&
     assessments.data.nextAllowedAt !== null &&
     new Date(assessments.data.nextAllowedAt).getTime() > Date.now();
+
+  /*
+   * Вход в «Мои данные» с «Сегодня» (#48): без счётчика, без значка на вкладке и без
+   * оценки — неполнота это не риск (DESIGN.md §2.2). Сбой загрузки не выдаётся за
+   * «спросили обо всём»: строка тогда просто не утверждает, что вопросы остались (§2.5).
+   */
+  const factsInvite =
+    facts.status === "failed"
+      ? "Не удалось проверить, всё ли мы у вас спросили — вопросы о себе лежат в разделе «Мои данные»."
+      : facts.status === "ready" && facts.data.unanswered.length > 0
+        ? "О чём мы ещё не спрашивали — в разделе «Мои данные»."
+        : null;
 
   return (
     <main className="page page--patient">
@@ -155,6 +176,7 @@ export function PatientHome({
           { id: "today", label: "Сегодня" },
           { id: "diary", label: "Дневник" },
           { id: "questionnaire", label: "Опросник" },
+          { id: "facts", label: "Мои данные" },
           { id: "plan", label: "План" },
           { id: "doctor", label: "Врач" },
         ]}
@@ -187,6 +209,15 @@ export function PatientHome({
                 <DiaryForm onSaved={reloadDiary} />
               ))}
           </Card>
+
+          {factsInvite && (
+            <div className="facts-invite">
+              <p className="notice">{factsInvite}</p>
+              <Button variant="quiet" onClick={() => setTab("facts")}>
+                Открыть «Мои данные»
+              </Button>
+            </div>
+          )}
         </div>
       )}
 
@@ -299,6 +330,8 @@ export function PatientHome({
           )}
         </Card>
       )}
+
+      {tab === "facts" && <FactsForm />}
 
       {tab === "plan" && (
         <Card title="План лечения">

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { AdherenceTable } from "./AdherenceTable";
+import { PatientFactsPanel } from "./PatientFactsPanel";
 import { WatchPanel } from "./WatchPanel";
 import { MessageThread } from "./MessageThread";
 import { PlanPanel } from "./PlanPanel";
@@ -217,6 +218,16 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
           <div>
             <h3 className="section-title">Правила наблюдения</h3>
             <WatchPanel patientId={patient.id} />
+          </div>
+          {/*
+            * Факты стоят вплотную над сигналами: карточка сигнала называет факт
+            * («у пациента отмечено: снижение СКФ») и своё правило, а факт отвечает
+            * на другой вопрос — что именно сказал пациент и когда. Порознь они
+            * читаются как два разных мира (§2.2, #48).
+            */}
+          <div>
+            <h3 className="section-title">Факты, блокирующие решение</h3>
+            <PatientFactsPanel patientId={patient.id} />
           </div>
           <div>
             <h3 className="section-title">Сигналы пациента</h3>

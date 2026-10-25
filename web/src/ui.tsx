@@ -45,11 +45,14 @@ export function Tabs<T extends string>({
   const [overflowing, setOverflowing] = useState(false);
 
   /*
-   * On a phone the row scrolls instead of wrapping (#35). The fade on its edge says
-   * there is more to the right, and it may only be there when something really is cut
-   * off — a fade over a tab that is entirely on screen reads as «этот раздел недоступен».
-   * So the row is measured: on resize, when the number of tabs changes, and once the
-   * font has loaded, because Lato's metrics decide the last few pixels.
+   * The row wraps instead of scrolling (#48 revised the scrolling choice of #35): a
+   * clipped row hid two patient sections behind a fade that read as the edge of the
+   * row. The fade stays for the row that cannot wrap — a single label wider than the
+   * row at a phone zoomed to 200–250 % — so a cut label is still announced. It may only
+   * be there when something really is cut off: a fade over a fully visible tab reads as
+   * «этот раздел недоступен». So the row is measured: on resize, when the number of
+   * tabs changes, and once the font has loaded, because Lato's metrics decide the last
+   * few pixels.
    */
   useEffect(() => {
     const node = bar.current;

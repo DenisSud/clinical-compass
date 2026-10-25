@@ -183,24 +183,17 @@ th {
 }
 
 /*
- * Five patient tabs in one row on a phone: «Врач» used to drop onto the second line as
- * a full-width box of its own (#35). The row scrolls instead, keeps the order the tabs
- * were written in and keeps the 44 px targets. Tighter side padding than on a wide
- * screen is what buys the fifth label its room: the five labels need 329 px, the row
- * has 333 px at 375.
+ * The tabs wrap onto a second row instead of scrolling (#48 revised #35). #35 chose the
+ * scroller because the five patient tabs fitted a phone row exactly (329 of 333 px) and
+ * wrapping left the fifth one alone on its own line. The sixth tab («Мои данные») turned
+ * the scroller into a hiding place: «План» and «Врач» sat behind the edge, and the fade
+ * over the selected tab's white plate read as the end of the row rather than as «there are
+ * two more sections» (DESIGN.md §2.4, §3.7). Two rows of 44 px cost 88 px of height and
+ * show every section; a row that fits stays one row (desktop, the patient card).
  */
 @media (max-width: 520px) {
   .tabs {
-    flex-wrap: nowrap;
-    gap: 0;
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-    padding-right: var(--space-1);
-  }
-
-  .tabs::-webkit-scrollbar {
-    display: none;
+    gap: var(--space-1);
   }
 
   /* Grow into spare width, never shrink below the label: a tab is read, not truncated. */
@@ -214,6 +207,11 @@ th {
  * The fade is drawn by the component only when the row is measured wider than its box
  * (see Tabs in ui.tsx), so it always covers clipped content and never dims a tab that is
  * entirely on screen. It is an alpha ramp, not a colour: it takes no palette value.
+ *
+ * Since #48 a row wraps, so the fade no longer fires for six patient tabs; what is left
+ * for it is the row that cannot wrap at all — a single label wider than the row at a
+ * phone with 200–250 % zoom. There the label is cut and the fade is the only honest
+ * sign of it.
  */
 .tabs--overflow {
   -webkit-mask-image: linear-gradient(
@@ -1047,4 +1045,125 @@ th {
     border-left: none;
     border-right: none;
   }
+}
+
+/* ---------- blocking facts (#48) ----------
+ *
+ * One list of facts, two screens. The patient sees the question, their own answer and the
+ * date: a chosen option is a choice, not an assessment, so «да» carries no signal tone
+ * (DESIGN.md §2.2). The doctor sees the same answers as a list with their source; what the
+ * answers mean is said by the signal card below, never by this block.
+ *
+ * Targets are 44 px like everywhere else (§3.9); the fieldset is reset to zero, because its
+ * min-content width otherwise pushes the page sideways at 375 px (WCAG 2.2 §1.4.10 reflow).
+ */
+
+.facts {
+  display: grid;
+  gap: var(--space-4);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fact {
+  padding-top: var(--space-3);
+  border-top: var(--border-width) solid var(--border-hairline);
+}
+
+.fact:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+.fact__fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.fact__question {
+  padding: 0;
+  font-size: var(--text-body);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-dense);
+  color: var(--text-strong);
+}
+
+.fact__answers {
+  display: grid;
+  gap: 2px;
+  margin-top: var(--space-2);
+}
+
+.fact__number {
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-1);
+}
+
+.fact__number input {
+  width: 100%;
+  max-width: 160px;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--brand-slate); /* 5.86:1 — граница поля, WCAG 1.4.11 */
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--text-strong);
+}
+
+.facts__actions {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+/* Incompleteness, not risk: a neutral surface and ordinary text, no signal tones. */
+.facts-gaps {
+  margin-top: var(--space-5);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  background: var(--surface-inset);
+}
+
+.facts-gaps__list,
+.facts-report__list {
+  margin: var(--space-2) 0 0;
+  padding-left: 20px;
+  font-size: var(--text-small);
+  line-height: var(--lh-dense);
+}
+
+.facts-report {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.facts-report__title {
+  margin: 0;
+  font-size: var(--text-small);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.facts-report__list li {
+  margin-top: 2px;
+}
+
+.facts-report__list--muted {
+  color: var(--text-muted);
+}
+
+/* The way into «Мои данные» from «Сегодня»: one calm line and a quiet button — no counter,
+   no signal tone (§2.2: incompleteness is not risk). */
+.facts-invite {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
 }

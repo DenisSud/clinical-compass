@@ -17,6 +17,8 @@ import type {
   BindingCodeResponse,
   MeResponse,
   PatientListResponse,
+  PatientFactsUpdate,
+  PatientFactsView,
   PatientSummary,
   Role,
 } from "../../shared/contracts";
@@ -95,6 +97,22 @@ export function bindToDoctor(code: string): Promise<{ doctorId: string; boundAt:
 
 export function fetchPatient(id: string): Promise<{ patient: PatientSummary }> {
   return request<{ patient: PatientSummary }>(`/api/patients/${id}`);
+}
+
+/**
+ * Факты, блокирующие решение: одни и те же у пациента и у врача. PUT отправляет
+ * только изменённое, поэтому непереданные поля остаются как были (частичное сохранение).
+ */
+export function fetchMyFacts(): Promise<PatientFactsView> {
+  return request<PatientFactsView>("/api/facts");
+}
+
+export function saveMyFacts(patch: PatientFactsUpdate): Promise<PatientFactsView> {
+  return request<PatientFactsView>("/api/facts", { method: "PUT", body: JSON.stringify(patch) });
+}
+
+export function fetchPatientFacts(id: string): Promise<PatientFactsView> {
+  return request<PatientFactsView>(`/api/patients/${id}/facts`);
 }
 
 export function unbindPatient(id: string): Promise<void> {

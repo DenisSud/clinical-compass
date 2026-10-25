@@ -51,7 +51,7 @@ function unansweredOf(facts: PatientFacts): (keyof PatientFacts)[] {
 
 function toView(row: FactsRow | undefined): PatientFactsView {
   const facts = toFacts(row);
-  return { facts, unanswered: unansweredOf(facts) };
+  return { facts, unanswered: unansweredOf(facts), answeredAt: row?.updatedAt ?? null };
 }
 
 export const factsRoutes: FastifyPluginAsync = async (app) => {

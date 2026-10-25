@@ -482,6 +482,12 @@ export type PatientFactsUpdate = z.infer<typeof patientFactsUpdateSchema>;
 export type PatientFactsView = {
   facts: PatientFacts;
   unanswered: (keyof PatientFacts)[];
+  /**
+   * Когда пациент последний раз отвечал. Строка одна на пациента, поэтому это дата
+   * последнего ответа, а не каждого вопроса: подписать ею каждый ответ значило бы
+   * соврать про более ранние.
+   */
+  answeredAt: string | null;
 };
 
 export const watchKindSchema = z.enum([
