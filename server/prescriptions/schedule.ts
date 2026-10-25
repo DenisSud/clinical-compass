@@ -54,17 +54,19 @@ export function plannedSlots(schedule: Schedule, from: string, to: string): stri
 }
 
 /**
- * Состояние приёма. Пустая отметка после наступившего времени — «нет данных», а не
- * «пропустил»: пропуск пациент подтверждает сам, иначе неизвестное читалось бы как
- * нарушение. Время, которое ещё не наступило, — отдельное состояние, не «нет данных».
+ * Состояние приёма. Время, которое ещё не наступило, — всегда «запланирован», даже
+ * если на нём стоит отметка: приём не состоялся и отметка о нём ничего не говорит.
+ * Пустая отметка после наступившего времени — «нет данных», а не «пропустил»: пропуск
+ * пациент подтверждает сам, иначе неизвестное читалось бы как нарушение.
  */
 export function slotState(input: {
   scheduledAt: string;
   mark: { status: DoseSlotState } | undefined;
   now: string;
 }): DoseSlotState {
+  if (input.scheduledAt > input.now) return "scheduled";
   if (input.mark) return input.mark.status;
-  return input.scheduledAt <= input.now ? "no_data" : "scheduled";
+  return "no_data";
 }
 
 /**

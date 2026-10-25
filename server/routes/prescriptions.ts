@@ -18,7 +18,6 @@ import { corpus } from "../knowledge/corpus.js";
 import { loadPatientForDoctor } from "../patient-access.js";
 import {
   ADHERENCE_WINDOW_DAYS,
-  MISSED_DOSES_SIGNAL,
   lateMinutes,
   plannedSlots,
   shiftDay,
@@ -27,6 +26,7 @@ import {
   wallClockDay,
   wallClockMinute,
 } from "../prescriptions/schedule.js";
+import { evaluateRule, requireRule } from "../rules/registry.js";
 import { saveSignals } from "./signals.js";
 
 const REASON_MIN_LENGTH = 3;
@@ -120,6 +120,8 @@ function toPrescriptionView(
           };
         });
 
+  // Состоявшимся считается только наступившее время: будущий приём остаётся
+  // «запланирован» и в сводку не попадает (schedule.ts, slotState).
   const elapsed = slots.filter((slot) => slot.state !== "scheduled");
 
   return {
@@ -221,6 +223,19 @@ export const prescriptionRoutes: FastifyPluginAsync = async (app) => {
       return fail(reply, 400, "invalid_request", "Такого приёма нет в расписании");
     }
 
+    const now = new Date();
+    const nowMinute = wallClockMinute(now);
+    // Время, которое ещё не наступило, — это не приём и не пропуск: отметка на будущее
+    // выдумывает факт, которого не было, и поднимает сигнал по приёмам, которых не было.
+    if (scheduledAt > nowMinute) {
+      return fail(
+        reply,
+        409,
+        "dose_in_future",
+        "Это время ещё не наступило — отметить приём можно, когда оно придёт",
+      );
+    }
+
     const reason = parsed.data.reason?.trim() ?? "";
     // Same rule as the plan: a skip without a reason tells the doctor nothing they can act on.
     if (parsed.data.status === "skipped" && reason.length < REASON_MIN_LENGTH) {
@@ -232,7 +247,6 @@ export const prescriptionRoutes: FastifyPluginAsync = async (app) => {
       );
     }
 
-    const now = new Date();
     const createdAt = now.toISOString();
     const [saved] = await app.conn.db
       .insert(doseEvents)
@@ -259,15 +273,25 @@ export const prescriptionRoutes: FastifyPluginAsync = async (app) => {
       .returning();
     if (!saved) throw new Error("insert returned no row");
 
-    // Три пропуска подряд — сигнал приверженности. Считается по запланированным
-    // временам, поэтому «нет данных» его не поднимает и, главное, не выдаёт за приём.
+    // Пропуски подряд — сигнал приверженности, и решает о нём файл правила: порог,
+    // severity и источник приходят из `adherence-three-missed-doses.json`, а роут
+    // добавляет только то, чего в фактах правила нет, — препарат и времена приёмов.
+    // Считается по запланированным временам, поэтому «нет данных» его не поднимает
+    // и, главное, не выдаёт за приём.
     const marks = await app.conn.db
       .select()
       .from(doseEvents)
       .where(eq(doseEvents.prescriptionId, row.id));
     const view = toPrescriptionView(row, marks, now);
     const skipped = trailingSkips(view.slots);
-    if (skipped.length >= MISSED_DOSES_SIGNAL) {
+    const match = evaluateRule(requireRule("adherence-three-missed-doses"), {
+      assessment: null,
+      diary: null,
+      adherence: { consecutiveMissedDoses: skipped.length },
+      patientFacts: null,
+    });
+
+    if (match !== null) {
       const listed = skipped.slice(-MAX_LISTED_SKIPS).map((slot) => formatSlot(slot.scheduledAt));
       const reasons = skipped
         .slice(-MAX_LISTED_SKIPS)
@@ -281,15 +305,12 @@ export const prescriptionRoutes: FastifyPluginAsync = async (app) => {
         drafts: [
           {
             kind: "missed_doses",
-            severity: "high",
-            title: `Пропуски приёма подряд: ${skipped.length}`,
+            severity: match.severity,
+            title: match.title,
             detail:
-              `«${row.drugName}», ${row.doseValue} ${row.doseUnit}. Пропущены приёмы: ${listed.join(", ")}.` +
+              `${match.detail} «${row.drugName}», ${row.doseValue} ${row.doseUnit}: пропущены приёмы ${listed.join(", ")}.` +
               (reasons.length > 0 ? ` Причины: ${reasons.join("; ")}.` : ""),
-            // The rule file declares this signal too, and its threshold is pinned to
-            // MISSED_DOSES_SIGNAL by the parity test; the card still carries the drug and
-            // the missed times, which the rule template does not have (next slice).
-            ruleId: null,
+            ruleId: match.ruleId,
           },
         ],
       });

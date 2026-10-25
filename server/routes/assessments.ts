@@ -106,11 +106,18 @@ async function deriveAssessmentSignals(
   },
 ): Promise<void> {
   const [previous] = await app.conn.db
-    .select({ totalScore: assessments.totalScore })
+    .select({
+      instrumentId: assessments.instrumentId,
+      instrumentVersion: assessments.instrumentVersion,
+      totalScore: assessments.totalScore,
+    })
     .from(assessments)
     .where(
       and(
         eq(assessments.patientId, input.patientId),
+        // Прошлая отправка той же шкалы: сумма другой шкалы — не динамика пациента
+        // (decisions.md §4). Версию сверяет реестр — смена версии меняет смысл суммы.
+        eq(assessments.instrumentId, input.instrument.id),
         lt(assessments.submittedAt, input.submittedAt),
       ),
     )
@@ -132,7 +139,13 @@ async function deriveAssessmentSignals(
       instrument: input.instrument,
       answers: input.answers,
       total: input.total,
-      previousTotal: previous?.totalScore ?? null,
+      previous: previous
+        ? {
+            instrumentId: previous.instrumentId,
+            instrumentVersion: previous.instrumentVersion,
+            total: previous.totalScore,
+          }
+        : null,
     }),
   });
 }

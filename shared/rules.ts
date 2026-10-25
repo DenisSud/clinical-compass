@@ -115,12 +115,25 @@ export const rulesResponseSchema = z.object({ rules: z.array(ruleSchema) });
 export type RulesResponse = z.infer<typeof rulesResponseSchema>;
 
 /**
+ * Прошлая отправка, с которой сравнивается текущая. Она называет шкалу и версию,
+ * потому что «стало хуже» — утверждение об инструменте, а не о пациенте: сумма ASQ
+ * и сумма PHQ-9 отвечают на разные вопросы, а смена версии шкалы меняет смысл
+ * суммы. Сравнение вне пары «та же шкала и та же версия» не выражается (decisions.md §4, Q28).
+ */
+export type PreviousAssessment = {
+  instrumentId: string;
+  instrumentVersion: string;
+  total: number;
+};
+
+/**
  * What the registry knows about one patient at a moment. No database and no
  * clock: the same facts always produce the same matches.
  */
 export type RuleFacts = {
   assessment: {
     instrumentId: string;
+    instrumentVersion: string;
     /**
      * The title the doctor reads. A signal that says «отмечен критический пункт»
      * without naming the questionnaire makes the doctor guess which form was filled
@@ -128,7 +141,8 @@ export type RuleFacts = {
      */
     instrumentTitle: string;
     total: number;
-    previousTotal: number | null;
+    /** Прошлая отправка этой же шкалы или null — тогда сравнивать не с чем. */
+    previous: PreviousAssessment | null;
     criticalItems: string[];
   } | null;
   diary: { value: number; previousValue: number | null } | null;

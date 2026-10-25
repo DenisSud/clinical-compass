@@ -33,7 +33,15 @@ const SCALE_OR_DIARY_FACTS = new Set([
 function assessment(total: number, previousTotal: number | null, critical: string[] = []) {
   const answers = Object.fromEntries(phq9Form.items.map((item) => [item.id, 0]));
   for (const id of critical) answers[id] = 1;
-  return signalsForAssessment({ instrument: phq9Form, answers, total, previousTotal });
+  return signalsForAssessment({
+    instrument: phq9Form,
+    answers,
+    total,
+    previous:
+      previousTotal === null
+        ? null
+        : { instrumentId: phq9Form.id, instrumentVersion: phq9Form.version, total: previousTotal },
+  });
 }
 
 function ruleIdsOf(signals: { ruleId: string | null }[]): string[] {

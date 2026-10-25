@@ -58,6 +58,15 @@ describe("slotState", () => {
       "no_data",
     );
   });
+
+  it("does not read a mark on a time that has not come as an intake", () => {
+    expect(slotState({ scheduledAt: "2026-10-21T20:00", mark: { status: "skipped" }, now })).toBe(
+      "scheduled",
+    );
+    expect(slotState({ scheduledAt: "2026-10-21T20:00", mark: { status: "taken" }, now })).toBe(
+      "scheduled",
+    );
+  });
 });
 
 describe("three skipped intakes in a row", () => {

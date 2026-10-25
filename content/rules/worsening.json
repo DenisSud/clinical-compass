@@ -10,7 +10,7 @@
   "severity": "medium",
   "output": {
     "title": "Ухудшение на {increase} балла",
-    "detail": "Шкала «{instrument}»: предыдущая сумма — {previousTotal}, текущая — {total}. Сравнение идёт внутри одной шкалы."
+    "detail": "Шкала «{instrument}»: предыдущая сумма — {previousTotal}, текущая — {total}. Сравнение идёт внутри одной шкалы и одной версии инструмента."
   },
   "source": {
     "kind": "ours",

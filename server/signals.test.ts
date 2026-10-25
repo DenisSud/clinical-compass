@@ -90,6 +90,52 @@ describe("what raises a signal", () => {
     await app.close();
   });
 
+  it("names the scale and both sums when it calls a worsening", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie } = await boundPair(app);
+    // PHQ-9: пять баллов на пяти пунктах.
+    await submit(app, patientCookie, 0, { q1: 1, q2: 1, q3: 1, q4: 1, q5: 1 });
+    app.conn.sqlite
+      .prepare("UPDATE assessments SET submitted_at = ?")
+      .run(new Date(Date.now() - 8 * 86_400_000).toISOString());
+
+    // Та же шкала, десять баллов: девять единиц и двойка на первом пункте.
+    await submit(app, patientCookie, 1, { q1: 2 });
+    const [worsening] = (
+      await listSignals(app, doctorCookie)
+    )
+      .json()
+      .signals.filter((signal: { kind: string }) => signal.kind === "worsening");
+
+    expect(worsening).toBeDefined();
+    expect(worsening.title).toBe("Ухудшение на 5 балла");
+    expect(worsening.detail).toContain("PHQ-9");
+    expect(worsening.detail).toContain("предыдущая сумма — 5");
+    expect(worsening.detail).toContain("текущая — 10");
+    await app.close();
+  });
+
+  it("does not compare one questionnaire with another", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie } = await boundPair(app);
+
+    // ASQ: один утвердительный ответ, сумма 1. PHQ-9 следом: сумма 6.
+    // Числа рядом, но шкалы разные — сравнение выдало бы «ухудшение на 5»
+    // у пациента, состояние которого не изменилось.
+    const asq = await app.inject({
+      method: "POST",
+      url: "/api/assessments/asq",
+      headers: { cookie: patientCookie },
+      payload: { submissionId: crypto.randomUUID(), answers: { q1: 1, q2: 0, q3: 0, q4: 0 } },
+    });
+    expect(asq.statusCode).toBe(201);
+    await submit(app, patientCookie, 0, { q1: 3, q2: 3 });
+
+    const kinds = (await listSignals(app, doctorCookie)).json().signals.map((s: { kind: string }) => s.kind);
+    expect(kinds).not.toContain("worsening");
+    await app.close();
+  });
+
   it("raises a signal for a very low diary score", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);

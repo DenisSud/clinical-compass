@@ -1,5 +1,5 @@
 import type { PatientFacts } from "../../shared/contracts.js";
-import type { RuleFacts, RuleSeverity } from "../../shared/rules.js";
+import type { PreviousAssessment, RuleFacts, RuleSeverity } from "../../shared/rules.js";
 import { criticalItems } from "../instruments/engine.js";
 import type { Instrument } from "../instruments/schema.js";
 import { evaluateRule, requireRule } from "./registry.js";
@@ -79,20 +79,25 @@ const NO_FACTS: Omit<RuleFacts, "assessment" | "diary"> = {
  * Rules read one submission plus what came before it and return the signals it
  * deserves. They never decide anything for the doctor: a signal is a question to
  * look at, not an instruction.
+ *
+ * The previous submission arrives as a value that names its scale and version, not
+ * as a bare number: a comparison between two scales cannot be expressed here at all
+ * (decisions.md §4).
  */
 export function signalsForAssessment(input: {
   instrument: Instrument;
   answers: Record<string, number>;
   total: number;
-  previousTotal: number | null;
+  previous: PreviousAssessment | null;
 }): SignalDraft[] {
   const signals = signalsFromRules(SIGNAL_RULES, {
     ...NO_FACTS,
     assessment: {
       instrumentId: input.instrument.id,
+      instrumentVersion: input.instrument.version,
       instrumentTitle: input.instrument.title,
       total: input.total,
-      previousTotal: input.previousTotal,
+      previous: input.previous,
       criticalItems: criticalItems(input.instrument, input.answers),
     },
     diary: null,

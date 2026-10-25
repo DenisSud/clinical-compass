@@ -28,6 +28,34 @@ function ruleById(id: string): Rule {
   return found;
 }
 
+/**
+ * Факты одной отправки. Прошлая отправка по умолчанию — та же шкала и та же версия:
+ * именно это и только это реестр имеет право сравнивать.
+ */
+function scaleFacts(input: {
+  total: number;
+  previous?: { instrumentId?: string; instrumentVersion?: string; total: number } | null;
+  criticalItems?: string[];
+}): NonNullable<RuleFacts["assessment"]> {
+  const previous = input.previous ?? null;
+
+  return {
+    instrumentId: "phq-9",
+    instrumentVersion: "1.0.0",
+    instrumentTitle: "Опросник phq-9",
+    total: input.total,
+    previous:
+      previous === null
+        ? null
+        : {
+            instrumentId: previous.instrumentId ?? "phq-9",
+            instrumentVersion: previous.instrumentVersion ?? "1.0.0",
+            total: previous.total,
+          },
+    criticalItems: input.criticalItems ?? [],
+  };
+}
+
 describe("rule files", () => {
   it("loads a minimal set of rules, each with a source", () => {
     const rules = listRules();
@@ -76,7 +104,7 @@ describe("executing one rule", () => {
   it("fires the critical-item rule and names the flagged items", () => {
     const match = evaluateRule(ruleById("critical-item"), {
       ...NO_FACTS,
-      assessment: { instrumentId: "phq-9", instrumentTitle: "Опросник phq-9", total: 12, previousTotal: null, criticalItems: ["q9"] },
+      assessment: scaleFacts({ total: 12, criticalItems: ["q9"] }),
     });
 
     expect(match).not.toBeNull();
@@ -88,12 +116,49 @@ describe("executing one rule", () => {
   it("fires the worsening rule and prints both totals", () => {
     const match = evaluateRule(ruleById("worsening"), {
       ...NO_FACTS,
-      assessment: { instrumentId: "phq-9", instrumentTitle: "Опросник phq-9", total: 18, previousTotal: 10, criticalItems: [] },
+      assessment: scaleFacts({ total: 18, previous: { total: 10 } }),
     });
 
     expect(match!.title).toBe("Ухудшение на 8 балла");
     expect(match!.detail).toContain("10");
     expect(match!.detail).toContain("18");
+  });
+
+  it("refuses to compare two different scales", () => {
+    const rule = ruleById("worsening");
+
+    // ASQ — число утвердительных ответов, PHQ-9 — тяжесть депрессии. Рост между ними —
+    // сравнение двух вопросов, а не динамика пациента (decisions.md §4).
+    expect(
+      evaluateRule(rule, {
+        ...NO_FACTS,
+        assessment: scaleFacts({ total: 6, previous: { instrumentId: "asq", total: 1 } }),
+      }),
+    ).toBeNull();
+    expect(
+      evaluateRule(rule, {
+        ...NO_FACTS,
+        assessment: {
+          ...scaleFacts({ total: 3, previous: { instrumentId: "phq-9", total: 1 } }),
+          instrumentId: "asq",
+        },
+      }),
+    ).toBeNull();
+  });
+
+  it("refuses to compare the same scale before and after a version change", () => {
+    const match = evaluateRule(ruleById("worsening"), {
+      ...NO_FACTS,
+      assessment: scaleFacts({ total: 18, previous: { instrumentVersion: "0.9.0", total: 10 } }),
+    });
+
+    expect(match).toBeNull();
+  });
+
+  it("does not compare when there is no previous submission", () => {
+    expect(
+      evaluateRule(ruleById("worsening"), { ...NO_FACTS, assessment: scaleFacts({ total: 18 }) }),
+    ).toBeNull();
   });
 
   it("fires the contraindication rule on a low eGFR", () => {
@@ -142,7 +207,7 @@ describe("executing one rule", () => {
 
     const match = evaluateRule(rule, {
       ...NO_FACTS,
-      assessment: { instrumentId: "phq-9", instrumentTitle: "Опросник phq-9", total: 14, previousTotal: 10, criticalItems: [] },
+      assessment: scaleFacts({ total: 14, previous: { total: 10 } }),
     });
 
     expect(match).toBeNull();
@@ -151,7 +216,7 @@ describe("executing one rule", () => {
   it("gives the same answer on two runs over the same facts", () => {
     const facts: RuleFacts = {
       ...NO_FACTS,
-      assessment: { instrumentId: "phq-9", instrumentTitle: "Опросник phq-9", total: 18, previousTotal: 10, criticalItems: [] },
+      assessment: scaleFacts({ total: 18, previous: { total: 10 } }),
       diary: { value: 2, previousValue: 6 },
       adherence: { consecutiveMissedDoses: 3 },
     };

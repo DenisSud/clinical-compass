@@ -6,6 +6,17 @@ function today(): string {
   return wallClockDay(new Date());
 }
 
+/**
+ * Запланированное время со сдвигом в часах от текущего момента: отрицательный — уже
+ * наступило, положительный — ещё нет. Тесты не зависят от того, когда их запустили.
+ */
+function slotAt(hoursOffset: number): { scheduledAt: string; day: string; time: string } {
+  const at = new Date(Date.now() + hoursOffset * 60 * 60 * 1000);
+  const day = wallClockDay(at);
+  const time = `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`;
+  return { scheduledAt: `${day}T${time}`, day, time };
+}
+
 async function boundPair(app: App) {
   const doctorCookie = await signUpDoctor(app);
   const patientCookie = await signUpPatient(app);
@@ -272,6 +283,82 @@ describe("the pillbox", () => {
   });
 });
 
+describe("an intake that has not come yet", () => {
+  it("refuses a mark on a time that is still ahead", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    const ahead = slotAt(2);
+    const id = await confirmed(app, doctorCookie, patientId, {
+      timesPerDay: 1,
+      timesOfDay: [ahead.time],
+      startsOn: ahead.day,
+    });
+
+    const response = await mark(app, patientCookie, {
+      prescriptionId: id,
+      scheduledAt: ahead.scheduledAt,
+      status: "skipped",
+      reason: "не было препарата",
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().code).toBe("dose_in_future");
+    expect(response.json().message.length).toBeGreaterThan(0);
+    expect(
+      (await app.inject({ method: "GET", url: "/api/signals", headers: { cookie: doctorCookie } }))
+        .json()
+        .signals,
+    ).toEqual([]);
+    await app.close();
+  });
+
+  it("accepts a mark once the planned time has come", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    const past = slotAt(-2);
+    const id = await confirmed(app, doctorCookie, patientId, {
+      timesPerDay: 1,
+      timesOfDay: [past.time],
+      startsOn: past.day,
+    });
+
+    const response = await mark(app, patientCookie, {
+      prescriptionId: id,
+      scheduledAt: past.scheduledAt,
+      status: "taken",
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().dose.status).toBe("taken");
+    await app.close();
+  });
+
+  it("writes nothing when it refuses a mark on a time that is still ahead", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    const ahead = slotAt(2);
+    const id = await confirmed(app, doctorCookie, patientId, {
+      timesPerDay: 1,
+      timesOfDay: [ahead.time],
+      startsOn: ahead.day,
+      endsOn: ahead.day,
+    });
+
+    await mark(app, patientCookie, {
+      prescriptionId: id,
+      scheduledAt: ahead.scheduledAt,
+      status: "skipped",
+      reason: "не было препарата",
+    });
+
+    const stored = app.conn.sqlite
+      .prepare("SELECT COUNT(*) AS total FROM dose_event WHERE prescription_id = ?")
+      .get(id) as { total: number };
+    expect(stored.total).toBe(0);
+    await app.close();
+  });
+});
+
 describe("three missed intakes in a row", () => {
   async function skipDays(
     app: App,
@@ -296,16 +383,17 @@ describe("three missed intakes in a row", () => {
     const id = await confirmed(app, doctorCookie, patientId, {
       timesPerDay: 1,
       timesOfDay: ["08:00"],
-      startsOn: shiftDay(today(), -2),
+      startsOn: shiftDay(today(), -3),
+      endsOn: shiftDay(today(), -1),
     });
 
-    await skipDays(app, patientCookie, id, [shiftDay(today(), -2), shiftDay(today(), -1)]);
+    await skipDays(app, patientCookie, id, [shiftDay(today(), -3), shiftDay(today(), -2)]);
     const before = await app.inject({
       method: "GET",
       url: "/api/signals",
       headers: { cookie: doctorCookie },
     });
-    await skipDays(app, patientCookie, id, [today()]);
+    await skipDays(app, patientCookie, id, [shiftDay(today(), -1)]);
     const after = await app.inject({
       method: "GET",
       url: "/api/signals",
@@ -317,8 +405,40 @@ describe("three missed intakes in a row", () => {
       .json()
       .signals.filter((signal: { kind: string }) => signal.kind === "missed_doses");
     expect(missed).toHaveLength(1);
-    expect(missed[0].severity).toBe("high");
     expect(missed[0].detail).toContain("АВИАНДР");
+    await app.close();
+  });
+
+  it("takes the card, its severity and its source from the rule file", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    const id = await confirmed(app, doctorCookie, patientId, {
+      timesPerDay: 1,
+      timesOfDay: ["08:00"],
+      startsOn: shiftDay(today(), -3),
+      endsOn: shiftDay(today(), -1),
+    });
+
+    await skipDays(app, patientCookie, id, [
+      shiftDay(today(), -3),
+      shiftDay(today(), -2),
+      shiftDay(today(), -1),
+    ]);
+    const [missed] = (
+      await app.inject({ method: "GET", url: "/api/signals", headers: { cookie: doctorCookie } })
+    )
+      .json()
+      .signals.filter((signal: { kind: string }) => signal.kind === "missed_doses");
+
+    // Карточка — то же правило, что лежит в content/rules: medium и плейсхолдер,
+    // а не придуманные роутом high и пустой источник.
+    expect(missed).toMatchObject({
+      severity: "medium",
+      ruleId: "adherence-three-missed-doses",
+      ruleTitle: "Три пропуска приёма подряд",
+      ruleSource: { kind: "ours", status: "placeholder" },
+    });
+    expect(missed.detail).toContain("Пропущено подряд: 3");
     await app.close();
   });
 
@@ -360,14 +480,15 @@ describe("three missed intakes in a row", () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const id = await confirmed(app, doctorCookie, patientId, {
-      startsOn: shiftDay(today(), -1),
+      startsOn: shiftDay(today(), -2),
+      endsOn: shiftDay(today(), -1),
     });
 
-    // Вечер вчера, утро и вечер сегодня — три подряд меньше чем за сутки.
+    // Вечер позавчера, утро и вечер вчера — три подряд меньше чем за сутки.
     for (const scheduledAt of [
+      `${shiftDay(today(), -2)}T20:00`,
+      `${shiftDay(today(), -1)}T08:00`,
       `${shiftDay(today(), -1)}T20:00`,
-      `${today()}T08:00`,
-      `${today()}T20:00`,
     ]) {
       const response = await mark(app, patientCookie, {
         prescriptionId: id,

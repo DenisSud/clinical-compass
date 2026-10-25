@@ -18,7 +18,7 @@ import { stdin, stdout } from "node:process";
 
 import type { PatientFacts } from "../shared/contracts.js";
 import { patientFactsSchema } from "../shared/contracts.js";
-import type { RuleCondition, RuleFacts } from "../shared/rules.js";
+import type { PreviousAssessment, RuleCondition, RuleFacts } from "../shared/rules.js";
 import { criticalItems, score } from "../server/instruments/engine.js";
 import { instrument as findInstrument, patientInstruments } from "../server/instruments/loader.js";
 import type { Instrument } from "../server/instruments/schema.js";
@@ -43,7 +43,7 @@ import type { DoseSlotState } from "../shared/contracts.js";
 type State = {
   facts: Partial<PatientFacts>;
   assessment: { instrument: Instrument; answers: Record<string, number> } | null;
-  /** Прошлая сумма и шкала, которой она принадлежит: сравнение идёт только внутри шкалы. */
+  /** Прошлая сумма и шкала, которой она принадлежит: сравнение идёт только внутри пары «шкала + версия». */
   previousTotal: number | null;
   previousInstrumentId: string | null;
   diary: { value: number; previousValue: number | null } | null;
@@ -98,15 +98,32 @@ function ruleFacts(): RuleFacts {
       assessment && scored
         ? {
             instrumentId: assessment.instrument.id,
+            instrumentVersion: assessment.instrument.version,
             instrumentTitle: assessment.instrument.title,
             total: scored.total,
-            previousTotal: state.previousTotal,
+            previous: previousForRules(),
             criticalItems: criticalItems(assessment.instrument, assessment.answers),
           }
         : null,
     diary: state.diary,
     adherence: adherenceForRules(),
     patientFacts: factsForRules(),
+  };
+}
+
+/**
+ * Прошлая отправка в том виде, в каком её читает правило: шкала, версия и сумма.
+ * Шкала не названа — значит текущая; версия берётся у той шкалы, которой сумма принадлежит.
+ */
+function previousForRules(): PreviousAssessment | null {
+  if (state.previousTotal === null) return null;
+  const instrumentId = state.previousInstrumentId ?? state.assessment?.instrument.id;
+  if (!instrumentId) return null;
+
+  return {
+    instrumentId,
+    instrumentVersion: findInstrument(instrumentId)?.version ?? "",
+    total: state.previousTotal,
   };
 }
 
@@ -142,7 +159,7 @@ function factsTable(): void {
     console.log(
       `\nОтветы: «${state.assessment.instrument.title}» — сумма ${scored.total}, диапазон «${scored.band.label}»` +
         (state.previousTotal !== null
-          ? `, прошлая сумма ${state.previousTotal} (шкала ${state.previousInstrumentId ?? state.assessment.instrument.id})`
+          ? `, прошлая сумма ${state.previousTotal} (шкала ${state.previousInstrumentId ?? state.assessment.instrument.id}, версия ${findInstrument(state.previousInstrumentId ?? state.assessment.instrument.id)?.version ?? "—"})`
           : ""),
     );
     if (critical.length > 0) console.log(`  отмечены пункты: ${critical.join(", ")}`);
@@ -203,8 +220,19 @@ function conditionActual(condition: RuleCondition, facts: RuleFacts): string | n
         : "ни один не отмечен";
     }
     case "assessment.totalIncrease": {
-      if (!facts.assessment || facts.assessment.previousTotal === null) return null;
-      return `рост ${facts.assessment.total - facts.assessment.previousTotal}`;
+      const assessment = facts.assessment;
+      if (!assessment || assessment.previous === null) return null;
+
+      // Правило молчит не только из-за порога, но и когда сравнивать нечего:
+      // площадка обязана назвать причину, иначе «рост 5» без сигнала читается как ошибка.
+      const previous = assessment.previous;
+      if (previous.instrumentId !== assessment.instrumentId) {
+        return `прошлая сумма ${previous.total} — по другой шкале (${previous.instrumentId})`;
+      }
+      if (previous.instrumentVersion !== assessment.instrumentVersion) {
+        return `прошлая сумма ${previous.total} — по версии ${previous.instrumentVersion}, а сейчас ${assessment.instrumentVersion}`;
+      }
+      return `рост ${assessment.total - previous.total}`;
     }
     case "diary.value":
       return facts.diary === null ? null : `${facts.diary.value} из 10`;
@@ -268,7 +296,7 @@ function signalDrafts(): SignalDraft[] {
         instrument: assessment.instrument,
         answers: assessment.answers,
         total: scored.total,
-        previousTotal: state.previousTotal,
+        previous: previousForRules(),
       }),
     );
   }

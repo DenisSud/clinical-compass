@@ -160,15 +160,22 @@ function matchCondition(
       if (condition.instrumentId !== undefined && assessment.instrumentId !== condition.instrumentId) {
         return null;
       }
-      if (assessment.previousTotal === null) return null;
 
-      const increase = assessment.total - assessment.previousTotal;
+      // Сравнивать можно только ту же шкалу и ту же версию. Сумма ASQ — число
+      // утвердительных ответов, сумма PHQ-9 — тяжесть депрессии; разница между ними
+      // ничего не говорит о пациенте, и "не рекомендовано" здесь мало (decisions.md §4).
+      const previous = assessment.previous;
+      if (previous === null) return null;
+      if (previous.instrumentId !== assessment.instrumentId) return null;
+      if (previous.instrumentVersion !== assessment.instrumentVersion) return null;
+
+      const increase = assessment.total - previous.total;
       if (increase < condition.atLeast) return null;
 
       return {
         instrument: assessment.instrumentTitle,
         total: String(assessment.total),
-        previousTotal: String(assessment.previousTotal),
+        previousTotal: String(previous.total),
         increase: String(increase),
       };
     }
