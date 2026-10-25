@@ -315,3 +315,26 @@ describe("the card says which rule fired", () => {
     await app.close();
   });
 });
+
+describe("a signal names the questionnaire it came from", () => {
+  it("says which instrument has the critical item, not just that one exists", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie } = await boundPair(app);
+
+    await submit(app, patientCookie, 0, { q9: 1 });
+
+    const signals = await app.inject({
+      method: "GET",
+      url: "/api/signals",
+      headers: { cookie: doctorCookie },
+    });
+    const critical = (signals.json().signals as Array<{ kind: string; detail: string }>).find(
+      (signal) => signal.kind === "critical_item",
+    );
+
+    // The doctor reads a card, not a rule id: without the title he has to guess
+    // which form the patient filled in.
+    expect(critical?.detail).toContain("PHQ-9");
+    await app.close();
+  });
+});

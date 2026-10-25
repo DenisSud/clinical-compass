@@ -1,11 +1,15 @@
 {
   "id": "critical-item",
   "title": "Критический пункт опросника",
-  "when": [{ "fact": "assessment.criticalItem" }],
+  "when": [
+    {
+      "fact": "assessment.criticalItem"
+    }
+  ],
   "severity": "critical",
   "output": {
     "title": "Отмечен критический пункт опросника",
-    "detail": "В ответах отмечены пункты: {items}. Это повод посмотреть ответы, а не диагноз."
+    "detail": "В ответах на «{instrument}» отмечены пункты: {items}. Это повод посмотреть ответы, а не диагноз."
   },
   "source": {
     "kind": "ours",

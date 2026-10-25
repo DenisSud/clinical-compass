@@ -20,8 +20,8 @@ export class InvalidRule extends Error {}
  * placeholder to the doctor.
  */
 const FACT_VALUES: Record<RuleCondition["fact"], readonly string[]> = {
-  "assessment.criticalItem": ["items"],
-  "assessment.totalIncrease": ["total", "previousTotal", "increase"],
+  "assessment.criticalItem": ["instrument", "items"],
+  "assessment.totalIncrease": ["instrument", "total", "previousTotal", "increase"],
   "diary.value": ["value"],
   "diary.drop": ["value", "previousValue", "drop"],
   "adherence.consecutiveMissedDoses": ["missedDoses"],
@@ -123,7 +123,10 @@ function matchCondition(
         return null;
       }
       if (assessment.criticalItems.length === 0) return null;
-      return { items: assessment.criticalItems.join(", ") };
+      return {
+        instrument: assessment.instrumentTitle,
+        items: assessment.criticalItems.join(", "),
+      };
     }
 
     case "assessment.totalIncrease": {
@@ -138,6 +141,7 @@ function matchCondition(
       if (increase < condition.atLeast) return null;
 
       return {
+        instrument: assessment.instrumentTitle,
         total: String(assessment.total),
         previousTotal: String(assessment.previousTotal),
         increase: String(increase),

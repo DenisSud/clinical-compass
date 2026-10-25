@@ -115,6 +115,12 @@ export type RulesResponse = z.infer<typeof rulesResponseSchema>;
 export type RuleFacts = {
   assessment: {
     instrumentId: string;
+    /**
+     * The title the doctor reads. A signal that says «отмечен критический пункт»
+     * without naming the questionnaire makes the doctor guess which form was filled
+     * in, so the rule file has to be able to say it.
+     */
+    instrumentTitle: string;
     total: number;
     previousTotal: number | null;
     criticalItems: string[];

@@ -76,7 +76,7 @@ describe("executing one rule", () => {
   it("fires the critical-item rule and names the flagged items", () => {
     const match = evaluateRule(ruleById("critical-item"), {
       ...NO_FACTS,
-      assessment: { instrumentId: "phq-9", total: 12, previousTotal: null, criticalItems: ["q9"] },
+      assessment: { instrumentId: "phq-9", instrumentTitle: "Опросник phq-9", total: 12, previousTotal: null, criticalItems: ["q9"] },
     });
 
     expect(match).not.toBeNull();
@@ -88,7 +88,7 @@ describe("executing one rule", () => {
   it("fires the worsening rule and prints both totals", () => {
     const match = evaluateRule(ruleById("worsening"), {
       ...NO_FACTS,
-      assessment: { instrumentId: "phq-9", total: 18, previousTotal: 10, criticalItems: [] },
+      assessment: { instrumentId: "phq-9", instrumentTitle: "Опросник phq-9", total: 18, previousTotal: 10, criticalItems: [] },
     });
 
     expect(match!.title).toBe("Ухудшение на 8 балла");
@@ -121,7 +121,7 @@ describe("executing one rule", () => {
 
     const match = evaluateRule(rule, {
       ...NO_FACTS,
-      assessment: { instrumentId: "phq-9", total: 14, previousTotal: 10, criticalItems: [] },
+      assessment: { instrumentId: "phq-9", instrumentTitle: "Опросник phq-9", total: 14, previousTotal: 10, criticalItems: [] },
     });
 
     expect(match).toBeNull();
@@ -130,7 +130,7 @@ describe("executing one rule", () => {
   it("gives the same answer on two runs over the same facts", () => {
     const facts: RuleFacts = {
       ...NO_FACTS,
-      assessment: { instrumentId: "phq-9", total: 18, previousTotal: 10, criticalItems: [] },
+      assessment: { instrumentId: "phq-9", instrumentTitle: "Опросник phq-9", total: 18, previousTotal: 10, criticalItems: [] },
       diary: { value: 2, previousValue: 6 },
       adherence: { consecutiveMissedDoses: 3 },
     };

@@ -104,7 +104,7 @@ export function SignalRule({
   const source = signal.ruleSource;
   const origin =
     source.status === "placeholder"
-      ? "плейсхолдер, источник ещё не подтверждён"
+      ? "наше правило, источник ещё не подтверждён"
       : RULE_ORIGIN[source.kind];
 
   return (
@@ -115,7 +115,11 @@ export function SignalRule({
           : "signal__source"
       }
     >
-      Правило «{signal.ruleTitle}» · {origin} · {source.ref}
+      Правило «{signal.ruleTitle}» · {origin}
+      <span className="signal__source-ref" title="Где лежит источник правила">
+        {" "}
+        {source.ref}
+      </span>
     </p>
   );
 }

@@ -614,6 +614,17 @@ th {
   font-style: italic;
 }
 
+/*
+ * The path is audit evidence, not a sentence for a doctor: it stays readable for
+ * whoever checks the rule, but it does not compete with the words above it.
+ */
+.signal__source-ref {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  opacity: 0.75;
+  word-break: break-all;
+}
+
 .signal__actions {
   display: flex;
   flex-wrap: wrap;

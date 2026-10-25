@@ -77,6 +77,7 @@ export function signalsForAssessment(input: {
     ...NO_FACTS,
     assessment: {
       instrumentId: input.instrument.id,
+      instrumentTitle: input.instrument.title,
       total: input.total,
       previousTotal: input.previousTotal,
       criticalItems: criticalItems(input.instrument, input.answers),

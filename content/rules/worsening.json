@@ -1,11 +1,16 @@
 {
   "id": "worsening",
   "title": "Ухудшение по шкале",
-  "when": [{ "fact": "assessment.totalIncrease", "atLeast": 5 }],
+  "when": [
+    {
+      "fact": "assessment.totalIncrease",
+      "atLeast": 5
+    }
+  ],
   "severity": "medium",
   "output": {
     "title": "Ухудшение на {increase} балла",
-    "detail": "Предыдущая сумма — {previousTotal}, текущая — {total}. Сравнение идёт внутри одной шкалы."
+    "detail": "Шкала «{instrument}»: предыдущая сумма — {previousTotal}, текущая — {total}. Сравнение идёт внутри одной шкалы."
   },
   "source": {
     "kind": "ours",
