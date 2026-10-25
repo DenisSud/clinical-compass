@@ -194,3 +194,97 @@ describe("reading assessments", () => {
     await app.close();
   });
 });
+
+/** GAD-7 has seven items and ASQ four; both number them q1… and answer on one scale. */
+function items(count: number, value: number, overrides: Record<string, number> = {}) {
+  return {
+    ...Object.fromEntries(Array.from({ length: count }, (_, index) => [`q${index + 1}`, value])),
+    ...overrides,
+  };
+}
+
+describe("the patient's set past PHQ-9", () => {
+  it("takes a GAD-7 submission and keeps the score away from the patient", async () => {
+    const app = await newApp();
+    const cookie = await signUpPatient(app);
+
+    const response = await submit(app, cookie, { submissionId: "g-1", answers: items(7, 2) }, "gad-7");
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().assessment.answers).toHaveLength(7);
+    expect(response.json().assessment).not.toHaveProperty("total");
+    expect(response.json().assessment).not.toHaveProperty("band");
+    await app.close();
+  });
+
+  it("shows the doctor the GAD-7 total and its band", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    await submit(app, patientCookie, { submissionId: "g-1", answers: items(7, 2) }, "gad-7");
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/assessments`,
+      headers: { cookie: doctorCookie },
+    });
+
+    const [assessment] = response.json().assessments;
+    expect(assessment.instrumentId).toBe("gad-7");
+    expect(assessment.total).toBe(14);
+    expect(assessment.band.label).toBe("Умеренные проявления");
+    await app.close();
+  });
+
+  it("takes an ASQ submission and marks the positive question for the doctor", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    const submitted = await submit(
+      app,
+      patientCookie,
+      { submissionId: "a-1", answers: items(4, 0, { q3: 1 }) },
+      "asq",
+    );
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/assessments`,
+      headers: { cookie: doctorCookie },
+    });
+
+    expect(submitted.statusCode).toBe(201);
+    expect(response.json().assessments[0].criticalItems).toEqual(["q3"]);
+    await app.close();
+  });
+
+  it("keeps the PHQ-9 critical item raising a signal with three instruments in play", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie } = await boundPair(app);
+
+    await submit(app, patientCookie, { submissionId: "a-1", answers: items(4, 0) }, "asq");
+    await submit(app, patientCookie, { submissionId: "g-1", answers: items(7, 0) }, "gad-7");
+    await submit(app, patientCookie, { submissionId: "p-1", answers: answers(0, { q9: 1 }) });
+
+    const signals = await app.inject({
+      method: "GET",
+      url: "/api/signals",
+      headers: { cookie: doctorCookie },
+    });
+    const critical = signals
+      .json()
+      .signals.filter((signal: { kind: string }) => signal.kind === "critical_item");
+
+    expect(critical).toHaveLength(1);
+    expect(critical[0].severity).toBe("critical");
+    await app.close();
+  });
+
+  it("still refuses HADS, which is no longer in the set", async () => {
+    const app = await newApp();
+    const cookie = await signUpPatient(app);
+
+    const response = await submit(app, cookie, { submissionId: "h-1", answers: items(7, 0) }, "hads");
+
+    expect(response.statusCode).toBe(404);
+    await app.close();
+  });
+});

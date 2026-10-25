@@ -10,7 +10,7 @@ import {
 import { requireAuth, requireRole } from "../auth/guard.js";
 import { assessments } from "../db/schema.js";
 import { InvalidAnswers, criticalItems, score } from "../instruments/engine.js";
-import { instrument as findInstrument } from "../instruments/loader.js";
+import { instrument as findInstrument, patientInstrument } from "../instruments/loader.js";
 import type { Instrument } from "../instruments/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
@@ -165,7 +165,7 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
     "/instruments/:id",
     { preHandler: requireRole("patient") },
     async (request, reply) => {
-      const instrument = findInstrument(request.params.id);
+      const instrument = patientInstrument(request.params.id);
       if (!instrument) return notFound(reply, "Опросник не найден");
 
       return {
@@ -185,7 +185,7 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
     "/assessments/:id",
     { preHandler: requireRole("patient") },
     async (request, reply) => {
-      const instrument = findInstrument(request.params.id);
+      const instrument = patientInstrument(request.params.id);
       if (!instrument) return notFound(reply, "Опросник не найден");
 
       const parsed = assessmentSubmitSchema.safeParse(request.body);
