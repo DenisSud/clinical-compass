@@ -560,3 +560,167 @@ th {
     margin-top: 16px;
   }
 }
+
+/* ---------- вход ----------
+ * Приём один и из источника: заголовок Lato Black под тонкой линейкой, как на
+ * обложке презентации спонсора. Карточка на лиловом фоне — потому что в
+ * источнике поверхности прямоугольные и без теней; иерархия строится фоном.
+ * Глубина страницы на телефоне: карточка теряет рамку и растягивается.
+ */
+
+.auth {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-4);
+  background: var(--surface-page);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 440px;
+  padding: var(--space-6);
+  background: var(--surface-card);
+  border: var(--border-width) solid var(--border-divider);
+}
+
+.auth-head {
+  margin-bottom: var(--space-5);
+}
+
+.auth-title {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: var(--text-display);
+  font-weight: var(--fw-black);
+  line-height: var(--lh-display);
+  letter-spacing: -0.01em;
+  color: var(--text-strong);
+}
+
+.auth-rule {
+  display: block;
+  width: 72px;
+  height: 3px;
+  margin: var(--space-3) 0;
+  background: var(--brand-purple);
+}
+
+.auth-sub {
+  margin: 0;
+  font-size: var(--text-small);
+  font-weight: var(--fw-light);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}
+
+.auth-tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+}
+
+.auth-tab {
+  flex: 1;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  font-family: inherit;
+  font-size: var(--text-body);
+  color: var(--text-strong);
+  background: var(--surface-card);
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  cursor: pointer;
+}
+
+.auth-tab--on {
+  font-weight: var(--fw-bold);
+  color: var(--action-primary-ink);
+  background: var(--action-primary);
+  border-color: var(--action-primary);
+}
+
+.auth-form {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.auth-field {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-small);
+  color: var(--text-body);
+}
+
+.auth-field input {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  font-family: inherit;
+  font-size: var(--text-body);
+  color: var(--text-strong);
+  background: var(--surface-card);
+  border: 1px solid var(--brand-slate); /* 5.86:1 — 1.4.11 требует 3:1 для границы поля */
+  border-radius: var(--radius-surface);
+}
+
+.auth-error {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--signal-critical);
+}
+
+.auth-submit {
+  min-height: 48px;
+  margin-top: var(--space-1);
+  font-family: inherit;
+  font-size: var(--text-body);
+  font-weight: var(--fw-bold);
+  color: var(--action-primary-ink);
+  background: var(--action-primary);
+  border: none;
+  border-radius: var(--radius-surface);
+  cursor: pointer;
+}
+
+.auth-submit:disabled {
+  cursor: progress;
+  opacity: 0.7;
+}
+
+.auth-switch {
+  margin-top: var(--space-4);
+  padding: 0;
+  font-family: inherit;
+  font-size: var(--text-small);
+  color: var(--link);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.auth-status {
+  margin: 0;
+  font-size: var(--text-micro);
+  color: var(--text-muted);
+}
+
+.auth-status--down {
+  color: var(--signal-critical);
+}
+
+@media (max-width: 520px) {
+  .auth {
+    justify-content: flex-start;
+    padding: var(--space-4) 0;
+  }
+  .auth-card {
+    max-width: none;
+    padding: var(--space-4);
+    border-left: none;
+    border-right: none;
+  }
+}

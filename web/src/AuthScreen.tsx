@@ -4,6 +4,12 @@ import { ApiRequestError, fetchHealth, signIn, signUp } from "./api";
 
 const ROLE_LABEL: Record<Role, string> = { patient: "Пациент", doctor: "Врач" };
 
+/**
+ * Первый экран, который видит жюри. Здесь работает ровно один брендовый приём
+ * источника: заголовок Lato Black под тонкой линейкой, как на обложке презентации
+ * спонсора (slide 1, кегль 22.6 pt, линейка 3 pt). Ничего декоративного сверх
+ * этого: DESIGN.md §2.3.
+ */
 export function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void }) {
   const [role, setRole] = useState<Role>("patient");
   const [mode, setMode] = useState<"signin" | "signup">("signin");
@@ -36,93 +42,76 @@ export function AuthScreen({ onAuthenticated }: { onAuthenticated: () => void })
   }
 
   return (
-    <main style={{ maxWidth: 420, margin: "0 auto", padding: 32, fontFamily: "var(--font-sans)" }}>
-      <h1 style={{ fontSize: 24, marginBottom: 4 }}>Клинический компас</h1>
-      <p style={{ color: "var(--text-muted)", marginTop: 0 }}>Поддержка принятия решений при тревоге и депрессии</p>
+    <main className="auth">
+      <div className="auth-card">
+        <header className="auth-head">
+          <h1 className="auth-title">Клинический компас</h1>
+          <span className="auth-rule" aria-hidden="true" />
+          <p className="auth-sub">Поддержка принятия решений при тревоге и депрессии</p>
+        </header>
 
-      <div role="tablist" style={{ display: "flex", gap: 8, margin: "24px 0 12px" }}>
-        {(["patient", "doctor"] as const).map((option) => (
-          <button
-            key={option}
-            type="button"
-            role="tab"
-            aria-selected={role === option}
-            onClick={() => setRole(option)}
-            style={{
-              flex: 1,
-              padding: "8px 12px",
-              borderRadius: "var(--radius-surface)",
-              border: "1px solid " + (role === option ? "var(--action-primary)" : "var(--border-divider)"),
-              background: role === option ? "var(--action-primary)" : "var(--surface-card)",
-              color: role === option ? "var(--action-primary-ink)" : "var(--text-strong)",
-              cursor: "pointer",
-            }}
-          >
-            {ROLE_LABEL[option]}
+        <div role="tablist" aria-label="Роль" className="auth-tabs">
+          {(["patient", "doctor"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              role="tab"
+              aria-selected={role === option}
+              onClick={() => setRole(option)}
+              className={role === option ? "auth-tab auth-tab--on" : "auth-tab"}
+            >
+              {ROLE_LABEL[option]}
+            </button>
+          ))}
+        </div>
+
+        <form onSubmit={submit} className="auth-form">
+          <label className="auth-field">
+            <span>Email</span>
+            <input
+              type="email"
+              required
+              autoComplete="email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          </label>
+
+          <label className="auth-field">
+            <span>Пароль</span>
+            <input
+              type="password"
+              required
+              minLength={8}
+              autoComplete={mode === "signup" ? "new-password" : "current-password"}
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+            />
+          </label>
+
+          {error && <p className="auth-error">{error}</p>}
+
+          <button type="submit" className="auth-submit" disabled={busy}>
+            {busy
+              ? mode === "signup"
+                ? "Регистрируемся…"
+                : "Входим…"
+              : mode === "signup"
+                ? "Зарегистрироваться"
+                : "Войти"}
           </button>
-        ))}
-      </div>
-
-      <form onSubmit={submit} style={{ display: "grid", gap: 12 }}>
-        <label style={{ display: "grid", gap: 4 }}>
-          <span style={{ fontSize: 14 }}>Email</span>
-          <input
-            type="email"
-            required
-            autoComplete="email"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            style={{ padding: "8px 10px", borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
-          />
-        </label>
-
-        <label style={{ display: "grid", gap: 4 }}>
-          <span style={{ fontSize: 14 }}>Пароль</span>
-          <input
-            type="password"
-            required
-            minLength={8}
-            autoComplete={mode === "signup" ? "new-password" : "current-password"}
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            style={{ padding: "8px 10px", borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
-          />
-        </label>
-
-        {error && <p style={{ color: "var(--signal-critical)", margin: 0, fontSize: 14 }}>{error}</p>}
+        </form>
 
         <button
-          type="submit"
-          disabled={busy}
-          style={{
-            padding: "10px 12px",
-            borderRadius: "var(--radius-surface)",
-            border: "none",
-            background: "var(--action-primary)",
-            color: "var(--action-primary-ink)",
-            fontSize: 15,
-            cursor: busy ? "progress" : "pointer",
-          }}
+          type="button"
+          className="auth-switch"
+          onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
         >
-          {busy
-            ? mode === "signup"
-              ? "Регистрируемся…"
-              : "Входим…"
-            : mode === "signup"
-              ? "Зарегистрироваться"
-              : "Войти"}
+          {mode === "signup" ? "У меня уже есть аккаунт" : "Создать аккаунт"}
         </button>
-      </form>
+      </div>
 
-      <button
-        type="button"
-        onClick={() => setMode(mode === "signup" ? "signin" : "signup")}
-        style={{ marginTop: 16, background: "none", border: "none", color: "var(--link)", cursor: "pointer", padding: 0 }}
-      >
-        {mode === "signup" ? "У меня уже есть аккаунт" : "Создать аккаунт"}
-      </button>
-
-      <p style={{ marginTop: 32, fontSize: 13, color: serverUp === false ? "var(--signal-critical)" : "var(--text-muted)" }}>
+      <p className={serverUp === false ? "auth-status auth-status--down" : "auth-status"}>
         {serverUp === null && "Проверяем связь с сервером…"}
         {serverUp === true && "Сервер на связи"}
         {serverUp === false && "Сервер недоступен — данные не сохранятся"}
