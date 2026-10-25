@@ -26,6 +26,11 @@ export const instrumentSchema = z.object({
   id: z.string().min(1),
   version: z.string().min(1),
   title: z.string().min(1),
+  /**
+   * Как шкалу называть на карточке врача: полное имя для карточки слишком длинное,
+   * а «16 из 27» без имени заставляет угадывать инструмент по максимуму (Q24).
+   */
+  shortTitle: z.string().min(1).optional(),
   intro: z.string().min(1),
   options: z.array(optionSchema).min(2),
   items: z.array(itemSchema).min(1),
