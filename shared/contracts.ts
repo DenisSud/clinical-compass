@@ -450,7 +450,11 @@ export type DoseBoard = { today: string; doses: DoseSlot[] };
  */
 export const triStateSchema = z.enum(["yes", "no"]);
 export const maoInhibitorsSchema = z.enum(["none", "current", "stopped_under_2_weeks"]);
-export const childPughSchema = z.enum(["A", "B", "C"]);
+/**
+ * «none» — пациент ответил, что недостаточности нет. Это ответ, а не пустота: правила
+ * перечисляют A, B и C, поэтому «none» ни одно из них не включает (#48).
+ */
+export const childPughSchema = z.enum(["A", "B", "C", "none"]);
 export const pregnancySchema = z.enum(["not_applicable", "no", "pregnant", "lactating"]);
 
 export const patientFactsSchema = z.object({

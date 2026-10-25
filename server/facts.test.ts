@@ -115,6 +115,33 @@ describe("факты, блокирующие решение", () => {
     expect(res.json().facts.childPugh).toBe("B");
   });
 
+  it("«нет» по Чайлд-Пью — ответ, а не отсутствие ответа", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+
+    const put = await putFacts(app, patientCookie, { childPugh: "none" });
+    expect(put.statusCode).toBe(200);
+
+    const view = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/facts`,
+      headers: { cookie: doctorCookie },
+    });
+    expect(view.json().facts.childPugh).toBe("none");
+    expect(view.json().unanswered).not.toContain("childPugh");
+
+    // Правило перечисляет A, B и C: ответ «нет» не должен его включать.
+    const signals = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/signals`,
+      headers: { cookie: doctorCookie },
+    });
+    const fired = signals.json().signals.filter(
+      (signal: { ruleId: string | null }) => signal.ruleId === "aviandr-contraindications",
+    );
+    expect(fired).toHaveLength(0);
+  });
+
   it("чужой врач получает отказ, а не пустой список", async () => {
     const app = await newApp();
     const { patientId } = await boundPair(app);

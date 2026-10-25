@@ -78,11 +78,12 @@ const FACT_BY_KEY: Record<keyof PatientFacts, FactQuestion> = {
     key: "childPugh",
     label: "Печёночная недостаточность по Чайлд-Пью",
     question: "Ставили ли вам печёночную недостаточность по Чайлд-Пью — степень A, B или C?",
-    hint: "Степень указывают в заключении врача. Если такого заключения у вас нет, ответьте «Не знаю» — врач уточнит.",
+    hint: "Степень указывают в заключении врача. Если вам такого заключения не ставили, ответьте «Нет»; если ставили, но степень неизвестна — «Не знаю».",
     answers: [
       { value: "A", label: "Степень A", state: "marked" },
       { value: "B", label: "Степень B", state: "marked" },
       { value: "C", label: "Степень C", state: "marked" },
+      { value: "none", label: "Нет", state: "clear" },
     ],
   },
   pregnancy: {

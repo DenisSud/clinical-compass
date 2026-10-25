@@ -40,7 +40,7 @@ export const patientFacts = sqliteTable("patient_facts", {
     enum: ["none", "current", "stopped_under_2_weeks"],
   }),
   egfrMlMin: integer("egfr_ml_min"),
-  childPugh: text("child_pugh", { enum: ["A", "B", "C"] }),
+  childPugh: text("child_pugh", { enum: ["A", "B", "C", "none"] }),
   pregnancy: text("pregnancy", {
     enum: ["not_applicable", "no", "pregnant", "lactating"],
   }),
