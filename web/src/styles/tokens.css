@@ -61,6 +61,41 @@
  * а не создано здесь.
  * ========================================================================== */
 
+/* ----------------------------------------------------------------------------
+ * Lato — гарнитура презентации спонсора [Б, §3], лицензия SIL OFL 1.1.
+ * Файлы лежат в web/public/fonts/ вместе с текстом лицензии: демо должно
+ * работать без сети, а показывать чужой шрифт без лицензии нельзя.
+ * Веса те же, что в источнике: Light 300, Regular 400, Bold 700, Black 900.
+ * -------------------------------------------------------------------------- */
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url("/fonts/Lato-Light.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/Lato-Regular.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("/fonts/Lato-Bold.ttf") format("truetype");
+}
+@font-face {
+  font-family: "Lato";
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url("/fonts/Lato-Black.ttf") format("truetype");
+}
+
 :root {
   /* ==========================================================================
    * 1. СЕМАНТИКА КЛИНИКИ — резерв слотов
@@ -190,8 +225,9 @@
    *    лицензированная (OFL 1.1, кириллица) гарнитура источника.
    *    Calibri, Arial и Verdana остаются только системным fallback:
    *    их нельзя поставлять как веб-шрифт [Б, §9.3].
-   *    Файлы Lato в репозиторий не добавлены (наше: нет бинаря шрифта),
-   *    поэтому стек сейчас фактически доходит до system-ui.
+   *    Файлы Lato лежат в web/public/fonts/ (OFL 1.1, кириллица), поэтому
+   *    стек действительно доходит до Lato, а не до system-ui: демо может
+   *    работать без сети.
    * ======================================================================== */
   --font-sans: "Lato", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, monospace;
