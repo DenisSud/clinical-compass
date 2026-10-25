@@ -8,6 +8,7 @@ import { fail } from "./http/errors.js";
 import { authRoutes } from "./routes/auth.js";
 import { assessmentRoutes } from "./routes/assessments.js";
 import { diaryRoutes } from "./routes/diary.js";
+import { factsRoutes } from "./routes/facts.js";
 import { messageRoutes } from "./routes/messages.js";
 import { planRoutes } from "./routes/plan.js";
 import { checkinRoutes } from "./routes/checkins.js";
@@ -49,6 +50,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(bindRoutes, { prefix: "/api" });
   await app.register(assessmentRoutes, { prefix: "/api" });
   await app.register(diaryRoutes, { prefix: "/api" });
+  await app.register(factsRoutes, { prefix: "/api" });
   await app.register(signalRoutes, { prefix: "/api" });
   await app.register(planRoutes, { prefix: "/api" });
   await app.register(messageRoutes, { prefix: "/api" });

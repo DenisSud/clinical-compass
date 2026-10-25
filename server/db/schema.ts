@@ -24,6 +24,30 @@ export const patients = sqliteTable(
   (table) => [index("idx_patients_doctor_id").on(table.doctorId)],
 );
 
+/**
+ * Факты, блокирующие решение. Источник перечня — ОХЛП «Авиандр», раздел 4.3.
+ * NULL = не спрашивали; это не «нет». Правило, которое не отличает одно от другого,
+ * превращает пропуск в ответ.
+ */
+export const patientFacts = sqliteTable("patient_facts", {
+  patientId: text("patient_id")
+    .primaryKey()
+    .references(() => patients.id, { onDelete: "cascade" }),
+  epilepsyOrOrganicBrainDisease: text("epilepsy_or_organic_brain_disease", {
+    enum: ["yes", "no"],
+  }),
+  maoInhibitors: text("mao_inhibitors", {
+    enum: ["none", "current", "stopped_under_2_weeks"],
+  }),
+  egfrMlMin: integer("egfr_ml_min"),
+  childPugh: text("child_pugh", { enum: ["A", "B", "C"] }),
+  pregnancy: text("pregnancy", {
+    enum: ["not_applicable", "no", "pregnant", "lactating"],
+  }),
+  galactoseIntolerance: text("galactose_intolerance", { enum: ["yes", "no"] }),
+  updatedAt: text("updated_at").notNull(),
+});
+
 export const sessions = sqliteTable(
   "sessions",
   {

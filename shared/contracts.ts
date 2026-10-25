@@ -285,6 +285,49 @@ export type AdherenceItem = {
 
 export type DoctorAdherence = { today: string; items: AdherenceItem[] };
 
+/**
+ * Факты, блокирующие решение. Перечень — из ОХЛП «Авиандр» (раздел 4.3), а не из
+ * воображения: каждое поле там названо противопоказанием.
+ *
+ * `null` значит «не спрашивали». Это не то же самое, что «нет»: правило, которое
+ * читает `null` как «нет», молча выдаёт разрешение там, где данных не было.
+ */
+export const triStateSchema = z.enum(["yes", "no"]);
+export const maoInhibitorsSchema = z.enum(["none", "current", "stopped_under_2_weeks"]);
+export const childPughSchema = z.enum(["A", "B", "C"]);
+export const pregnancySchema = z.enum(["not_applicable", "no", "pregnant", "lactating"]);
+
+export const patientFactsSchema = z.object({
+  /** Эпилепсия и органические заболевания мозга. ОХЛП 4.3. */
+  epilepsyOrOrganicBrainDisease: triStateSchema.nullable(),
+  /** Ингибиторы МАО: приём сейчас или отмена меньше двух недель назад. ОХЛП 4.3. */
+  maoInhibitors: maoInhibitorsSchema.nullable(),
+  /** СКФ, мл/мин. Порог 60 задаёт правило со ссылкой, а не поле. ОХЛП 4.3. */
+  egfrMlMin: z.number().int().min(0).max(200).nullable(),
+  /** Печёночная недостаточность по Чайлд-Пью: любая степень — противопоказание. ОХЛП 4.3. */
+  childPugh: childPughSchema.nullable(),
+  /** Беременность и лактация. ОХЛП 4.3. */
+  pregnancy: pregnancySchema.nullable(),
+  /** Непереносимость галактозы. ОХЛП 4.3. */
+  galactoseIntolerance: triStateSchema.nullable(),
+});
+
+export type PatientFacts = z.infer<typeof patientFactsSchema>;
+
+/** Пациент может ответить на часть вопросов: непереданное поле не затирается. */
+export const patientFactsUpdateSchema = patientFactsSchema.partial();
+export type PatientFactsUpdate = z.infer<typeof patientFactsUpdateSchema>;
+
+/**
+ * `unanswered` — это не интерпретация и не оценка риска, а список того, чего мы
+ * ещё не спросили. Пациент имеет право видеть свою неполноту; выводов из неё
+ * не делает ни он, ни интерфейс.
+ */
+export type PatientFactsView = {
+  facts: PatientFacts;
+  unanswered: (keyof PatientFacts)[];
+};
+
 export const watchKindSchema = z.enum([
   "diary_below",
   "diary_drop",
