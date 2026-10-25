@@ -1,28 +1,29 @@
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { instrument } from "../instruments/loader.js";
 import { MISSED_DOSES_SIGNAL } from "../prescriptions/schedule.js";
+import type { PatientFacts } from "../../shared/contracts.js";
 import type { Rule } from "../../shared/rules.js";
 import { findRule, listRules } from "./registry.js";
-import { SIGNAL_RULE_IDS, signalsForAssessment, signalsForDiary } from "./signals.js";
+import {
+  ALL_SIGNAL_RULE_IDS,
+  SIGNAL_RULE_IDS,
+  signalsForAssessment,
+  signalsForDiary,
+  signalsForFacts,
+} from "./signals.js";
 
 const phq9 = instrument("phq-9");
 if (!phq9) throw new Error("phq-9 missing");
 const phq9Form = phq9;
 
 /**
- * Rule files that do not raise a signal card yet, each for a stated reason. They are
- * listed instead of silently skipped: a rule that nobody reads is a clinical rule that
- * stopped working, and the parity test must say so.
- *
- * - `adherence-three-missed-doses`: the prescription card is still composed in
- *   `routes/prescriptions.ts` and carries the drug, the missed times and the reasons;
- *   the rule template has no field for them. Its threshold is pinned below so the two
- *   cannot drift until the card moves to the registry.
- * - `aviandr-contraindications`: published through GET /api/rules; no signal path
- *   reads patient facts yet.
+ * There is no exceptions list any more. Every rule file must be reachable from the
+ * engine, and the test says which one is not: a rule nobody reads is a clinical rule
+ * that stopped working. The previous version listed «aviandr-contraindications» as
+ * unwired and stayed green while a patient with an eGFR of 45 raised nothing (#37).
  */
-const NOT_WIRED = new Set(["adherence-three-missed-doses", "aviandr-contraindications"]);
-
 const SCALE_OR_DIARY_FACTS = new Set([
   "assessment.criticalItem",
   "assessment.totalIncrease",
@@ -42,6 +43,28 @@ function assessment(total: number, previousTotal: number | null, critical: strin
         ? null
         : { instrumentId: phq9Form.id, instrumentVersion: phq9Form.version, total: previousTotal },
   });
+}
+
+/** Ищет по серверному коду (кроме тестов) прямой вызов requireRule("<id>"). */
+function namesRuleInSource(id: string): boolean {
+  const root = join(import.meta.dirname, "..");
+  const stack = [root];
+
+  while (stack.length > 0) {
+    const directory = stack.pop()!;
+    for (const entry of readdirSync(directory, { withFileTypes: true })) {
+      if (entry.name === "public" || entry.name === "node_modules") continue;
+      const path = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        stack.push(path);
+        continue;
+      }
+      if (!entry.name.endsWith(".ts") || entry.name.includes(".test.")) continue;
+      if (readFileSync(path, "utf8").includes(`requireRule("${id}")`)) return true;
+    }
+  }
+
+  return false;
 }
 
 function ruleIdsOf(signals: { ruleId: string | null }[]): string[] {
@@ -70,17 +93,36 @@ describe("the rule registry and the signal engine are one source", () => {
     }
   });
 
-  it("accounts for every registered rule, and keeps the unwired files in place", () => {
+  it("leaves no rule file without a path to the doctor", () => {
     for (const rule of listRules()) {
-      if (SIGNAL_RULE_IDS.includes(rule.id)) continue;
-      expect([...NOT_WIRED], `${rule.id} не подключено к сигналам и не названо в NOT_WIRED`).toContain(
-        rule.id,
-      );
+      // A rule is reachable either through the engine's lists or through a route that
+      // names it explicitly (the pillbox card does). Naming it in code is the point:
+      // a file nobody calls is a rule that stopped working.
+      const named = namesRuleInSource(rule.id);
+      expect(
+        named || ALL_SIGNAL_RULE_IDS.includes(rule.id),
+        `${rule.id} лежит в content/rules, но ни один путь сигналов его не читает`,
+      ).toBe(true);
     }
 
-    for (const id of NOT_WIRED) {
-      expect(findRule(id), `${id} названо как не-сигнал, но файла нет`).toBeDefined();
+    for (const id of ALL_SIGNAL_RULE_IDS) {
+      expect(findRule(id), `${id} названо в signals.ts, а файла в content/rules нет`).toBeDefined();
     }
+  });
+
+  it("raises the fact rules from the facts on file", () => {
+    const blank: PatientFacts = {
+      epilepsyOrOrganicBrainDisease: null,
+      maoInhibitors: null,
+      egfrMlMin: 45,
+      childPugh: null,
+      pregnancy: "pregnant",
+      galactoseIntolerance: null,
+    };
+
+    const raised = signalsForFacts(blank);
+    expect(raised.map((signal) => signal.ruleId)).toContain("aviandr-contraindications");
+    expect(raised[0]?.detail).toContain("беременность");
   });
 
   it("raises every wired rule and only wired rules", () => {

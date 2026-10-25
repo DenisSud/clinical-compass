@@ -43,11 +43,17 @@ export const SIGNAL_RULE_IDS: readonly string[] = SIGNAL_RULES.map(({ ruleId }) 
  * assessment-and-diary contract the parity test pins, and a fact rule cannot be raised
  * by a questionnaire that never sees the facts.
  */
-const FACT_SIGNAL_RULES = [
+export const FACT_SIGNAL_RULES = [
   { kind: "contraindication", ruleId: "aviandr-contraindications" },
 ] as const;
 
 type SignalRule = { kind: string; ruleId: string };
+
+/** Every rule the engine can raise, from a submission or from the facts on file. */
+export const ALL_SIGNAL_RULE_IDS: readonly string[] = [
+  ...SIGNAL_RULE_IDS,
+  ...FACT_SIGNAL_RULES.map(({ ruleId }) => ruleId),
+];
 
 /**
  * Facts in, signals out. This module supplies only what the registry cannot know how
