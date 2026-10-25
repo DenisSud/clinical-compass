@@ -35,9 +35,39 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.decorate("conn", createDb(options.dbPath ?? process.env.SQLITE_DB ?? "var/app.db"));
   await app.register(fastifyCookie);
 
+  // An empty body announced as JSON is not a server fault: a bodyless action
+  // (pause a rule, take a signal) sends no body at all. Without this parser
+  // Fastify rejects the request before routing and the doctor's click fails.
+  app.addContentTypeParser(
+    "application/json",
+    { parseAs: "string" },
+    (_request, body, done) => {
+      const raw = typeof body === "string" ? body.trim() : "";
+      if (raw === "") return done(null, {});
+      try {
+        done(null, JSON.parse(raw));
+      } catch {
+        done(
+          Object.assign(new Error("Тело запроса не разобрано как JSON"), {
+            statusCode: 400,
+            code: "invalid_json",
+          }),
+          undefined,
+        );
+      }
+    },
+  );
+
   // Without this, a thrown error returns Fastify's own body, and a client that
   // validates against apiErrorSchema sees garbage exactly when something broke.
-  app.setErrorHandler((error, request, reply) => {
+  // A refusal stays a refusal: turning a 400 into a 500 tells the doctor the
+  // server broke when in fact the request did.
+  app.setErrorHandler((error: { statusCode?: number; code?: string; message?: string }, request, reply) => {
+    const status = error.statusCode ?? 500;
+    if (status < 500) {
+      request.log.info(error);
+      return fail(reply, status, error.code ?? "bad_request", error.message ?? "Запрос отклонён");
+    }
     request.log.error(error);
     return fail(reply, 500, "internal", "Внутренняя ошибка сервера");
   });

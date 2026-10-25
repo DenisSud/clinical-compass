@@ -110,6 +110,45 @@ describe("watch routes", () => {
     await app.close();
   });
 
+  it("pauses a rule even when the client announces JSON with an empty body", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientId } = await boundPair(app);
+
+    const created = await app.inject({
+      method: "POST",
+      url: `/api/patients/${patientId}/watch`,
+      headers: { cookie: doctorCookie },
+      payload: { kind: "diary_below", title: "Плохое самочувствие", severity: "high", threshold: 3 },
+    });
+
+    // Exactly what the browser used to send: a content-type with no body at all.
+    const paused = await app.inject({
+      method: "POST",
+      url: `/api/watch/${created.json().item.id}/pause`,
+      headers: { cookie: doctorCookie, "content-type": "application/json" },
+    });
+
+    expect(paused.statusCode).toBe(200);
+    expect(paused.json().item.status).toBe("paused");
+    await app.close();
+  });
+
+  it("keeps a refusal a refusal instead of dressing it as a server error", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientId } = await boundPair(app);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/patients/${patientId}/watch`,
+      headers: { cookie: doctorCookie, "content-type": "application/json" },
+      payload: '{"kind": ',
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().code).not.toBe("internal");
+    await app.close();
+  });
+
   it("rejects a rule without its parameter", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);

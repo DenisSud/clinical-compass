@@ -32,10 +32,12 @@ export class ApiRequestError extends Error {
 }
 
 async function request<T>(url: string, init: RequestInit = {}): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: { "content-type": "application/json", ...init.headers },
-  });
+  // Тело есть — значит есть и тип тела. Пустой POST без тела не должен объявлять
+  // себя JSON: Fastify отвечает на такую ложь 400, и действие врача падает в 500.
+  const headers: Record<string, string> = { ...(init.headers as Record<string, string>) };
+  if (init.body !== undefined) headers["content-type"] = "application/json";
+
+  const response = await fetch(url, { ...init, headers });
 
   if (response.status === 204) return undefined as T;
 
