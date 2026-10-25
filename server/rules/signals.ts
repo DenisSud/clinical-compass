@@ -47,12 +47,27 @@ export const FACT_SIGNAL_RULES = [
   { kind: "contraindication", ruleId: "aviandr-contraindications" },
 ] as const;
 
+/**
+ * Rules that read the dose marks of a prescription. Listed apart for the same reason:
+ * they fire on `POST /api/doses`, and the card they raise names the drug, the dose and
+ * the missed times, which no questionnaire carries. The list is what the parity test
+ * reads; the card itself is built by `signalsForAdherence` below, not by the route (#45).
+ */
+export const ADHERENCE_SIGNAL_RULES = [
+  { kind: "missed_doses", ruleId: "adherence-three-missed-doses" },
+] as const;
+
 type SignalRule = { kind: string; ruleId: string };
 
-/** Every rule the engine can raise, from a submission or from the facts on file. */
+/**
+ * Every rule the engine can raise. A rule file outside this list has no path to the
+ * doctor, and the parity test says so by name — the mention of a rule id anywhere in
+ * the source, comment or constant, is not a path (issue #45).
+ */
 export const ALL_SIGNAL_RULE_IDS: readonly string[] = [
   ...SIGNAL_RULE_IDS,
   ...FACT_SIGNAL_RULES.map(({ ruleId }) => ruleId),
+  ...ADHERENCE_SIGNAL_RULES.map(({ ruleId }) => ruleId),
 ];
 
 /**
@@ -173,4 +188,52 @@ export function signalsForFacts(patientFacts: PatientFacts): SignalDraft[] {
     adherence: null,
     patientFacts,
   });
+}
+
+/** A missed intake the card may name: when it was planned, and what the patient said. */
+export type MissedDose = { scheduledAt: string; reason: string | null };
+
+/** How many missed intakes the card names; the rest stay in the count above. */
+const MAX_LISTED_SKIPS = 3;
+
+function formatSlot(scheduledAt: string): string {
+  const [date = "", time = ""] = scheduledAt.split("T");
+  const [, month = "", day = ""] = date.split("-");
+  return `${day}.${month}, ${time}`;
+}
+
+/**
+ * The adherence card: the run of missed intakes, oldest first. Threshold, severity,
+ * title and the general wording come from `content/rules/adherence-three-missed-doses.json`
+ * through the registry; this function adds only what a rule template cannot know —
+ * the drug, the dose, the times that were missed and the patient's own reasons.
+ *
+ * The card is built here rather than in the route: a card assembled on the route would
+ * need the route to name the rule, and «this rule reaches the doctor» would again rest
+ * on a mention in the source text (issue #45).
+ */
+export function signalsForAdherence(input: {
+  /** Missed intakes in a row up to now, oldest first. */
+  skipped: readonly MissedDose[];
+  drugName: string;
+  doseValue: number;
+  doseUnit: string;
+}): SignalDraft[] {
+  const signals = signalsFromRules(ADHERENCE_SIGNAL_RULES, {
+    assessment: null,
+    diary: null,
+    adherence: { consecutiveMissedDoses: input.skipped.length },
+    patientFacts: null,
+  });
+
+  const listed = input.skipped.slice(-MAX_LISTED_SKIPS);
+  const times = listed.map((slot) => formatSlot(slot.scheduledAt));
+  const reasons = listed.flatMap((slot) => (slot.reason === null ? [] : [slot.reason]));
+
+  return signals.map((signal) => ({
+    ...signal,
+    detail:
+      `${signal.detail} «${input.drugName}», ${input.doseValue} ${input.doseUnit}: пропущены приёмы ${times.join(", ")}.` +
+      (reasons.length > 0 ? ` Причины: ${reasons.join("; ")}.` : ""),
+  }));
 }

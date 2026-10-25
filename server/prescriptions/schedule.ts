@@ -64,6 +64,9 @@ export function slotState(input: {
   mark: { status: DoseSlotState } | undefined;
   now: string;
 }): DoseSlotState {
+  // Строгое «>», а не «>=»: приём в 12:00 в 12:00 уже наступил. Это решение о границе
+  // минуты, а не случайность — тот же компаратор, что и в POST /api/doses, и он
+  // закреплён тестом (schedule.test.ts, prescriptions.test.ts, issue #47).
   if (input.scheduledAt > input.now) return "scheduled";
   if (input.mark) return input.mark.status;
   return "no_data";

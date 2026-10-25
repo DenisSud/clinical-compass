@@ -15,9 +15,9 @@ const DEFAULT_DIRECTORY = join(import.meta.dirname, "..", "..", "content", "rule
 export class InvalidRule extends Error {}
 
 /**
- * Which template names a fact produces. Validated at load time, so a rule whose
- * detail says `{drop}` on a total-score condition fails instead of printing the
- * placeholder to the doctor.
+ * Which template names a fact produces. The template is checked against what every
+ * condition can produce (see `assertPlaceholders`), so a `{drop}` on a total-score
+ * condition fails at load instead of reaching the doctor as a placeholder or as a 500.
  */
 const FACT_VALUES: Record<RuleCondition["fact"], readonly string[]> = {
   "assessment.criticalItem": ["instrument", "items"],
@@ -254,14 +254,26 @@ function render(template: string, values: Record<string, string>): string {
   });
 }
 
+/**
+ * A template name must be produced by EVERY condition that can fire: conditions are
+ * joined by "or", so any one of them may be the only match. Checking the union let a
+ * two-condition rule keep `{items}` from the first condition and threw at firing time,
+ * which on a route is a 500 instead of a card (issue #47).
+ */
 function assertPlaceholders(rule: Rule): void {
-  const available = new Set(rule.when.flatMap((condition) => FACT_VALUES[condition.fact]));
+  const available = rule.when
+    .map((condition) => new Set(FACT_VALUES[condition.fact]))
+    .reduce((common, names) => new Set([...common].filter((name) => names.has(name))));
+  const facts = rule.when.map((condition) => condition.fact).join(", ");
 
   for (const template of [rule.output.title, rule.output.detail]) {
     for (const match of template.matchAll(PLACEHOLDER)) {
       const name = match[1]!;
       if (!available.has(name)) {
-        throw new InvalidRule(`правило ${rule.id}: в шаблоне {${name}} нет такого значения`);
+        throw new InvalidRule(
+          `правило ${rule.id}: в шаблоне {${name}} есть не у каждого условия (${facts}) — ` +
+            `значение даёт только часть из них`,
+        );
       }
     }
   }

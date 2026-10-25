@@ -49,6 +49,13 @@ describe("slotState", () => {
     expect(slotState({ scheduledAt: "2026-10-21T20:00", mark: undefined, now })).toBe("scheduled");
   });
 
+  it("reads the current minute as already come, not as still scheduled", () => {
+    // Граница минуты: приём в 12:00 в 12:00 наступил. Строгое «>» — решение, а не
+    // случайность, и оно одно с POST /api/doses (issue #47).
+    expect(slotState({ scheduledAt: now, mark: undefined, now })).toBe("no_data");
+    expect(slotState({ scheduledAt: now, mark: { status: "taken" }, now })).toBe("taken");
+  });
+
   it("takes the patient's own mark as it is", () => {
     expect(slotState({ scheduledAt: "2026-10-21T08:00", mark: { status: "taken" }, now })).toBe("taken");
     expect(slotState({ scheduledAt: "2026-10-21T08:00", mark: { status: "skipped" }, now })).toBe(

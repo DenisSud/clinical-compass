@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { shiftDay, wallClockDay } from "./prescriptions/schedule.js";
+import { shiftDay, wallClockDay, wallClockMinute } from "./prescriptions/schedule.js";
 import { newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
 
 function today(): string {
@@ -15,6 +15,12 @@ function slotAt(hoursOffset: number): { scheduledAt: string; day: string; time: 
   const day = wallClockDay(at);
   const time = `${String(at.getHours()).padStart(2, "0")}:${String(at.getMinutes()).padStart(2, "0")}`;
   return { scheduledAt: `${day}T${time}`, day, time };
+}
+
+/** Запланированное время со сдвигом в минутах от текущей минуты: 0 — ровно сейчас. */
+function minuteAt(minutesOffset: number): { scheduledAt: string; day: string; time: string } {
+  const scheduledAt = wallClockMinute(new Date(Date.now() + minutesOffset * 60 * 1000));
+  return { scheduledAt, day: scheduledAt.slice(0, 10), time: scheduledAt.slice(11) };
 }
 
 async function boundPair(app: App) {
@@ -333,6 +339,48 @@ describe("an intake that has not come yet", () => {
     await app.close();
   });
 
+  it("accepts a mark exactly on the current minute", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    const now = minuteAt(0);
+    const id = await confirmed(app, doctorCookie, patientId, {
+      timesPerDay: 1,
+      timesOfDay: [now.time],
+      startsOn: now.day,
+    });
+
+    const response = await mark(app, patientCookie, {
+      prescriptionId: id,
+      scheduledAt: now.scheduledAt,
+      status: "taken",
+    });
+
+    // Приём в 12:00 в 12:00 уже наступил: граница минуты — решение, а не случайность.
+    expect(response.statusCode).toBe(200);
+    await app.close();
+  });
+
+  it("refuses a mark one minute ahead as a fact that has not happened", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    const ahead = minuteAt(1);
+    const id = await confirmed(app, doctorCookie, patientId, {
+      timesPerDay: 1,
+      timesOfDay: [ahead.time],
+      startsOn: ahead.day,
+    });
+
+    const response = await mark(app, patientCookie, {
+      prescriptionId: id,
+      scheduledAt: ahead.scheduledAt,
+      status: "taken",
+    });
+
+    expect(response.statusCode).toBe(409);
+    expect(response.json().code).toBe("dose_in_future");
+    await app.close();
+  });
+
   it("writes nothing when it refuses a mark on a time that is still ahead", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
@@ -438,7 +486,16 @@ describe("three missed intakes in a row", () => {
       ruleTitle: "Три пропуска приёма подряд",
       ruleSource: { kind: "ours", status: "placeholder" },
     });
+    // Из шаблона правила — счёт; от движка — то, чего в шаблоне нет: препарат, доза,
+    // времена пропущенных приёмов и причины, названные пациентом (issue #45).
     expect(missed.detail).toContain("Пропущено подряд: 3");
+    expect(missed.detail).toContain("«АВИАНДР», 20 мг");
+    expect(missed.detail).toContain(
+      [shiftDay(today(), -3), shiftDay(today(), -2), shiftDay(today(), -1)]
+        .map((day) => `${day.slice(8, 10)}.${day.slice(5, 7)}, 08:00`)
+        .join(", "),
+    );
+    expect(missed.detail).toContain("Причины: не было препарата");
     await app.close();
   });
 

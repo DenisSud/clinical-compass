@@ -98,6 +98,38 @@ describe("rule files", () => {
       parseRule({ ...rule, output: { ...rule.output, detail: "Падение на {increase}." } }),
     ).toThrow(InvalidRule);
   });
+
+  it("refuses a template name that only one of the conditions produces", () => {
+    // Условия соединены «или», поэтому сработать может любое: имя, которое даёт
+    // только второе, — ошибка загрузки, а не 500 в момент срабатывания (issue #47).
+    const partial = {
+      id: "partial-template",
+      title: "Частичный шаблон",
+      when: [
+        { fact: "diary.value", atMost: 3 },
+        { fact: "diary.drop", atLeast: 3 },
+      ],
+      severity: "medium",
+      output: { title: "Самочувствие {value}", detail: "Падение на {drop}." },
+      source: {
+        kind: "ours",
+        ref: "docs/research/ai-decision-logic/sources-needed.md#1.3",
+        status: "placeholder",
+      },
+    };
+
+    let error: Error | null = null;
+    try {
+      parseRule(partial);
+    } catch (caught) {
+      error = caught as Error;
+    }
+
+    expect(error).toBeInstanceOf(InvalidRule);
+    expect(error!.message).toContain("{drop}");
+    expect(error!.message).toContain("diary.value");
+    expect(error!.message).toContain("diary.drop");
+  });
 });
 
 describe("executing one rule", () => {

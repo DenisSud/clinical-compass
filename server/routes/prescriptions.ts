@@ -26,11 +26,10 @@ import {
   wallClockDay,
   wallClockMinute,
 } from "../prescriptions/schedule.js";
-import { evaluateRule, requireRule } from "../rules/registry.js";
+import { signalsForAdherence } from "../rules/signals.js";
 import { saveSignals } from "./signals.js";
 
 const REASON_MIN_LENGTH = 3;
-const MAX_LISTED_SKIPS = 3;
 
 function timesOfDayOf(row: typeof prescriptions.$inferSelect): string[] {
   return JSON.parse(row.timesOfDay) as string[];
@@ -137,12 +136,6 @@ function toPrescriptionView(
   };
 }
 
-function formatSlot(scheduledAt: string): string {
-  const [date = "", time = ""] = scheduledAt.split("T");
-  const [, month = "", day = ""] = date.split("-");
-  return `${day}.${month}, ${time}`;
-}
-
 function drugInReference(drugId: string): boolean {
   return corpus().some((document) => document.kind === "smpc" && document.id === drugId);
 }
@@ -227,6 +220,9 @@ export const prescriptionRoutes: FastifyPluginAsync = async (app) => {
     const nowMinute = wallClockMinute(now);
     // Время, которое ещё не наступило, — это не приём и не пропуск: отметка на будущее
     // выдумывает факт, которого не было, и поднимает сигнал по приёмам, которых не было.
+    // Строгое «>», а не «>=»: отметка ровно на текущую минуту принимается — приём
+    // в 12:00 в 12:00 уже наступил. Это решение о границе, а не случайность, и оно
+    // закреплено тестом вместе с правилом `slotState` (issue #47).
     if (scheduledAt > nowMinute) {
       return fail(
         reply,
@@ -273,9 +269,9 @@ export const prescriptionRoutes: FastifyPluginAsync = async (app) => {
       .returning();
     if (!saved) throw new Error("insert returned no row");
 
-    // Пропуски подряд — сигнал приверженности, и решает о нём файл правила: порог,
-    // severity и источник приходят из `adherence-three-missed-doses.json`, а роут
-    // добавляет только то, чего в фактах правила нет, — препарат и времена приёмов.
+    // Пропуски подряд — сигнал приверженности. Порог, тяжесть, заголовок и источник
+    // решает файл правила, карточку собирает движок (`signalsForAdherence`), а роут
+    // только передаёт ему пропуски и препарат: своей копии правила у роута нет (#45).
     // Считается по запланированным временам, поэтому «нет данных» его не поднимает
     // и, главное, не выдаёт за приём.
     const marks = await app.conn.db
@@ -283,38 +279,21 @@ export const prescriptionRoutes: FastifyPluginAsync = async (app) => {
       .from(doseEvents)
       .where(eq(doseEvents.prescriptionId, row.id));
     const view = toPrescriptionView(row, marks, now);
-    const skipped = trailingSkips(view.slots);
-    const match = evaluateRule(requireRule("adherence-three-missed-doses"), {
-      assessment: null,
-      diary: null,
-      adherence: { consecutiveMissedDoses: skipped.length },
-      patientFacts: null,
+
+    await saveSignals(app, {
+      patientId,
+      sourceType: "dose",
+      sourceId: saved.id,
+      drafts: signalsForAdherence({
+        skipped: trailingSkips(view.slots).map((slot) => ({
+          scheduledAt: slot.scheduledAt,
+          reason: slot.reason,
+        })),
+        drugName: row.drugName,
+        doseValue: row.doseValue,
+        doseUnit: row.doseUnit,
+      }),
     });
-
-    if (match !== null) {
-      const listed = skipped.slice(-MAX_LISTED_SKIPS).map((slot) => formatSlot(slot.scheduledAt));
-      const reasons = skipped
-        .slice(-MAX_LISTED_SKIPS)
-        .map((slot) => slot.reason)
-        .filter((value): value is string => value !== null);
-
-      await saveSignals(app, {
-        patientId,
-        sourceType: "dose",
-        sourceId: saved.id,
-        drafts: [
-          {
-            kind: "missed_doses",
-            severity: match.severity,
-            title: match.title,
-            detail:
-              `${match.detail} «${row.drugName}», ${row.doseValue} ${row.doseUnit}: пропущены приёмы ${listed.join(", ")}.` +
-              (reasons.length > 0 ? ` Причины: ${reasons.join("; ")}.` : ""),
-            ruleId: match.ruleId,
-          },
-        ],
-      });
-    }
 
     return reply.code(200).send({ dose: toDoseEvent(saved) });
   });
