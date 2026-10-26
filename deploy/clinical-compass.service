@@ -1,0 +1,19 @@
+# Clinical Compass demo: patient + doctor on one Fastify process.
+# Deployed on pc as a user unit (denis), proxies from pi's Caddy:
+# compas.sudakov.site -> 192.168.1.20:8110.
+[Unit]
+Description=Clinical Compass demo (patient + doctor)
+After=network-online.target
+
+[Service]
+WorkingDirectory=/home/denis/apps/clinical-compass
+ExecStart=/home/denis/apps/clinical-compass/node_modules/.bin/tsx server/index.ts
+Environment=NODE_ENV=production
+Environment=PORT=8110
+Environment=HOST=0.0.0.0
+Environment=SQLITE_DB=/home/denis/apps/clinical-compass/var/demo.db
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target
