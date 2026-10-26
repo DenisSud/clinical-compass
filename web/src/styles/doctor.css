@@ -876,7 +876,7 @@
   gap: var(--space-1);
   margin: var(--space-2) 0 0;
   padding: 0;
-  color: var(--text-body);
+  color: var(--color-body);
   list-style: none;
 }
 
@@ -1002,7 +1002,7 @@
   margin: 2px 0 0;
   font-size: var(--text-small);
   line-height: var(--lh-dense);
-  color: var(--text-body);
+  color: var(--color-body);
 }
 
 .plan-item__actions {
@@ -1170,4 +1170,53 @@
   font-size: var(--text-body);
   line-height: var(--lh-body);
   color: var(--text-muted);
+}
+
+/* ---------- doctor: diary chart ----------
+ *
+ * The doctor may see numbers and a trend; the patient never does (§2.2). The chart is
+ * one line on the 1–10 scale with no zones, bands or words of judgement: the shapes are
+ * the values the patient recorded, and the list under it stays the readable source.
+ */
+.diary-chart {
+  margin: 0 0 var(--space-4);
+}
+
+.diary-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.diary-chart__grid {
+  stroke: var(--border-hairline);
+  stroke-width: 1;
+}
+
+.diary-chart__line {
+  fill: none;
+  stroke: var(--color-body);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.diary-chart__dot {
+  fill: var(--surface-card);
+  stroke: var(--text-strong);
+  stroke-width: 2;
+}
+
+.diary-chart__tick {
+  fill: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 11px;
+}
+
+@media (forced-colors: active) {
+  .diary-chart__line,
+  .diary-chart__dot {
+    stroke: CanvasText;
+  }
 }

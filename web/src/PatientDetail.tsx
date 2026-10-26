@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AdherenceTable } from "./AdherenceTable";
 import { PatientFactsPanel } from "./PatientFactsPanel";
 import { WatchPanel } from "./WatchPanel";
+import { DiaryChart } from "./DiaryChart";
 import { MessageThread } from "./MessageThread";
 import { PlanPanel } from "./PlanPanel";
 import { SIGNAL_STATUS_LABEL, SignalRule, SignalSeverity, sortSignals } from "./SignalsPanel";
@@ -327,6 +328,9 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
               </LoadError>
             )}
             {entries.status === "ready" && entries.data.length === 0 && <Empty>Записей пока нет.</Empty>}
+            {entries.status === "ready" && entries.data.length > 0 && (
+              <DiaryChart entries={entries.data} />
+            )}
             {entries.status === "ready" && entries.data.length > 0 && (
               <ul className="diary-log">
                 {entries.data.map((entry) => (
