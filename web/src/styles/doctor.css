@@ -1069,3 +1069,98 @@
 .plan-form > .hint {
   margin: 0;
 }
+
+/* ---------- doctor: data (questionnaire slices and diary) ----------
+ *
+ * Three values per slice read as three columns, so the table is held by horizontal
+ * hairlines only. The export frames every cell on four sides with 1 px `_12`, which turns
+ * the block into a form and draws a grid of lines between the doctor and the numbers
+ * (system §2.9, §4.15). The rhythm is --row-dense, and every cell wraps instead of
+ * scrolling sideways: a band is a whole clinical phrase, and at 375 px it takes a second
+ * line rather than a horizontal scrollbar (WCAG 2.2 §1.4.10).
+ */
+
+.assessment-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-body);
+  line-height: var(--lh-dense);
+  text-align: left;
+}
+
+/* The header names a column and stays quieter than the values it names: 13 px muted, one
+ * hairline under it. */
+.assessment-table th {
+  padding: 0 var(--space-3) var(--space-1) 0;
+  border-bottom: var(--border-width) solid var(--border-hairline);
+  font-size: var(--text-small);
+  font-weight: var(--fw-regular);
+  color: var(--text-muted);
+}
+
+.assessment-table td {
+  height: var(--row-dense);
+  padding: var(--space-1) var(--space-3) var(--space-1) 0;
+  vertical-align: top;
+}
+
+.assessment-table tbody tr + tr td {
+  border-top: var(--border-width) solid var(--border-hairline);
+}
+
+.assessment-table th:last-child,
+.assessment-table td:last-child {
+  padding-right: 0;
+}
+
+/* The critical item is a word under the total, as in the export: it is the one line of
+ * this table the doctor must not read past, and it belongs to the sum it explains
+ * (DESIGN.md §2.3). */
+.assessment-table__critical {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-micro);
+  font-weight: var(--fw-bold);
+  color: var(--signal-critical);
+}
+
+/* One diary entry is the date and the patient's own mark on one line, the comment under
+ * it, and a hairline between the entries — the export's row of four rules does not make
+ * four records easier to tell apart (`_12`). The mark keeps body size: it is the patient's
+ * raw value, not an assessment, so it must not become the loudest number on the screen
+ * (§2.2). */
+.diary-log {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.diary-log__entry {
+  padding: var(--space-2) 0;
+}
+
+.diary-log__entry:first-child {
+  padding-top: 0;
+}
+
+.diary-log__entry:last-child {
+  padding-bottom: 0;
+}
+
+.diary-log__entry + .diary-log__entry {
+  border-top: var(--border-width) solid var(--border-hairline);
+}
+
+.diary-log__line {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: var(--lh-dense);
+}
+
+/* The comment explains the mark, it does not compete with it: one tone down. */
+.diary-log__comment {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+  color: var(--text-muted);
+}

@@ -292,24 +292,22 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
               <Empty>Пациент ещё не проходил опросник.</Empty>
             )}
             {assessments.status === "ready" && assessments.data.length > 0 && (
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+              <table className="assessment-table">
                 <thead>
-                  <tr style={{ textAlign: "left", color: "var(--text-muted)" }}>
-                    <th style={{ padding: "6px 0", fontWeight: 500 }}>Дата</th>
-                    <th style={{ fontWeight: 500 }}>Сумма</th>
-                    <th style={{ fontWeight: 500 }}>Диапазон</th>
+                  <tr>
+                    <th scope="col">Дата</th>
+                    <th scope="col">Сумма</th>
+                    <th scope="col">Диапазон</th>
                   </tr>
                 </thead>
                 <tbody>
                   {assessments.data.map((assessment) => (
-                    <tr key={assessment.id} style={{ borderTop: "1px solid var(--border-hairline)", verticalAlign: "top" }}>
-                      <td style={{ padding: "8px 8px 8px 0" }}>{formatDate(assessment.submittedAt)}</td>
-                      <td style={{ paddingRight: 8 }}>
+                    <tr key={assessment.id}>
+                      <td>{formatDate(assessment.submittedAt)}</td>
+                      <td>
                         {assessment.total}
                         {assessment.criticalItems.length > 0 && (
-                          <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--signal-critical)" }}>
-                            критический пункт
-                          </span>
+                          <span className="assessment-table__critical">критический пункт</span>
                         )}
                       </td>
                       <td>{assessment.band.label}</td>
@@ -330,14 +328,13 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
             )}
             {entries.status === "ready" && entries.data.length === 0 && <Empty>Записей пока нет.</Empty>}
             {entries.status === "ready" && entries.data.length > 0 && (
-              <ul className="stack" style={{ gap: 10, margin: 0, padding: 0, listStyle: "none" }}>
+              <ul className="diary-log">
                 {entries.data.map((entry) => (
-                  <li key={entry.id} style={{ borderTop: "1px solid var(--border-hairline)", paddingTop: 10 }}>
-                    <strong>{entry.value}</strong>
-                    <span className="hint" style={{ marginLeft: 4 }}>
-                      / 10 — {formatDate(entry.entryDate)}
-                    </span>
-                    {entry.comment && <p style={{ margin: "4px 0 0", color: "var(--text-body)" }}>{entry.comment}</p>}
+                  <li key={entry.id} className="diary-log__entry">
+                    <p className="diary-log__line">
+                      {formatDate(entry.entryDate)} — {entry.value} / 10
+                    </p>
+                    {entry.comment && <p className="diary-log__comment">{entry.comment}</p>}
                   </li>
                 ))}
               </ul>

@@ -37,6 +37,18 @@ function formatDayMonth(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }
 
+/*
+ * The plan's kinds in the doctor's own words (`PlanPanel.tsx`, `KIND`). Written out here
+ * rather than imported so the patient screen does not reach into a doctor screen module;
+ * a fifth kind has to change both maps in the same commit.
+ */
+const PLAN_KIND_LABEL: Record<PlanItem["kind"], string> = {
+  medication: "Препарат",
+  therapy: "Терапия",
+  observation: "Наблюдение",
+  referral: "Направление",
+};
+
 export function PatientHome({
   profile,
   onChanged,
@@ -130,9 +142,7 @@ export function PatientHome({
 
       {!profile.doctor && (
         <Card className="bind-card">
-          <h2 className="card__title" style={{ marginTop: 0 }}>
-            Введите код от врача
-          </h2>
+          <h2 className="card__title">Введите код от врача</h2>
           {bindDone ? (
             <p className="notice">Код принят — вы привязаны к врачу.</p>
           ) : (
@@ -140,33 +150,21 @@ export function PatientHome({
               <p className="muted">
                 Врач передаст вам код. Пока вы его не ввели, врач не видит вашу карточку.
               </p>
-              <form onSubmit={bind} className="row" style={{ marginTop: 12 }}>
+              <form onSubmit={bind} className="row bind-card__form">
                 <input
                   value={code}
                   onChange={(event) => setCode(event.target.value)}
                   placeholder="Код привязки"
                   required
                   aria-label="Код привязки"
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: "var(--radius-surface)",
-                    border: "1px solid var(--border-divider)",
-                    fontFamily: "var(--font-mono)",
-                    letterSpacing: 2,
-                    textTransform: "uppercase",
-                    width: 180,
-                    maxWidth: "100%",
-                    minHeight: 44,
-                  }}
+                  className="bind-card__code"
                 />
                 <Button type="submit" variant="primary" disabled={bindBusy}>
                   {bindBusy ? "Привязываемся…" : "Привязаться"}
                 </Button>
               </form>
               {bindError && (
-                <p className="notice notice--error" style={{ marginTop: 8 }}>
-                  {bindError}
-                </p>
+                <p className="notice notice--error bind-card__error">{bindError}</p>
               )}
             </>
           )}
@@ -202,14 +200,13 @@ export function PatientHome({
             )}
             {entries.status === "ready" &&
               (todayEntry ? (
-                <p className="muted">
-                  Сегодня отмечено: <strong>{todayEntry.value}</strong> / 10
-                  {todayEntry.comment && <span> — {todayEntry.comment}</span>}
-                  <br />
-                  <span className="hint" style={{ display: "inline-block" }}>
-                    Следующая запись — завтра.
-                  </span>
-                </p>
+                <>
+                  <p className="muted">
+                    Сегодня отмечено: <strong>{todayEntry.value}</strong> / 10
+                    {todayEntry.comment && <span> — {todayEntry.comment}</span>}
+                  </p>
+                  <p className="hint">Следующая запись — завтра.</p>
+                </>
               ) : (
                 <DiaryForm onSaved={reloadDiary} />
               ))}
@@ -307,9 +304,7 @@ export function PatientHome({
             ))
           )}
 
-          <h3 className="section-title" style={{ marginTop: 24 }}>
-            Прошлые ответы
-          </h3>
+          <h3 className="section-title section-title--spaced">Прошлые ответы</h3>
           {assessments.status === "ready" && assessments.data.assessments.length === 0 && (
             <Empty>Вы ещё не проходили опросник.</Empty>
           )}
@@ -351,15 +346,29 @@ export function PatientHome({
               Врач пока не добавил план. Пункты появляются здесь после того, как врач их подтвердит.
             </Empty>
           )}
+          {/*
+           * Only confirmed items: `/api/plan` returns `active` ones
+           * (`server/routes/plan.ts:115`), so a draft never reaches this screen and no
+           * state word or filter is drawn here. The kind is the doctor's word, the
+           * explanation is optional and stays under the title (patient.css, `.plan-entry`).
+           */}
           {plan.status === "ready" && plan.data.length > 0 && (
-            <ul className="stack" style={{ gap: 10, margin: 0, padding: 0, listStyle: "none" }}>
-              {plan.data.map((item) => (
-                <li key={item.id} style={{ borderLeft: "3px solid var(--signal-done)", paddingLeft: 12 }}>
-                  <strong>{item.title}</strong>
-                  {item.details && <p style={{ margin: "2px 0 0", color: "var(--text-body)" }}>{item.details}</p>}
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="plan-entries">
+                {plan.data.map((item) => (
+                  <li key={item.id} className="plan-entry">
+                    <p className="plan-entry__kind">{PLAN_KIND_LABEL[item.kind]}</p>
+                    <p className="plan-entry__title">{item.title}</p>
+                    {item.details && <p className="plan-entry__details">{item.details}</p>}
+                  </li>
+                ))}
+              </ul>
+              {/*
+               * No actions here and one quiet line saying why: an item becomes visible
+               * only after the doctor confirms it (GLOSSARY.md, «План»).
+               */}
+              <p className="hint">План ведёт врач.</p>
+            </>
           )}
         </Card>
       )}
@@ -377,9 +386,7 @@ export function PatientHome({
             </p>
           )}
 
-          <h3 className="section-title" style={{ marginTop: 20 }}>
-            Переписка
-          </h3>
+          <h3 className="section-title section-title--spaced">Переписка</h3>
           {messages.status === "loading" && <p className="notice">Загрузка переписки…</p>}
           {messages.status === "failed" && (
             <LoadError onRetry={reloadMessages}>

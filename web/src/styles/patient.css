@@ -20,7 +20,7 @@
 }
 
 /* The patient column stacks cards; the card margin is the rhythm, so the generic 16 px
-   stack gap would double it to 40 px. Lists elsewhere set their own gap inline. */
+   stack gap would double it to 40 px. Lists inside a card bring their own rhythm. */
 .page--patient .stack {
   gap: 0;
 }
@@ -28,6 +28,16 @@
 .page--patient .card__title {
   font-size: var(--text-h3);
   font-weight: var(--fw-bold);
+}
+
+/*
+ * A heading that opens a block under another block inside one card («Прошлые ответы»
+ * below the questionnaire, «Переписка» below the doctor). The base `.section-title` only
+ * knows what follows it; the 24 px above is the same step the cards keep between each
+ * other, so two blocks in one card read like two cards.
+ */
+.page--patient .section-title--spaced {
+  margin-top: var(--space-5);
 }
 
 /* One form field for both patient forms: full width, 44 px floor, the same hairline. */
@@ -43,6 +53,34 @@
   color: var(--text-body);
   font: inherit;
   font-size: var(--text-body);
+}
+
+/*
+ * The binding form: the code is spelled in the mono face the doctor reads it off, and the
+ * field keeps the 44 px floor like every other target (§3.9). 12 px under the
+ * instruction — one step of the scale below the paragraph above it.
+ */
+.bind-card__form {
+  margin-top: var(--space-3);
+}
+
+.bind-card__code {
+  width: 180px;
+  max-width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+  color: var(--text-body);
+  font-family: var(--font-mono);
+  font-size: var(--text-body);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.bind-card__error {
+  margin-top: var(--space-2);
 }
 
 /* ---------- «Сегодня»: назначения на сегодня ----------
@@ -168,7 +206,9 @@
 /* ---------- «Дневник»: записи ----------
  * One card, a rule between entries, the date on the left and the patient's own answer on
  * the right (migration §1.1). The answer keeps body size: it is the patient's own raw
- * value, not an assessment, and must not become the loudest element (§2.2).
+ * value, not an assessment, and must not become the loudest element (§2.2). Rows are 16 px
+ * inside like the intakes on «Сегодня», so the two lists on the patient side share one
+ * rhythm inside a card.
  */
 .diary-entries {
   margin: 0;
@@ -177,7 +217,7 @@
 }
 
 .diary-entry {
-  padding: var(--space-3) 0;
+  padding: var(--space-4) 0;
 }
 
 .diary-entry:first-child {
@@ -338,4 +378,61 @@
 
 .past-answer__choice {
   font-style: italic;
+}
+
+/* ---------- «План»: подтверждённые пункты ----------
+ * Every row here is a decision the doctor has already made: `/api/plan` returns `active`
+ * items only (`server/routes/plan.ts:115`), so there is no draft to hide, no state word to
+ * read and no action to take. The kind is a caption above the title and the explanation
+ * sits under it — the shape the doctor's plan row already has (doctor.css, `.plan-item`),
+ * so one plan is not drawn in two layouts.
+ *
+ * The patient card used to put a 3 px --signal-done bar on every row. That tone means
+ * «выполнено», a finished action (tokens.css), and a plan item is not one — the intake
+ * list one tab away spends it on «Выполнил». Rows keep the diary's 16 px and a hairline.
+ */
+.plan-entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.plan-entry {
+  padding: var(--space-4) 0;
+}
+
+.plan-entry:first-child {
+  padding-top: 0;
+}
+
+.plan-entry:last-child {
+  padding-bottom: 0;
+}
+
+.plan-entry + .plan-entry {
+  border-top: var(--border-width) solid var(--border-hairline);
+}
+
+.plan-entry__kind {
+  margin: 0;
+  font-size: var(--text-micro);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.plan-entry__title {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-body);
+  font-weight: var(--fw-bold);
+  overflow-wrap: anywhere;
+  color: var(--text-strong);
+}
+
+.plan-entry__details {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-small);
+  line-height: var(--lh-dense);
+  color: var(--text-body);
 }
