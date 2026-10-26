@@ -37,20 +37,19 @@ export function PatientFactsPanel({ patientId }: { patientId: string }) {
   const marked = FACT_QUESTIONS.filter((question) => factState(question.key, facts) === "marked");
   const clear = FACT_QUESTIONS.filter((question) => factState(question.key, facts) === "clear");
   const notAsked = FACT_QUESTIONS.filter((question) => factState(question.key, facts) === "not_asked");
+  const answeredCount = marked.length + clear.length;
 
   return (
     <div className="facts-report">
       <p className="hint">
         {answeredAt
-          ? `Источник — ответы пациента от ${formatDate(answeredAt)}.`
+          ? `Источник — ответы пациента от ${formatDate(answeredAt)}`
           : "Пациент ещё не отвечал на эти вопросы."}
       </p>
 
       <section>
         <h4 className="facts-report__title">Отмечено</h4>
-        {marked.length === 0 ? (
-          <p className="notice">Ничего из перечисленного не отмечено.</p>
-        ) : (
+        {marked.length > 0 ? (
           <ul className="facts-report__list">
             {marked.map((question) => (
               <li key={question.key}>
@@ -58,6 +57,15 @@ export function PatientFactsPanel({ patientId }: { patientId: string }) {
               </li>
             ))}
           </ul>
+        ) : answeredCount === 0 ? (
+          /*
+           * Список «Отмечено» говорит только об отвеченном. Пока не отвечено ничего,
+           * у него нет права говорить «ничего не отмечено»: рядом стоит «Не спрашивали»
+           * на все шесть, и пропуск прочитался бы как благополучие (#51, GLOSSARY.md).
+           */
+          <p className="notice">Пока не о чем: ни на один из этих вопросов ещё нет ответа.</p>
+        ) : (
+          <p className="notice">Ничего из перечисленного не отмечено.</p>
         )}
       </section>
 

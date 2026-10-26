@@ -39,7 +39,8 @@ export const patientFacts = sqliteTable("patient_facts", {
   maoInhibitors: text("mao_inhibitors", {
     enum: ["none", "current", "stopped_under_2_weeks"],
   }),
-  egfrMlMin: integer("egfr_ml_min"),
+  /** Дробная с одним знаком: значение из анализа приходит как 59.6 (#52). */
+  egfrMlMin: real("egfr_ml_min"),
   childPugh: text("child_pugh", { enum: ["A", "B", "C", "none"] }),
   pregnancy: text("pregnancy", {
     enum: ["not_applicable", "no", "pregnant", "lactating"],

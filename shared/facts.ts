@@ -31,7 +31,8 @@ type FactBase = {
 
 export type FactQuestion =
   | (FactBase & { kind: "choice"; answers: readonly FactAnswer[] })
-  | (FactBase & { kind: "number"; unit: string; min: number; max: number });
+  /** `step` — шаг поля ввода: 0.1 там, где значение приходит из анализа с дробью. */
+  | (FactBase & { kind: "number"; unit: string; min: number; max: number; step: number });
 
 /** Ответ пациента «не знаю» — это и есть отсутствие ответа, то есть `null` в контракте. */
 export const UNANSWERED_ANSWER_LABEL = "Не знаю";
@@ -72,6 +73,7 @@ const FACT_BY_KEY: Record<keyof PatientFacts, FactQuestion> = {
     unit: "мл/мин",
     min: 0,
     max: 200,
+    step: 0.1,
   },
   childPugh: {
     kind: "choice",

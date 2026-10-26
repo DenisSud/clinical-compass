@@ -462,8 +462,13 @@ export const patientFactsSchema = z.object({
   epilepsyOrOrganicBrainDisease: triStateSchema.nullable(),
   /** Ингибиторы МАО: приём сейчас или отмена меньше двух недель назад. ОХЛП 4.3. */
   maoInhibitors: maoInhibitorsSchema.nullable(),
-  /** СКФ, мл/мин. Порог 60 задаёт правило со ссылкой, а не поле. ОХЛП 4.3. */
-  egfrMlMin: z.number().int().min(0).max(200).nullable(),
+  /**
+   * СКФ, мл/мин. Один знак после запятой — потому что значение приходит из анализа
+   * (59.6), а не из головы: целое поле заставляло округлять 59.6 до 60, и порог правила
+   * «ниже 60» переставал срабатывать (#52). Сам порог задаёт правило со ссылкой, а не
+   * поле. ОХЛП 4.3.
+   */
+  egfrMlMin: z.number().min(0).max(200).multipleOf(0.1).nullable(),
   /** Печёночная недостаточность по Чайлд-Пью: любая степень — противопоказание. ОХЛП 4.3. */
   childPugh: childPughSchema.nullable(),
   /** Беременность и лактация. ОХЛП 4.3. */
@@ -474,8 +479,14 @@ export const patientFactsSchema = z.object({
 
 export type PatientFacts = z.infer<typeof patientFactsSchema>;
 
-/** Пациент может ответить на часть вопросов: непереданное поле не затирается. */
-export const patientFactsUpdateSchema = patientFactsSchema.partial();
+/**
+ * Тело `PUT /api/facts`. Partial: непереданное поле не затирается. Strict: опечатка
+ * в имени поля — отказ с этим именем, а не 200 с тихой потерей записи (#53).
+ *
+ * Строгость — только у тела запроса. Строку из БД этой схемой не читают: иначе
+ * колонка, добавленная позже, ломала бы чтение уже данных ответов.
+ */
+export const patientFactsUpdateSchema = patientFactsSchema.partial().strict();
 export type PatientFactsUpdate = z.infer<typeof patientFactsUpdateSchema>;
 
 /**

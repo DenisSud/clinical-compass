@@ -43,7 +43,8 @@ function FactRow({
               </span>
               <input
                 type="number"
-                inputMode="numeric"
+                inputMode="decimal"
+                step={question.step}
                 min={question.min}
                 max={question.max}
                 value={typeof value === "number" ? String(value) : ""}
@@ -138,7 +139,7 @@ export function FactsForm() {
       {view.status === "ready" && (
         <>
           {view.data.answeredAt && (
-            <p className="hint">Последний раз вы отвечали {formatDate(view.data.answeredAt)}.</p>
+            <p className="hint">Последний раз вы отвечали {formatDate(view.data.answeredAt)}</p>
           )}
 
           <form onSubmit={submit}>

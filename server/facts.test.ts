@@ -169,6 +169,134 @@ describe("факты, блокирующие решение", () => {
   });
 });
 
+describe("СКФ с одним знаком после запятой (#52)", () => {
+  it("59.6 сохраняется как есть и поднимает противопоказание", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie } = await boundPair(app);
+
+    const res = await putFacts(app, patientCookie, { egfrMlMin: 59.6 });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().facts.egfrMlMin).toBe(59.6);
+
+    const { signals } = (await listSignals(app, doctorCookie)).json();
+    expect(signals).toHaveLength(1);
+    expect(signals[0].detail).toContain("59.6");
+    expect(signals[0].detail).toContain("порог 60");
+    await app.close();
+  });
+
+  it("60 карточку не поднимает: порог правила строго ниже 60", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie } = await boundPair(app);
+
+    const res = await putFacts(app, patientCookie, { egfrMlMin: 60 });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().facts.egfrMlMin).toBe(60);
+    expect((await listSignals(app, doctorCookie)).json().signals).toEqual([]);
+    await app.close();
+  });
+
+  it("59.95 отклоняется с сообщением про знак после запятой, а не округляется", async () => {
+    const app = await newApp();
+    const { patientCookie } = await boundPair(app);
+
+    const res = await putFacts(app, patientCookie, { egfrMlMin: 59.95 });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe("validation_failed");
+    expect(res.json().message).toContain("СКФ");
+    expect(res.json().message).toContain("знака после запятой");
+
+    const after = await app.inject({
+      method: "GET",
+      url: "/api/facts",
+      headers: { cookie: patientCookie },
+    });
+    expect(after.json().facts.egfrMlMin).toBeNull();
+    await app.close();
+  });
+});
+
+describe("PUT /api/facts не подписывает пустоту ответом (#53)", () => {
+  const factRows = (app: App): number =>
+    (app.conn.sqlite.prepare("SELECT COUNT(*) AS count FROM patient_facts").get() as { count: number })
+      .count;
+
+  it("пустое тело не ставит дату ответа и не заводит строку", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+
+    const res = await putFacts(app, patientCookie, {});
+
+    expect(res.statusCode).toBe(200);
+    expect(res.json().answeredAt).toBeNull();
+    expect(res.json().unanswered).toHaveLength(6);
+    expect(factRows(app)).toBe(0);
+
+    const theirs = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/facts`,
+      headers: { cookie: doctorCookie },
+    });
+    expect(theirs.json().answeredAt).toBeNull();
+    await app.close();
+  });
+
+  it("пустое тело после ответа не сдвигает дату ответа", async () => {
+    const app = await newApp();
+    const { patientCookie } = await boundPair(app);
+    await putFacts(app, patientCookie, { pregnancy: "no" });
+
+    // Дата из прошлого: если бы пустой PUT её переписал, тест не зависел бы от часов.
+    app.conn.sqlite
+      .prepare("UPDATE patient_facts SET updated_at = '2020-01-01T00:00:00Z'")
+      .run();
+
+    const again = await putFacts(app, patientCookie, {});
+
+    expect(again.json().answeredAt).toBe("2020-01-01T00:00:00Z");
+    await app.close();
+  });
+
+  it("опечатка в имени поля — отказ с этим именем, а не 200 с тихой потерей", async () => {
+    const app = await newApp();
+    const { patientCookie } = await boundPair(app);
+
+    const res = await putFacts(app, patientCookie, { childPughGrade: "B" });
+
+    expect(res.statusCode).toBe(400);
+    expect(res.json().code).toBe("validation_failed");
+    expect(res.json().message).toContain("childPughGrade");
+
+    const after = await app.inject({
+      method: "GET",
+      url: "/api/facts",
+      headers: { cookie: patientCookie },
+    });
+    expect(after.json().unanswered).toHaveLength(6);
+    await app.close();
+  });
+
+  it("опечатка рядом с верным полем не сохраняет верное", async () => {
+    const app = await newApp();
+    const { patientCookie } = await boundPair(app);
+
+    const res = await putFacts(app, patientCookie, { pregnancy: "no", childPughGrade: "B" });
+
+    expect(res.statusCode).toBe(400);
+    const after = await app.inject({
+      method: "GET",
+      url: "/api/facts",
+      headers: { cookie: patientCookie },
+    });
+    expect(after.json().facts.pregnancy).toBeNull();
+    expect(after.json().answeredAt).toBeNull();
+    await app.close();
+  });
+});
+
 describe("сохранённое противопоказание доходит до врача", () => {
   it("СКФ 45 поднимает критический сигнал по правилу ОХЛП", async () => {
     const app = await newApp();
