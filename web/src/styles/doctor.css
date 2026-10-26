@@ -877,3 +877,195 @@
   color: var(--text-body);
   list-style: none;
 }
+
+/* ---------- doctor: plan ----------
+ *
+ * One row per item: kind, title, the explanation under them, the state on the right and
+ * the actions after it (system §2.16). The export separates rows by a coloured capsule
+ * per kind and per state — eight capsules on four rows. Words stay, colour does not: on
+ * this screen the only tone that means anything is clinical severity, and a blue capsule
+ * for «Направление» would take the accent away from the critical signal card (§2.3, §3.1).
+ *
+ * State is a word in --text-strong, not a smaller muted tail: «черновик» means the
+ * patient does not see the item at all, and that must read before the actions do
+ * (DESIGN.md §3.2 — the state belongs to the title line).
+ */
+
+.plan-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.plan-item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+}
+
+/* Confirmed: the 4 px bar the panel already had, in the «выполнено» tone. It is the
+ * second channel of the state after the word, and it survives forced-colors. */
+.plan-item--active {
+  border-left: var(--signal-bar-high) solid var(--signal-done);
+}
+
+/* Draft carries no bar: an unconfirmed item must not look like the working plan. */
+.plan-item--draft {
+  border-left: var(--border-width) solid var(--border-divider);
+}
+
+/* Archived is quieter in surface, never in contrast: the text still has to be read. */
+.plan-item--archived {
+  border-left: var(--border-width) solid var(--border-divider);
+  background: var(--surface-inset);
+}
+
+/* A 44 px target and a title do not share a phone width, so the actions stay on their
+ * own line under it; where the row is wide enough they move to the right edge of the
+ * line the explanation sits on (the breakpoint a watch rule uses). The state never
+ * moves: it ends the heading line on every width, so «черновик» and «подтверждён» line
+ * up down the list instead of jumping with the width of the buttons beside them.
+ */
+@media (min-width: 560px) {
+  .plan-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "head head"
+      "details actions";
+    align-items: center;
+  }
+
+  .plan-item__head {
+    grid-area: head;
+  }
+
+  .plan-item__details {
+    grid-area: details;
+  }
+
+  .plan-item__actions {
+    grid-area: actions;
+    justify-content: flex-end;
+  }
+
+  /* The question and its reason belong to the whole row, under both columns. */
+  .plan-item .confirm,
+  .plan-item > .notice {
+    grid-column: 1 / -1;
+  }
+}
+
+.plan-item__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+}
+
+/* The kind: a caption above the title, in the same caps the export gives its label. */
+.plan-item__kind {
+  font-size: var(--text-micro);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.plan-item__title {
+  min-width: 0;
+  font-size: var(--text-body);
+  overflow-wrap: anywhere;
+}
+
+/* «справа» is the end of the heading line: the state is read with the title it belongs
+ * to, not with the buttons it happens to sit next to (§3.2). */
+.plan-item__status {
+  margin-left: auto;
+  font-size: var(--text-small);
+  font-weight: var(--fw-bold);
+  color: var(--text-strong);
+}
+
+/* History is not a state of the action: an archived item's state steps down to muted. */
+.plan-item--archived .plan-item__status {
+  color: var(--text-muted);
+}
+
+.plan-item__details {
+  margin: 2px 0 0;
+  font-size: var(--text-small);
+  line-height: var(--lh-dense);
+  color: var(--text-body);
+}
+
+.plan-item__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* ---------- doctor: plan, adding an item ----------
+ *
+ * Fields take --brand-slate as their edge for the same reason the watch form does:
+ * --border-divider is 1.71:1 on white, and the edge of a field is its only outline
+ * (WCAG 1.4.11 to 3:1). 44 px is the floor for the field and for the button (§3.9).
+ */
+
+.plan-form {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 560px;
+}
+
+.plan-form__kinds {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+/* The legend spans the whole group, so it sits above the radios like a field label. */
+.plan-form__kinds > legend {
+  width: 100%;
+  margin-bottom: var(--space-1);
+  padding: 0;
+}
+
+.plan-form__field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.plan-form__label {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.plan-form input[type="text"] {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid var(--brand-slate);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--text-strong);
+}
+
+.plan-form > .button {
+  justify-self: start;
+}
+
+/* The grid gap is the rhythm here, so the hint's own top margin would double it. */
+.plan-form > .hint {
+  margin: 0;
+}

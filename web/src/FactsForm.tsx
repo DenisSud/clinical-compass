@@ -20,38 +20,61 @@ function formatDate(iso: string): string {
  * отсутствие ответа, которое не прячется (GLOSSARY.md: «Не спрашивали»). Ни балла,
  * ни диапазона, ни тревожной окраски на «да»: интерпретация живёт у врача (§2.2),
  * поэтому ответ — просто выбранный вариант.
+ *
+ * Вопрос открывается тем, где он в списке («Вопрос N из 6»): шесть одинаковых блоков
+ * прокручиваются, и только счётчик говорит, на каком из них пациент остановился
+ * (§3.6). Выбранный вариант виден по всей строке, а не по точке 13 px в кружке
+ * (system §2.7): подложка и маркер слева, как у ответа опросника. «Не знаю» — такой
+ * же вариант в том же ритме, а не серая кнопка: это ответ, который пациенту можно
+ * дать, и он не должен выглядеть единственным, что означает «ничего».
+ *
+ * `hasAnswer` отделяет «ответил «Не знаю»» от «ещё не спрашивали»: у обоих в
+ * контракте `null`, но отметить кружок у нетронутого вопроса значило бы подставить
+ * пациенту клинический факт, которого он не давал (system §4, п. 6).
  */
 function FactRow({
   question,
+  index,
+  total,
   value,
+  hasAnswer,
   onChange,
 }: {
   question: FactQuestion;
+  index: number;
+  total: number;
   value: FactValue;
+  hasAnswer: boolean;
   onChange: (value: FactValue) => void;
 }) {
   return (
     <li className="fact">
       <fieldset className="fact__fieldset">
-        <legend className="fact__question">{question.question}</legend>
+        <legend className="fact__legend">
+          <span className="fact__counter">
+            Вопрос {index} из {total}
+          </span>
+          <span className="fact__question">{question.question}</span>
+        </legend>
         {question.hint && <p className="hint">{question.hint}</p>}
         <div className="fact__answers">
           {question.kind === "number" && (
             <label className="fact__number">
-              <span className="hint">
-                {question.label}, {question.unit}
+              <span className="fact__number-label">{question.label}</span>
+              <span className="fact__number-field">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step={question.step}
+                  min={question.min}
+                  max={question.max}
+                  value={typeof value === "number" ? String(value) : ""}
+                  onChange={(event) =>
+                    onChange(event.target.value === "" ? null : Number(event.target.value))
+                  }
+                />
+                <span className="fact__number-unit">{question.unit}</span>
               </span>
-              <input
-                type="number"
-                inputMode="decimal"
-                step={question.step}
-                min={question.min}
-                max={question.max}
-                value={typeof value === "number" ? String(value) : ""}
-                onChange={(event) =>
-                  onChange(event.target.value === "" ? null : Number(event.target.value))
-                }
-              />
             </label>
           )}
 
@@ -61,7 +84,7 @@ function FactRow({
                 <input
                   type="radio"
                   name={question.key}
-                  checked={value === answer.value}
+                  checked={hasAnswer && value === answer.value}
                   onChange={() => onChange(answer.value as FactValue)}
                 />
                 {answer.label}
@@ -72,7 +95,7 @@ function FactRow({
             <input
               type="radio"
               name={question.key}
-              checked={value === null}
+              checked={hasAnswer && value === null}
               onChange={() => onChange(null)}
             />
             {UNANSWERED_ANSWER_LABEL}
@@ -100,6 +123,11 @@ export function FactsForm() {
     return Object.hasOwn(changes, key) ? (changes[key] ?? null) : facts[key];
   }
 
+  /* Ответ есть, если он пришёл с сервера или пациент изменил его на этом экране. */
+  function hasAnswer(key: keyof PatientFacts, facts: PatientFacts): boolean {
+    return Object.hasOwn(changes, key) || facts[key] !== null;
+  }
+
   function answer(key: keyof PatientFacts, value: FactValue) {
     setSaved(false);
     setFailure(null);
@@ -125,8 +153,7 @@ export function FactsForm() {
   return (
     <Card title="Мои данные">
       <p className="muted">
-        Шесть вопросов о том, что врачу нужно знать до назначения лечения. Отвечайте как есть, а
-        если не знаете — так и отметьте.
+        Ответы увидит ваш врач. Если не знаете ответа, выберите «Не знаю» — это нормально.
       </p>
 
       {view.status === "loading" && <p className="notice">Загрузка ваших ответов…</p>}
@@ -144,25 +171,34 @@ export function FactsForm() {
 
           <form onSubmit={submit}>
             <ul className="facts">
-              {FACT_QUESTIONS.map((question) => (
+              {FACT_QUESTIONS.map((question, index) => (
                 <FactRow
                   key={question.key}
                   question={question}
+                  index={index + 1}
+                  total={FACT_QUESTIONS.length}
                   value={valueOf(question.key, view.data.facts)}
+                  hasAnswer={hasAnswer(question.key, view.data.facts)}
                   onChange={(value) => answer(question.key, value)}
                 />
               ))}
             </ul>
 
             <div className="facts__actions">
-              <Button type="submit" variant="primary" disabled={!dirty || busy}>
+              <Button
+                type="submit"
+                variant="primary"
+                className="facts__submit"
+                disabled={!dirty || busy}
+              >
                 {busy ? "Сохраняем…" : "Сохранить ответы"}
               </Button>
-              {dirty && !busy && (
-                <p className="hint">Ответы сохранятся, когда вы нажмёте «Сохранить ответы».</p>
-              )}
               {saved && !dirty && <p className="notice">Ответы сохранены.</p>}
               {failure && <p className="notice notice--error">{failure}</p>}
+              {/* Неактивная кнопка объясняет себя там, где она неактивна (§5, вопрос 5). */}
+              {!dirty && !busy && !saved && (
+                <p className="hint">Ответы сохранятся, когда вы нажмёте «Сохранить ответы».</p>
+              )}
             </div>
           </form>
 

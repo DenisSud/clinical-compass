@@ -273,11 +273,11 @@
  * row carries a transparent 2 px left border, so the text does not jump by 2 px sideways
  * when the answer changes.
  *
- * Scoped to the questionnaire on purpose: «Мои данные» reuses `.choice` and opens with
- * «Не знаю» already checked on an unanswered fact (FactsForm.tsx:71), so a row marker
- * there would present «не спрашивали» as a given answer. That row belongs to wave 5B
- * (migration §3.4; system §4, item 6). Where `:has()` is not supported the row loses only
- * the tint and the marker; the radio still carries the state on its own.
+ * Scoped to the questionnaire: «Мои данные» draws its own rows with a frame around them
+ * and the same marker inside it (facts.css, `.facts .choice`), so the marker is written
+ * once per form rather than once for every `.choice` on both. Where `:has()` is not
+ * supported the row loses only the tint and the marker; the radio still carries the state
+ * on its own.
  */
 .phq9 .choice {
   border-left: var(--border-width-strong) solid transparent;

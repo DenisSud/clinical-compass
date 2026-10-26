@@ -1,4 +1,4 @@
-/* ---------- blocking facts (#48) ----------
+/* ---------- blocking facts: the patient's form (#48, _6) ----------
  *
  * One list of facts, two screens. The patient sees the question, their own answer and the
  * date: a chosen option is a choice, not an assessment, so «да» carries no signal tone
@@ -11,20 +11,28 @@
 
 .facts {
   display: grid;
-  gap: var(--space-4);
+  gap: 0;
   margin: var(--space-4) 0 0;
   padding: 0;
   list-style: none;
 }
 
+/*
+ * One question is one block that opens with its place in the list (§3.6): six identical
+ * questions scroll past, and the counter is what says where in them the patient is. Blocks
+ * are separated by a hairline and not by a card of their own: the export draws each
+ * question as a white card on a tinted page (system §1.5), and inside our white card a
+ * second white card would need a second frame inside a frame.
+ */
 .fact {
-  padding-top: var(--space-3);
-  border-top: var(--border-width) solid var(--border-hairline);
+  margin: 0;
+  padding: 0;
 }
 
-.fact:first-child {
-  padding-top: 0;
-  border-top: none;
+.fact + .fact {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: var(--border-width) solid var(--border-hairline);
 }
 
 .fact__fieldset {
@@ -34,9 +42,32 @@
   border: 0;
 }
 
-.fact__question {
+/*
+ * The legend carries both the counter and the question, so the group announces where it
+ * sits in the list along with its text. `display: block; width: 100%` keeps the legend from
+ * shrinking to its longest word, which is how it is laid out by default.
+ */
+.fact__legend {
+  display: block;
+  width: 100%;
+  margin: 0;
   padding: 0;
-  font-size: var(--text-body);
+}
+
+.fact__counter {
+  display: block;
+  font-size: var(--text-micro);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+/* The question at 17/700: the export's headline-md is 18, our scale has 17 (§3.6). */
+.fact__question {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--text-h3);
   font-weight: var(--fw-bold);
   line-height: var(--lh-dense);
   color: var(--text-strong);
@@ -44,8 +75,38 @@
 
 .fact__answers {
   display: grid;
-  gap: 2px;
-  margin-top: var(--space-2);
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/*
+ * Every option is a 44 px row with a frame; the chosen one takes a mint fill and the 2 px
+ * marker on the left — the same pair the questionnaire uses (patient.css, `.phq9 .choice`),
+ * so «выбрано» looks the same on both patient forms. The left edge is 2 px on every row and
+ * only changes colour when the row is chosen: a transparent edge would leave the frame open
+ * on one side, and the text must not jump sideways when the answer changes. «Не знаю» is
+ * one of these rows and not a grey button: it is an answer the patient may give, and it must
+ * not read as the one option that means «ничего».
+ *
+ * The frame is --brand-slate (5.86:1), not --border-divider: a row here is a control, and
+ * 1.71:1 on white is below the 3:1 of WCAG 1.4.11 — the same reason our input frames are
+ * not the export's #bbc8d1 (system §4, п. 20).
+ */
+.facts .choice {
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--brand-slate);
+  border-left: var(--border-width-strong) solid var(--brand-slate);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+}
+
+/* The tint means «выбрано», not «хорошо» — the language of the day scale, not a signal
+   level (§2.2). */
+.facts .choice:has(input:checked) {
+  border-left-color: var(--action-primary);
+  background: var(--surface-muted);
+  font-weight: var(--fw-bold);
 }
 
 .fact__number {
@@ -54,24 +115,61 @@
   margin-bottom: var(--space-1);
 }
 
-.fact__number input {
+.fact__number-label {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+/* The unit sits inside the field's frame (system §2.6): it names the number, and a unit
+   written under the field reads as a second label. The input has no frame of its own — the
+   wrapper carries it, and the focus ring moves to the wrapper for the same reason. */
+.fact__number-field {
+  display: flex;
+  align-items: center;
   width: 100%;
-  max-width: 160px;
+  max-width: 220px;
   min-height: 44px;
-  padding: 0 var(--space-3);
   border: 1px solid var(--brand-slate); /* 5.86:1 — граница поля, WCAG 1.4.11 */
   border-radius: var(--radius-surface);
   background: var(--surface-card);
+}
+
+.fact__number-field input {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 42px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border: 0;
+  background: none;
   font: inherit;
   font-size: var(--text-body);
   color: var(--text-strong);
 }
 
+.fact__number-field input:focus-visible {
+  outline: none;
+}
+
+.fact__number-field:focus-within {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.fact__number-unit {
+  padding-right: var(--space-3);
+  font-size: var(--text-body);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 .facts__actions {
   display: grid;
-  justify-items: start;
   gap: var(--space-2);
-  margin-top: var(--space-4);
+  margin-top: var(--space-5);
+}
+
+.facts__submit {
+  width: 100%;
 }
 
 /* Incompleteness, not risk: a neutral surface and ordinary text, no signal tones. */
