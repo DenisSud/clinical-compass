@@ -47,7 +47,7 @@
   min-height: 44px;
   margin-top: var(--space-1);
   padding: var(--space-2) var(--space-3);
-  border: var(--border-width) solid var(--border-divider);
+  border: var(--border-width) solid var(--brand-slate); /* 5.86:1 — граница поля, WCAG 1.4.11 */
   border-radius: var(--radius-surface);
   background: var(--surface-card);
   color: var(--text-body);
@@ -69,7 +69,7 @@
   max-width: 100%;
   min-height: 44px;
   padding: var(--space-2) var(--space-3);
-  border: var(--border-width) solid var(--border-divider);
+  border: var(--border-width) solid var(--brand-slate); /* 5.86:1 — граница поля, WCAG 1.4.11 */
   border-radius: var(--radius-surface);
   background: var(--surface-card);
   color: var(--text-body);
