@@ -402,6 +402,11 @@
  * they stop being a second visual language (#35). Every target is 44 px (DESIGN.md
  * §3.9). Field borders take --brand-slate, as the login fields do: --border-divider is
  * 1.71:1 on white and a field's only edge has to reach 3:1 (WCAG 1.4.11).
+ *
+ * One row is two lines with its action on the right, as the export draws it (_7): title
+ * and state, then threshold and level. The level is a word in --text-muted and nothing
+ * else — the export's red capsule on this row would make a rule louder than the signal
+ * card it explains (DESIGN.md §2.3, §3.1).
  */
 
 .watch-list {
@@ -413,10 +418,22 @@
 }
 
 .watch-item {
+  display: grid;
+  gap: var(--space-2);
   padding: var(--space-3);
   border: var(--border-width) solid var(--border-divider);
   border-radius: var(--radius-surface);
   background: var(--surface-card);
+}
+
+/* A 44 px target and a title do not share a phone width, so the row stacks there and
+ * only becomes a row where both fit. */
+@media (min-width: 560px) {
+  .watch-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    column-gap: var(--space-4);
+  }
 }
 
 /* A paused rule is quieter in surface, not in contrast: opacity 0.55 pushed its title
@@ -425,11 +442,14 @@
   background: var(--surface-inset);
 }
 
+.watch-item__body {
+  min-width: 0;
+}
+
 .watch-item__head {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
   gap: var(--space-1) var(--space-3);
 }
 
@@ -437,23 +457,26 @@
   font-size: var(--text-body);
 }
 
-.watch-item__severity {
-  font-size: var(--text-small);
+/* «активно» / «на паузе» — the word is the first channel of the rule's state, the inset
+ * surface of a paused row the second; a paused rule must never look like a working one. */
+.watch-item__status {
+  font-size: var(--text-micro);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 
-.watch-item__severity--critical {
-  color: var(--signal-critical);
-}
-
 .watch-item__detail {
-  margin-top: 2px;
+  margin: 2px 0 0;
   font-size: var(--text-small);
+  line-height: var(--lh-dense);
   color: var(--text-muted);
 }
 
 .watch-item__toggle {
-  margin-top: var(--space-2);
+  justify-self: start;
+  white-space: nowrap;
 }
 
 .watch-add {
@@ -489,6 +512,88 @@
 
 .watch-form__number {
   width: 88px;
+}
+
+/* ---------- doctor: watch, the patient's signals ----------
+ *
+ * The same signals as on the «Сигналы» screen, read-only and compact: the watch tab
+ * explains what the rules and the facts produced, it does not review anything, so there
+ * are no review buttons here (DESIGN.md §2.4 — the history stays visible). Level is
+ * word and shape first and keeps the 8 / 4 / 0 px bar, which is the channel that
+ * survives forced-colors; the card is one step denser than a signal card so the block
+ * of rules above it never competes with what it leads to (§2.3).
+ */
+
+.patient-signals {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.patient-signal {
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+}
+
+.patient-signal--critical {
+  border-left: var(--signal-bar-critical) solid var(--signal-critical);
+}
+
+.patient-signal--high {
+  border-left: var(--signal-bar-high) solid var(--signal-bar);
+}
+
+/* Medium has no bar at all: thickness is not the channel that separates it (#32 §1.1).
+ * Closed keeps only the word — no bar, no level tone (#32 §6). */
+.patient-signal--medium,
+.patient-signal--closed {
+  border-left: var(--border-width) solid var(--border-divider);
+}
+
+.patient-signal__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-3);
+}
+
+.patient-signal__title {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-dense);
+}
+
+.patient-signal__meta {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.patient-signal__detail {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-small);
+  line-height: var(--lh-dense);
+}
+
+/* The word and the mark keep the level tone of the signals list; the compact card only
+ * borrows .signal__severity, so the colour is re-stated here instead of inherited from
+ * a .signal--* modifier this card does not wear (DESIGN.md §2.3). */
+.patient-signal--critical .signal__severity {
+  font-weight: var(--fw-bold);
+  color: var(--signal-critical);
+}
+
+.patient-signal--high .signal__severity {
+  color: var(--signal-high);
+}
+
+.patient-signal--medium .signal__severity {
+  color: var(--signal-medium);
 }
 
 /* ---------- doctor: patients ----------

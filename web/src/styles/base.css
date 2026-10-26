@@ -387,3 +387,97 @@ th {
   cursor: pointer;
 }
 
+
+/* ---------- messages ----------
+ *
+ * One thread for both roles (system §2.15). The export signs the author inside the
+ * bubble as a caption and puts the patient left on white and the doctor left on light
+ * blue — two languages for one dialogue, and the doctor's bubble is not on its own
+ * side. Here the side carries the author: own messages sit right on --surface-inset,
+ * the counterpart's left on --surface-muted, so the caption says who in words and the
+ * place says it again without colour. 640 px is the export's measure for a bubble; it
+ * keeps the line readable inside the doctor's 1120 px column and is wider than the
+ * patient's 560 px page, so on a phone the bubble is the column.
+ */
+
+.thread__list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.thread__item {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.thread__item--mine {
+  justify-content: flex-end;
+}
+
+/*
+ * The hairline sits 12 px from the bubble above and 12 px from the one below (list gap
+ * plus padding): it separates two messages, it is not a border of either.
+ */
+.thread__item + .thread__item {
+  padding-top: var(--space-3);
+  border-top: var(--border-width) solid var(--border-hairline);
+}
+
+/* min-width 0 and the cap together keep one long word from widening the page at 375 px. */
+.thread__bubble {
+  min-width: 0;
+  max-width: min(640px, 100%);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-surface);
+  background: var(--surface-muted);
+}
+
+.thread__item--mine .thread__bubble {
+  background: var(--surface-inset);
+}
+
+/* The author and the date: 12 px caps, muted, the export's label-sm with our type scale. */
+.thread__meta {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-micro);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.thread__body {
+  margin: 0;
+  font-size: var(--text-body);
+  color: var(--text-body);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.thread__form {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+/* 44 px floor for the field as well as the button (DESIGN.md §3.9); vertical resize
+   only, so a drag cannot push the page sideways on a phone. */
+.thread__field {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--text-body);
+  resize: vertical;
+}
+
+.thread__form .button {
+  justify-self: start;
+}

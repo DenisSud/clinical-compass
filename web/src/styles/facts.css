@@ -2,8 +2,8 @@
  *
  * One list of facts, two screens. The patient sees the question, their own answer and the
  * date: a chosen option is a choice, not an assessment, so «да» carries no signal tone
- * (DESIGN.md §2.2). The doctor sees the same answers as a list with their source; what the
- * answers mean is said by the signal card below, never by this block.
+ * (DESIGN.md §2.2). The doctor sees the same answers as cards with their state and their
+ * source; what the answers mean is said by the signal card below, never by this block.
  *
  * Targets are 44 px like everywhere else (§3.9); the fieldset is reset to zero, because its
  * min-content width otherwise pushes the page sideways at 375 px (WCAG 2.2 §1.4.10 reflow).
@@ -81,32 +81,91 @@
   background: var(--surface-inset);
 }
 
-.facts-gaps__list,
-.facts-report__list {
+.facts-gaps__list {
   margin: var(--space-2) 0 0;
   padding-left: 20px;
   font-size: var(--text-small);
   line-height: var(--lh-dense);
 }
 
+/* ---------- blocking facts: the doctor's reading (#48, _7) ----------
+ *
+ * Six facts, one card each, and every card says its state in a word first: answered and
+ * marked, answered and clear, or never asked. The surface is the second channel — a filled
+ * block, an outline, a dashed outline — because the word alone must not be the only thing
+ * separating «не отмечено» from «не спрашивали» (GLOSSARY.md, DESIGN.md §2.5), and because
+ * colour is taken by signals. Dashed is the one form nobody can read as the other two in
+ * greyscale or in forced-colors mode.
+ *
+ * No tone of a signal level appears here: a marked fact is not a severity, and the card
+ * that draws the conclusion sits under this block (§2.2, §2.3).
+ */
+
 .facts-report {
   display: grid;
   gap: var(--space-3);
 }
 
-.facts-report__title {
+.facts-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-3);
   margin: 0;
-  font-size: var(--text-small);
+  padding: 0;
+  list-style: none;
+}
+
+.fact-card {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-surface);
+}
+
+.fact-card--marked {
+  border: var(--border-width) solid var(--border-divider);
+  background: var(--surface-inset);
+}
+
+.fact-card--clear {
+  border: var(--border-width) solid var(--border-divider);
+  background: var(--surface-card);
+}
+
+.fact-card--not_asked {
+  border: var(--border-width) dashed var(--border-divider);
+  background: var(--surface-card);
+}
+
+.fact-card__state {
+  margin: 0;
+  font-size: var(--text-micro);
   font-weight: var(--fw-bold);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
-.facts-report__list li {
-  margin-top: 2px;
+.fact-card__label {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: var(--lh-dense);
+  color: var(--text-body);
 }
 
-.facts-report__list--muted {
+/* «Не спрашивали» is grey to the last word: nothing on this card is an answer. */
+.fact-card--not_asked .fact-card__label {
   color: var(--text-muted);
+}
+
+/* The answer is the one thing on the card read at a glance; it leans on weight and
+ * --text-strong (12.02:1 on the white card, 10.74:1 on the inset one), not on colour. */
+.fact-card__value {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-dense);
+  color: var(--text-strong);
 }

@@ -13,6 +13,12 @@ const KIND_LABEL: Record<WatchKind, string> = {
 
 const SEVERITY_LABEL = { medium: "средняя", high: "высокая", critical: "критичная" } as const;
 
+/** A paused rule must say so: an inset surface alone does not tell the doctor it is off. */
+const STATUS_LABEL: Record<WatchItem["status"], string> = {
+  active: "активно",
+  paused: "на паузе",
+};
+
 /**
  * The doctor's own rules. They sit on top of the built-in safety net, which cannot
  * be switched off from here — a critical questionnaire answer always raises a signal.
@@ -102,21 +108,21 @@ export function WatchPanel({ patientId }: { patientId: string }) {
               key={item.id}
               className={item.status === "paused" ? "watch-item watch-item--paused" : "watch-item"}
             >
-              <div className="watch-item__head">
-                <strong className="watch-item__title">{item.title}</strong>
-                <span
-                  className={
-                    item.severity === "critical"
-                      ? "watch-item__severity watch-item__severity--critical"
-                      : "watch-item__severity"
-                  }
-                >
-                  {SEVERITY_LABEL[item.severity]}
-                </span>
+              <div className="watch-item__body">
+                <div className="watch-item__head">
+                  <strong className="watch-item__title">{item.title}</strong>
+                  <span className="watch-item__status">{STATUS_LABEL[item.status]}</span>
+                </div>
+                {/*
+                 * The level is the last word on the threshold line, in --text-muted: the
+                 * export gives it a red capsule, and a red capsule on a rule row would take
+                 * the one loud accent away from the critical signal card below (§2.3, §3.1).
+                 */}
+                <p className="watch-item__detail">
+                  {describeWatch(item)} · {SEVERITY_LABEL[item.severity]}
+                </p>
               </div>
-              <div className="watch-item__detail">{describeWatch(item)}</div>
               <Button
-                variant="quiet"
                 className="watch-item__toggle"
                 disabled={toggleBusy !== null}
                 onClick={() => void toggle(item)}
@@ -124,10 +130,10 @@ export function WatchPanel({ patientId }: { patientId: string }) {
                 {toggleBusy === item.id
                   ? item.status === "active"
                     ? "Приостанавливаем…"
-                    : "Включаем…"
+                    : "Возвращаем…"
                   : item.status === "active"
                     ? "Приостановить"
-                    : "Включить обратно"}
+                    : "Вернуть"}
               </Button>
             </li>
           ))}

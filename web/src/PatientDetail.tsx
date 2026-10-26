@@ -4,7 +4,7 @@ import { PatientFactsPanel } from "./PatientFactsPanel";
 import { WatchPanel } from "./WatchPanel";
 import { MessageThread } from "./MessageThread";
 import { PlanPanel } from "./PlanPanel";
-import { SIGNAL_STATUS_LABEL, SignalRule, SignalSeverity, signalClassName, sortSignals } from "./SignalsPanel";
+import { SIGNAL_STATUS_LABEL, SignalRule, SignalSeverity, sortSignals } from "./SignalsPanel";
 import type {
   DiaryEntry,
   DoctorAssessment,
@@ -31,7 +31,20 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
 }
 
-/** The patient's own signals, read-only: the doctor's tabs should not hide the history that led here. */
+/** A closed signal keeps only the word: no bar, no level tone (signal-semantics.md §6). */
+function patientSignalClassName(signal: Pick<Signal, "severity" | "status">): string {
+  return signal.status === "closed"
+    ? "patient-signal patient-signal--closed"
+    : `patient-signal patient-signal--${signal.severity}`;
+}
+
+/**
+ * The patient's own signals, compact and read-only: this tab shows what the doctor's rules
+ * and the patient's facts produced, so the history stays visible (DESIGN.md §2.4). It keeps
+ * the word, the shape and the 8 / 4 / 0 px bar of a level and drops the review actions — a
+ * signal is taken into review on its own screen, where the result of the review is written
+ * (§3.2).
+ */
 function PatientSignals({ patientId }: { patientId: string }) {
   const [signals, setSignals] = useState<Load<Signal[]>>(loading());
 
@@ -54,19 +67,18 @@ function PatientSignals({ patientId }: { patientId: string }) {
   if (signals.data.length === 0) return <Empty>По этому пациенту сигналов не было.</Empty>;
 
   return (
-    <ul className="signal-list">
+    <ul className="patient-signals">
       {sortSignals(signals.data).map((signal) => (
-        <li key={signal.id} className={signalClassName(signal)}>
-          <div className="signal__head">
+        <li key={signal.id} className={patientSignalClassName(signal)}>
+          <div className="patient-signal__head">
             <SignalSeverity severity={signal.severity} closed={signal.status === "closed"} />
-            <span className="signal__status">{SIGNAL_STATUS_LABEL[signal.status]}</span>
+            <h4 className="patient-signal__title">{signal.title}</h4>
           </div>
-          <h4 className="signal__title">{signal.title}</h4>
-          <p className="signal__meta">
-            {formatDate(signal.createdAt)}
+          <p className="patient-signal__meta">
+            {SIGNAL_STATUS_LABEL[signal.status]} · {formatDate(signal.createdAt)}
             {signal.watchItemId && " · по вашему правилу"}
           </p>
-          <p className="signal__detail">{signal.detail}</p>
+          <p className="patient-signal__detail">{signal.detail}</p>
           <SignalRule signal={signal} />
           {signal.outcome && (
             <p className="hint">
@@ -251,6 +263,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
           {messages.status === "ready" && (
             <MessageThread
               messages={messages.data}
+              viewer="doctor"
               placeholder="Ответить пациенту"
               onSend={async (body) => {
                 const response = await sendPatientMessage(patient.id, body);

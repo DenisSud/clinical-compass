@@ -32,6 +32,11 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
 }
 
+/* «— с 21 октября» under «Ведущий врач»: the export gives the binding date without a year. */
+function formatDayMonth(iso: string): string {
+  return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+}
+
 export function PatientHome({
   profile,
   onChanged,
@@ -364,15 +369,7 @@ export function PatientHome({
           {profile.doctor ? (
             <p className="muted">
               {profile.doctor.name ?? profile.doctor.email}
-              {profile.boundAt && (
-                <span className="hint" style={{ display: "inline-block", marginLeft: 4 }}>
-                  — с{" "}
-                  {new Date(profile.boundAt).toLocaleDateString("ru-RU", {
-                    day: "numeric",
-                    month: "long",
-                  })}
-                </span>
-              )}
+              {profile.boundAt && ` — с ${formatDayMonth(profile.boundAt)}`}
             </p>
           ) : (
             <p className="muted">
@@ -392,6 +389,7 @@ export function PatientHome({
           {messages.status === "ready" && (
             <MessageThread
               messages={messages.data}
+              viewer="patient"
               placeholder="Напишите сообщение врачу"
               onSend={async (body) => {
                 const response = await sendMessage(body);
