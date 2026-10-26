@@ -1,0 +1,20 @@
+/* Ten 44 px targets in a row do not fit a 360 px phone; 5 x 2 keeps the thumb honest (§3.9). */
+.diary-scale {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 6px;
+}
+
+@media (max-width: 600px) {
+  .diary-scale {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+/* The way into «Мои данные» from «Сегодня»: one calm line and a quiet button — no counter,
+   no signal tone (§2.2: incompleteness is not risk). */
+.facts-invite {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-1);
+}

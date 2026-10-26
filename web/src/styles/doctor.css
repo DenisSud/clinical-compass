@@ -1,0 +1,517 @@
+/* ---------- disclosure (invite a patient) ---------- */
+
+.disclosure {
+  margin-bottom: 16px;
+  padding: 0 14px;
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+}
+
+.disclosure > summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.disclosure[open] > summary {
+  border-bottom: var(--border-width) solid var(--border-hairline);
+}
+
+.disclosure__body {
+  padding: 12px 0;
+}
+
+.disclosure__body > :first-child {
+  margin-top: 0;
+}
+
+.code {
+  margin: 10px 0 4px;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  letter-spacing: 2px;
+}
+
+/* ---------- doctor: signals ----------
+ *
+ * Encoding follows signal-semantics.md #32 §1.1 channel by channel: word (always),
+ * shape (second), colour (third, and never alone). Stripped of colour the three
+ * levels must still be told apart, because forced-colors removes every one of these
+ * tones (#32 §4.4).
+ */
+
+.signal-list {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One block per severity level, so a folded «Ещё N» sits under the third card of its
+ * own level and never under a different one (signal-semantics.md #32 §3). */
+.signal-groups {
+  display: grid;
+  gap: 12px;
+}
+
+.signal {
+  padding: 12px 14px;
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+}
+
+/* High — 4 px neutral bar and an outline triangle. */
+.signal--high {
+  border-left: var(--signal-bar-high) solid var(--signal-bar);
+}
+
+/* Medium — no bar at all: thickness is not the channel that separates it (#32 §1.1, §7.2). */
+.signal--medium {
+  border-left: var(--border-width) solid var(--border-divider);
+}
+
+/*
+ * Critical — the one loud thing on the screen (DESIGN.md §2.3, §3.1): 8 px bar,
+ * 2 px dark frame, 20 px title, filled triangle. Nothing else on the screen carries
+ * two of those at once.
+ */
+.signal--critical {
+  padding: 16px 18px;
+  border: var(--border-width-strong) solid var(--border-strong);
+  border-left: var(--signal-bar-critical) solid var(--signal-critical);
+}
+
+.signal__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+
+.signal__severity {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.signal--critical .signal__severity {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--signal-critical);
+}
+
+.signal--high .signal__severity {
+  color: var(--signal-high);
+}
+
+.signal--medium .signal__severity {
+  color: var(--signal-medium);
+}
+
+/* The mark inherits the level colour through currentColor, so a level is set once. */
+.signal__mark {
+  flex: none;
+  display: block;
+}
+
+.signal__mark-fill,
+.signal__mark-glyph {
+  fill: currentColor;
+}
+
+.signal__mark-outline {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+}
+
+/* The exclamation inside a filled triangle is a cut-out, not a second colour. */
+.signal__mark-cut {
+  fill: var(--text-invert);
+}
+
+.signal__title {
+  margin: 4px 0 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.signal--critical .signal__title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.signal__status {
+  flex: none;
+  padding: 2px 10px;
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-pill);
+  background: var(--surface-card);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.signal--critical .signal__status {
+  border-color: var(--border-strong);
+}
+
+/*
+ * Closed — never louder than the open card of the same level (#32 §6). No bar, no
+ * level colour, no icon, 1 px frame, 15 px title; what separates it is the word
+ * «закрыт», the absent action and the mandatory outcome text. A closed «критично»
+ * that kept its frame and fill would be the loudest thing in the patient's history.
+ */
+.signal--closed {
+  padding: 12px 14px;
+  border: var(--border-width) solid var(--border-divider);
+}
+
+.signal--closed .signal__severity {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.signal--closed .signal__title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.signal--closed .signal__status {
+  padding: 0;
+  border-color: transparent;
+  background: none;
+  color: var(--text-muted);
+}
+
+/* Colour is forced away here; the word, the shape and the bar width are what is left. */
+@media (forced-colors: active) {
+  .signal {
+    border-color: CanvasText;
+  }
+
+  .signal__mark-fill,
+  .signal__mark-glyph {
+    fill: CanvasText;
+  }
+
+  .signal__mark-outline {
+    fill: none;
+    stroke: CanvasText;
+  }
+
+  .signal__mark-cut {
+    fill: Canvas;
+  }
+}
+
+.signal__meta {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.signal__detail {
+  margin: 8px 0 0;
+  font-size: 14px;
+}
+
+/*
+ * Which rule raised the card and where it came from. Muted, because it is context for
+ * the decision, not the decision; a placeholder says its status in words and is set
+ * apart in italics, so it cannot pass for a rule taken from the guidelines.
+ */
+.signal__source {
+  margin: 8px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.signal__source--placeholder {
+  font-style: italic;
+}
+
+/*
+ * The path is audit evidence, not a sentence for a doctor: it stays readable for
+ * whoever checks the rule, but it does not compete with the words above it.
+ */
+.signal__source-ref {
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  opacity: 0.75;
+  word-break: break-all;
+}
+
+.signal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.signal__form {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.signal__form textarea {
+  width: 100%;
+  padding: 8px;
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  font: inherit;
+}
+
+.closed-group {
+  margin-top: 20px;
+  padding: 0 14px;
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+}
+
+/*
+ * The rest of a level: «Ещё N: важно» (signal-semantics.md #32 §3). Same frame as the
+ * closed group; the header carries both the level word and the level mark, so a folded
+ * card is still counted and still says what it is. Level colours on white are 5.43:1
+ * and 7.69:1 — AA for text (tokens.css header).
+ */
+.signal-more {
+  padding: 0 14px;
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+}
+
+.closed-group > summary,
+.signal-more > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+/* After the shared rule on purpose: same specificity, so the level wins the last word. */
+.signal-more--high > summary {
+  color: var(--signal-high);
+}
+
+.signal-more--medium > summary {
+  color: var(--signal-medium);
+}
+
+.closed-group .signal-list,
+.signal-more .signal-list {
+  padding-bottom: 12px;
+}
+
+/* ---------- doctor: watch rules ----------
+ *
+ * The doctor's own rules use the same classes and tokens as the rest of the card, so
+ * they stop being a second visual language (#35). Every target is 44 px (DESIGN.md
+ * §3.9). Field borders take --brand-slate, as the login fields do: --border-divider is
+ * 1.71:1 on white and a field's only edge has to reach 3:1 (WCAG 1.4.11).
+ */
+
+.watch-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.watch-item {
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+}
+
+/* A paused rule is quieter in surface, not in contrast: opacity 0.55 pushed its title
+   under 4.5:1, and the rule's own text still has to be readable (DESIGN.md §2.4). */
+.watch-item--paused {
+  background: var(--surface-inset);
+}
+
+.watch-item__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.watch-item__title {
+  font-size: var(--text-body);
+}
+
+.watch-item__severity {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.watch-item__severity--critical {
+  color: var(--signal-critical);
+}
+
+.watch-item__detail {
+  margin-top: 2px;
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.watch-item__toggle {
+  margin-top: var(--space-2);
+}
+
+.watch-add {
+  margin-top: var(--space-3);
+}
+
+.watch-form {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 480px;
+  margin-top: var(--space-3);
+}
+
+.watch-form select,
+.watch-form input {
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid var(--brand-slate);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--text-strong);
+}
+
+.watch-form__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.watch-form__number {
+  width: 88px;
+}
+
+/* ---------- doctor: patients ---------- */
+
+.patients {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+
+.patients__list {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}
+
+.patients__card {
+  min-width: 0;
+}
+
+.patient-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.patient-list__item {
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+  font: inherit;
+  font-size: 15px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.patient-list__item[aria-current="true"] {
+  padding: 9px 11px;
+  border: var(--border-width-strong) solid var(--border-strong);
+  font-weight: 600;
+}
+
+.patient-card__head {
+  margin-bottom: 4px;
+}
+
+.patient-card__name {
+  margin: 0;
+  font-size: 18px;
+}
+
+.patient-card__footer {
+  display: grid;
+  gap: 8px;
+  margin-top: 20px;
+  padding-top: 12px;
+  border-top: var(--border-width) solid var(--border-hairline);
+}
+
+.confirm {
+  display: grid;
+  gap: 10px;
+  max-width: 480px;
+}
+
+.confirm__question {
+  margin: 0;
+  font-size: 14px;
+}
+
+@media (min-width: 900px) {
+  .patients {
+    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
+    gap: 24px;
+  }
+
+  .back {
+    display: none;
+  }
+}
+
+@media (max-width: 899px) {
+  .patients.is-open .patients__list {
+    display: none;
+  }
+
+  .patients__placeholder {
+    display: none;
+  }
+
+  .patients__card .patient-card__footer {
+    margin-top: 16px;
+  }
+}
+

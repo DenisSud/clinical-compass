@@ -1,0 +1,354 @@
+/*
+ * Layout only: structure, hierarchy, responsiveness. Colour and decoration are
+ * kept to the minimum DESIGN.md §2 allows, so that clinical severity wins over
+ * anything decorative on the same screen.
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+  color: var(--text-body);
+  background: var(--surface-page);
+}
+
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--text-strong);
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+td,
+th {
+  overflow-wrap: anywhere;
+}
+
+/* ---------- app shell ----------
+ *
+ * Two shells, one stylesheet. The control points are the ones the references were
+ * drawn on (issues #30, #31): phone 375, tablet 768, desktop 1440. Nothing here
+ * may scroll sideways at 375 px (WCAG 2.2 §1.4.10 reflow).
+ *
+ * Doctor: a wide screen, list and card side by side (DESIGN.md §3.10, #30 §4.4).
+ * Patient: one narrow column that stays narrow on a desktop, so the line length and
+ * the 44 px targets (DESIGN.md §3.9) do not change with the device.
+ */
+
+.app {
+  min-height: 100vh;
+}
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 10px 16px;
+  border-bottom: var(--border-width) solid var(--border-divider);
+}
+
+.topbar__brand {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.topbar__spacer {
+  flex: 1 1 auto;
+}
+
+.topbar__email {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* On a phone the brand and the exit share the first row; the email drops below it,
+   instead of the exit button falling onto a line of its own under the rule. */
+@media (max-width: 520px) {
+  .topbar {
+    gap: 2px 12px;
+  }
+
+  .topbar__spacer {
+    display: none;
+  }
+
+  .topbar__brand {
+    order: 1;
+    flex: 1 1 auto;
+  }
+
+  .topbar button {
+    order: 2;
+  }
+
+  .topbar__email {
+    order: 3;
+    flex-basis: 100%;
+    font-size: 13px;
+  }
+}
+
+.page {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.page > .tabs:first-child {
+  margin-top: 16px;
+}
+
+.page--wide {
+  max-width: 1120px;
+}
+
+.page--patient {
+  max-width: 560px;
+}
+
+@media (min-width: 768px) {
+  .page {
+    padding: 24px 24px 48px;
+  }
+}
+
+/* ---------- tabs ---------- */
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 16px;
+  background: var(--surface-inset);
+  border: var(--border-width) solid var(--border-hairline);
+  border-radius: var(--radius-surface);
+}
+
+.tab {
+  flex: 1 1 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-surface);
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+  background: var(--surface-card);
+  border-color: var(--border-divider);
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.tab__count {
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-card);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/*
+ * The tabs wrap onto a second row instead of scrolling (#48 revised #35). #35 chose the
+ * scroller because the five patient tabs fitted a phone row exactly (329 of 333 px) and
+ * wrapping left the fifth one alone on its own line. The sixth tab («Мои данные») turned
+ * the scroller into a hiding place: «План» and «Врач» sat behind the edge, and the fade
+ * over the selected tab's white plate read as the end of the row rather than as «there are
+ * two more sections» (DESIGN.md §2.4, §3.7). Two rows of 44 px cost 88 px of height and
+ * show every section; a row that fits stays one row (desktop, the patient card).
+ */
+@media (max-width: 520px) {
+  .tabs {
+    gap: var(--space-1);
+  }
+
+  /* Grow into spare width, never shrink below the label: a tab is read, not truncated. */
+  .tab {
+    flex: 1 0 auto;
+    padding: 0 var(--space-2);
+  }
+}
+
+/*
+ * The fade is drawn by the component only when the row is measured wider than its box
+ * (see Tabs in ui.tsx), so it always covers clipped content and never dims a tab that is
+ * entirely on screen. It is an alpha ramp, not a colour: it takes no palette value.
+ *
+ * Since #48 a row wraps, so the fade no longer fires for six patient tabs; what is left
+ * for it is the row that cannot wrap at all — a single label wider than the row at a
+ * phone with 200–250 % zoom. There the label is cut and the fade is the only honest
+ * sign of it.
+ */
+.tabs--overflow {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 1) calc(100% - var(--space-4)),
+    rgba(0, 0, 0, 0)
+  );
+  mask-image: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 1) calc(100% - var(--space-4)),
+    rgba(0, 0, 0, 0)
+  );
+}
+
+/* ---------- blocks ---------- */
+
+.card {
+  padding: 16px;
+  margin-bottom: 16px;
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+}
+
+.card:last-child {
+  margin-bottom: 0;
+}
+
+.card__title {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.section-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.stack {
+  display: grid;
+  gap: 16px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.muted {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.hint {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.notice {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.notice--error {
+  color: var(--signal-critical);
+}
+
+.load-error {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+
+/* ---------- buttons ----------
+ * 44 px is the floor everywhere, not only on a phone: DESIGN.md §3.9 is a rule about
+ * the target, and signal-semantics.md §7.8 closes the disagreement with WCAG 2.5.8
+ * in one direction.
+ */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.button--primary {
+  border-color: var(--action-primary);
+  background: var(--action-primary);
+  color: var(--action-primary-ink);
+}
+
+.button--quiet {
+  min-height: 44px;
+  padding: 0 8px;
+  border-color: transparent;
+  background: none;
+  color: var(--link);
+  text-decoration: underline;
+}
+
+.button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* One answer of the PHQ-9: the radio is 13 px, the label around it is the target. */
+.choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-body);
+  color: var(--text-body);
+  cursor: pointer;
+}
+
+/* Any bare disclosure header is a target too. */
+.details-summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+

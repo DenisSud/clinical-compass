@@ -1,0 +1,112 @@
+/* ---------- blocking facts (#48) ----------
+ *
+ * One list of facts, two screens. The patient sees the question, their own answer and the
+ * date: a chosen option is a choice, not an assessment, so «да» carries no signal tone
+ * (DESIGN.md §2.2). The doctor sees the same answers as a list with their source; what the
+ * answers mean is said by the signal card below, never by this block.
+ *
+ * Targets are 44 px like everywhere else (§3.9); the fieldset is reset to zero, because its
+ * min-content width otherwise pushes the page sideways at 375 px (WCAG 2.2 §1.4.10 reflow).
+ */
+
+.facts {
+  display: grid;
+  gap: var(--space-4);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fact {
+  padding-top: var(--space-3);
+  border-top: var(--border-width) solid var(--border-hairline);
+}
+
+.fact:first-child {
+  padding-top: 0;
+  border-top: none;
+}
+
+.fact__fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.fact__question {
+  padding: 0;
+  font-size: var(--text-body);
+  font-weight: var(--fw-bold);
+  line-height: var(--lh-dense);
+  color: var(--text-strong);
+}
+
+.fact__answers {
+  display: grid;
+  gap: 2px;
+  margin-top: var(--space-2);
+}
+
+.fact__number {
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-1);
+}
+
+.fact__number input {
+  width: 100%;
+  max-width: 160px;
+  min-height: 44px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--brand-slate); /* 5.86:1 — граница поля, WCAG 1.4.11 */
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--text-strong);
+}
+
+.facts__actions {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+/* Incompleteness, not risk: a neutral surface and ordinary text, no signal tones. */
+.facts-gaps {
+  margin-top: var(--space-5);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  background: var(--surface-inset);
+}
+
+.facts-gaps__list,
+.facts-report__list {
+  margin: var(--space-2) 0 0;
+  padding-left: 20px;
+  font-size: var(--text-small);
+  line-height: var(--lh-dense);
+}
+
+.facts-report {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.facts-report__title {
+  margin: 0;
+  font-size: var(--text-small);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.facts-report__list li {
+  margin-top: 2px;
+}
+
+.facts-report__list--muted {
+  color: var(--text-muted);
+}
