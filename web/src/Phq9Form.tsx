@@ -1,17 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { InstrumentView } from "../../shared/contracts";
 import { ApiRequestError, fetchInstrument, submitAssessment } from "./api";
-import { LoadError } from "./ui";
-
-const BUTTON = {
-  minHeight: 44,
-  padding: "10px 16px",
-  borderRadius: "var(--radius-surface)",
-  border: "none",
-  background: "var(--action-primary)",
-  color: "var(--action-primary-ink)",
-  cursor: "pointer",
-} as const;
+import { Button, LoadError } from "./ui";
 
 export function Phq9Form({ onSaved }: { onSaved: () => void }) {
   const [instrument, setInstrument] = useState<InstrumentView | null>(null);
@@ -56,17 +46,26 @@ export function Phq9Form({ onSaved }: { onSaved: () => void }) {
     );
   }
 
+  /*
+   * All nine items stay on one page. The export shows one question per screen with
+   * «Назад / Дальше» (system §2.7); a wizard would hide the ninth item — the one about
+   * suicidal thoughts — behind eight clicks, and the local answer map is what tells the
+   * patient which items are still unanswered (DESIGN.md §2.1, §2.4; migration §1.3).
+   * What is taken from the export: the visible choice on the whole row, «Вопрос N из 9»
+   * as the place in the list (§3.6), the question at 17/700, the answers at 15 with 8 px
+   * between them, and the submit button across the full width.
+   */
   return (
-    <form onSubmit={submit}>
-      <p style={{ color: "var(--text-muted)", marginTop: 0 }}>{instrument.intro}</p>
-      <ol style={{ paddingLeft: 20, display: "grid", gap: 16 }}>
+    <form onSubmit={submit} className="phq9">
+      <p className="muted">{instrument.intro}</p>
+      <ol className="phq9__items">
         {instrument.items.map((item, index) => (
-          <li key={item.id}>
-            <p className="hint" style={{ margin: "0 0 4px" }}>
+          <li key={item.id} className="phq9__item">
+            <p className="phq9__counter">
               Вопрос {index + 1} из {instrument.items.length}
             </p>
-            <p style={{ margin: "0 0 8px" }}>{item.text}</p>
-            <div style={{ display: "grid", gap: 4 }}>
+            <p className="phq9__question">{item.text}</p>
+            <div className="phq9__answers">
               {instrument.options.map((option) => (
                 <label key={option.value} className="choice">
                   <input
@@ -82,17 +81,21 @@ export function Phq9Form({ onSaved }: { onSaved: () => void }) {
           </li>
         ))}
       </ol>
-      {error && <p style={{ color: "var(--signal-critical)", fontSize: 14 }}>{error}</p>}
-      <button type="submit" disabled={busy || !complete} style={{ ...BUTTON, opacity: !busy && complete ? 1 : 0.5, cursor: !busy && complete ? "pointer" : "default" }}>
+      {error && (
+        <p className="notice notice--error" role="alert">
+          {error}
+        </p>
+      )}
+      <Button type="submit" variant="primary" className="phq9__submit" disabled={busy || !complete}>
         {busy ? "Отправляем…" : "Отправить ответы"}
-      </button>
+      </Button>
       {!complete && (
-        <p className="hint">
+        <p className="hint phq9__progress">
           Отвечено {answered} из {instrument.items.length}. Отправить можно, когда ответите на все
           вопросы.
         </p>
       )}
-      <p style={{ color: "var(--text-muted)", fontSize: 13, marginBottom: 0 }}>{instrument.sourceNote}</p>
+      <p className="phq9__source">{instrument.sourceNote}</p>
     </form>
   );
 }

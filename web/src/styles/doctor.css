@@ -491,17 +491,22 @@
   width: 88px;
 }
 
-/* ---------- doctor: patients ---------- */
+/* ---------- doctor: patients ----------
+ *
+ * List and card side by side on a desktop, one screen at a time on a phone (DESIGN.md
+ * §3.10). The list column is the export's 300 px (_9): a row carries a name and one line
+ * of context, and a wider column would take the width the 14-day grid needs.
+ */
 
 .patients {
   display: grid;
-  gap: 16px;
+  gap: var(--space-4);
   align-items: start;
 }
 
 .patients__list {
   display: grid;
-  gap: 12px;
+  gap: var(--space-3);
   min-width: 0;
 }
 
@@ -509,40 +514,80 @@
   min-width: 0;
 }
 
+/*
+ * Rows of one register, divided by a hairline — the frame belongs to the list, not to
+ * every row (_9). The selected row is a fill plus a 4 px marker in the same blue as the
+ * selected tab: a fill alone would make «where am I» a colour-only channel (§3.7), and
+ * the marker keeps the row geometry so nothing jumps on selection. Fonts are the
+ * export's: name 15 px, context 13 px muted, 16 px padding.
+ */
 .patient-list {
-  display: grid;
-  gap: 8px;
   margin: 0;
   padding: 0;
-  list-style: none;
-}
-
-.patient-list__item {
-  width: 100%;
-  min-height: 44px;
-  padding: 10px 12px;
   border: var(--border-width) solid var(--border-divider);
   border-radius: var(--radius-surface);
   background: var(--surface-card);
+  list-style: none;
+}
+
+.patient-list > li + li {
+  border-top: var(--border-width) solid var(--border-hairline);
+}
+
+.patient-list__item {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-4);
+  border: none;
+  border-left: var(--space-1) solid transparent;
+  background: none;
   font: inherit;
-  font-size: 15px;
   text-align: left;
+  color: var(--text-strong);
   cursor: pointer;
 }
 
 .patient-list__item[aria-current="true"] {
-  padding: 9px 11px;
-  border: var(--border-width-strong) solid var(--border-strong);
-  font-weight: 600;
+  background: var(--surface-inset);
+  border-left-color: var(--link);
+}
+
+.patient-list__name {
+  font-size: var(--text-body);
+}
+
+/* Only the name of the open row is bold: the row is what changed, not the whole list. */
+.patient-list__item[aria-current="true"] .patient-list__name {
+  font-weight: var(--fw-bold);
+}
+
+.patient-list__meta {
+  font-size: var(--text-small);
+  color: var(--text-muted);
 }
 
 .patient-card__head {
-  margin-bottom: 4px;
+  margin-bottom: var(--space-4);
 }
 
 .patient-card__name {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--text-h2);
+  font-weight: var(--fw-bold);
+}
+
+/* Email and the binding date are context for the decision, so they are one size and one
+   tone below the name (_9). */
+.patient-card__meta {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.patient-card__meta + .patient-card__meta {
+  margin-top: 0;
 }
 
 .patient-card__footer {
@@ -566,8 +611,8 @@
 
 @media (min-width: 900px) {
   .patients {
-    grid-template-columns: minmax(280px, 340px) minmax(0, 1fr);
-    gap: 24px;
+    grid-template-columns: 300px minmax(0, 1fr);
+    gap: var(--space-5);
   }
 
   .back {
@@ -589,3 +634,141 @@
   }
 }
 
+/* ---------- doctor: adherence ----------
+ *
+ * Three states and three shapes: ✓ on --signal-done, ✗ on --signal-critical, «—» on an
+ * empty outline for «нет сведений». Colour is the third channel here, not the first: the
+ * export tells the states apart by tone alone on 14 px squares, which reads neither in
+ * greyscale, nor on a phone, nor in a screen reader (_9, system §2.14). «Нет сведений» is
+ * not a miss and takes no fill.
+ *
+ * Seven columns is two weeks — the shape the export actually renders (_9's
+ * `sm:grid-cols-14` is not a Tailwind 3 class). At a 4 px gap every tile stays at or
+ * above 32 px from a 312 px viewport up, and the tile is a grid cell rather than a fixed
+ * square, so nothing scrolls sideways at 375 px (WCAG 2.2 §1.4.10).
+ */
+
+.adherence {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.adherence__item {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.adherence__title {
+  margin: 0;
+  font-size: var(--text-body);
+}
+
+.adherence__grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: var(--space-1);
+}
+
+.adherence-tile {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 var(--space-1);
+  border: var(--border-width) solid transparent;
+  font-size: var(--text-body);
+  font-weight: var(--fw-bold);
+  line-height: 1;
+}
+
+.adherence-tile--done {
+  border-color: var(--signal-done);
+  background: var(--signal-done);
+  color: var(--text-invert);
+}
+
+/* A missed dose is a fact, not an alarm: the outline and the glyph carry it, the fill
+ * does not. A solid red block at this size competes with the critical signal card. */
+.adherence-tile--skipped {
+  border-color: var(--signal-critical);
+  background: none;
+  color: var(--signal-critical);
+}
+
+/* No answer is not a miss: an outline, no fill, the muted tone, and a dash. */
+.adherence-tile--no_data {
+  border-color: var(--border-divider);
+  background: none;
+  color: var(--text-muted);
+  font-weight: var(--fw-regular);
+}
+
+/* Colour is forced away here; the glyph in the tile is what is left to tell states apart. */
+@media (forced-colors: active) {
+  .adherence-tile {
+    border-color: CanvasText;
+  }
+}
+
+/* The date and the state in words, for a reader that gets no glyph and no tooltip. */
+.adherence-tile__state {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* The legend repeats the same shapes at label size, so the words and the grid share one code. */
+.adherence-tile--legend {
+  min-height: 0;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  font-size: 11px;
+}
+
+/* Counts, never percentages: a share would name a denominator the doctor did not choose. */
+.adherence__legend {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-4);
+  row-gap: var(--space-1);
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.adherence__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* One line per miss: the day the patient named and the reason they gave. No block when
+   nothing was missed. */
+.adherence__reasons {
+  padding: var(--space-3) var(--space-4);
+  background: var(--surface-inset);
+  font-size: var(--text-small);
+}
+
+.adherence__reasons-title {
+  margin: 0;
+  font-weight: var(--fw-bold);
+  color: var(--text-strong);
+}
+
+.adherence__reasons-list {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  color: var(--text-body);
+  list-style: none;
+}

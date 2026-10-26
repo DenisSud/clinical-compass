@@ -131,8 +131,10 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
     <section className="card" aria-label={`Карточка пациента ${patient.name ?? patient.email}`}>
       <div className="patient-card__head">
         <h2 className="patient-card__name">{patient.name ?? patient.email}</h2>
-        <p className="muted">{patient.email}</p>
-        {patient.boundAt && <p className="hint">Привязан(а) с {formatDate(patient.boundAt)}</p>}
+        <p className="patient-card__meta">{patient.email}</p>
+        {patient.boundAt && (
+          <p className="patient-card__meta">Привязан(а) с {formatDate(patient.boundAt)}</p>
+        )}
       </div>
 
       <Tabs<PatientTab>
@@ -169,15 +171,15 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
             {recommendations.status === "ready" && (
               <>
                 {recommendations.data.cards.length > 0 && (
-                  <ul className="stack" style={{ gap: 10, margin: 0, padding: 0, listStyle: "none" }}>
+                  <ul className="stack" style={{ gap: 12, margin: 0, padding: 0, listStyle: "none" }}>
                     {recommendations.data.cards.map((card) => (
-                      <li key={card.id} style={{ padding: 12, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}>
+                      <li key={card.id} style={{ padding: 16, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}>
                         <strong>{card.title}</strong>
-                        <p style={{ margin: "6px 0 0", fontSize: 14 }}>
+                        <p style={{ margin: "8px 0 0", fontSize: 13 }}>
                           <em>Основание:</em> {card.basis}
                         </p>
                         {card.missing.length > 0 && (
-                          <p style={{ margin: "6px 0 0", fontSize: 14, color: "var(--signal-high)" }}>
+                          <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--signal-high)" }}>
                             Не хватает: {card.missing.join("; ")}
                           </p>
                         )}
@@ -186,7 +188,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
                             href={card.source.url}
                             target="_blank"
                             rel="noreferrer"
-                            style={{ fontSize: 13, color: "var(--link)" }}
+                            style={{ display: "inline-block", marginTop: 8, fontSize: 13, color: "var(--link)" }}
                           >
                             Источник
                           </a>

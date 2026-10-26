@@ -309,17 +309,17 @@ export function PatientHome({
             <Empty>Вы ещё не проходили опросник.</Empty>
           )}
           {assessments.status === "ready" && assessments.data.assessments.length > 0 && (
-            <ul className="stack" style={{ gap: 8, margin: 0, padding: 0, listStyle: "none" }}>
+            <ul className="past-answers">
               {assessments.data.assessments.map((assessment) => (
-                <li key={assessment.id} style={{ borderTop: "1px solid var(--border-hairline)", paddingTop: 10 }}>
+                <li key={assessment.id} className="past-answer">
                   <details>
                     <summary className="details-summary">
                       {formatDate(assessment.submittedAt)} — {assessment.instrumentTitle}
                     </summary>
-                    <ul style={{ margin: "8px 0 0", paddingLeft: 20, color: "var(--text-body)", fontSize: 14 }}>
+                    <ul className="past-answer__list">
                       {assessment.answers.map((answer) => (
-                        <li key={answer.itemId}>
-                          {answer.text} — <em>{answer.label}</em>
+                        <li key={answer.itemId} className="past-answer__row">
+                          {answer.text} — <span className="past-answer__choice">{answer.label}</span>
                         </li>
                       ))}
                     </ul>

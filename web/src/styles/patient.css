@@ -221,3 +221,121 @@
   justify-items: start;
   gap: var(--space-1);
 }
+
+/* ---------- «Опросник»: девять пунктов ----------
+ * Typography and rhythm from the export's question screen (system §2.7): the question is
+ * 17/700, the answers 15, 8 px between them, «Вопрос N из 9» at 13 in the muted tone.
+ * The export puts the counter under the answers and shows one question per screen; here
+ * it opens each block, because all nine items share one page and the counter is what says
+ * where in the list the patient is (§3.6). Between blocks a hairline, not a gap: nine
+ * identical blocks read as a list, not as nine separate cards (§3.2).
+ */
+.phq9 {
+  margin: 0;
+}
+
+.phq9__items {
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.phq9__item + .phq9__item {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: var(--border-width) solid var(--border-hairline);
+}
+
+.phq9__counter {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.phq9__question {
+  margin: var(--space-1) 0 var(--space-2);
+  font-size: var(--text-h3);
+  font-weight: var(--fw-bold);
+  color: var(--text-strong);
+}
+
+.phq9__answers {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/*
+ * The chosen row is marked on the row, not only in the 13 px circle (system §2.7): while
+ * scrolling nine items a filled dot is too small a sign of «which of the four». The tint
+ * means «выбрано», not «хорошо» — the same language the day scale uses
+ * (`.diary-scale__option[aria-pressed="true"]`), not a score and not a band (§2.2). The
+ * radio stays native and stays the only source of the state; the marker repeats it. Every
+ * row carries a transparent 2 px left border, so the text does not jump by 2 px sideways
+ * when the answer changes.
+ *
+ * Scoped to the questionnaire on purpose: «Мои данные» reuses `.choice` and opens with
+ * «Не знаю» already checked on an unanswered fact (FactsForm.tsx:71), so a row marker
+ * there would present «не спрашивали» as a given answer. That row belongs to wave 5B
+ * (migration §3.4; system §4, item 6). Where `:has()` is not supported the row loses only
+ * the tint and the marker; the radio still carries the state on its own.
+ */
+.phq9 .choice {
+  border-left: var(--border-width-strong) solid transparent;
+}
+
+.phq9 .choice:has(input:checked) {
+  border-left-color: var(--action-primary);
+  background: var(--surface-muted);
+}
+
+.phq9__submit {
+  width: 100%;
+  margin-top: var(--space-4);
+}
+
+.phq9__progress {
+  margin: var(--space-2) 0 0;
+}
+
+.phq9__source {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+/* ---------- «Опросник»: прошлые ответы ----------
+ * A date and the questionnaire's name on the summary row, «вопрос — выбранный вариант»
+ * inside, one answer per row with a hairline between (migration §1.5). Only the answers:
+ * no total, no band, no comparison between two entries — a patient assessment carries
+ * neither `total` nor `band`, and the screen may not draw one itself (§2.2).
+ */
+.past-answers {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.past-answer + .past-answer {
+  margin-top: var(--space-2);
+  border-top: var(--border-width) solid var(--border-hairline);
+}
+
+.past-answer__list {
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.past-answer__row {
+  padding: var(--space-1) 0;
+  font-size: var(--text-body);
+  color: var(--text-body);
+}
+
+.past-answer__row + .past-answer__row {
+  border-top: var(--border-width) solid var(--border-hairline);
+}
+
+.past-answer__choice {
+  font-style: italic;
+}
