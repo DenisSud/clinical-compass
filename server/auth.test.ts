@@ -174,3 +174,41 @@ describe("role isolation", () => {
     await app.close();
   });
 });
+
+describe("роль решает, кто входит", () => {
+  it("не пускает врача в пациентский аккаунт и не подтверждает, что аккаунт есть", async () => {
+    const app = await newApp();
+    await signUpPatient(app);
+
+    const wrongDoor = await app.inject({
+      method: "POST",
+      url: "/api/auth/doctor/signin",
+      payload: PATIENT,
+    });
+    const unknownEmail = await app.inject({
+      method: "POST",
+      url: "/api/auth/doctor/signin",
+      payload: { ...PATIENT, email: "nobody@example.com" },
+    });
+
+    expect(wrongDoor.statusCode).toBe(401);
+    expect(wrongDoor.json()).toMatchObject({ code: "invalid_credentials" });
+    expect(wrongDoor.json()).toEqual(unknownEmail.json());
+    await app.close();
+  });
+
+  it("не пускает пациента в аккаунт врача", async () => {
+    const app = await newApp();
+    await signUpDoctor(app);
+
+    const wrongDoor = await app.inject({
+      method: "POST",
+      url: "/api/auth/patient/signin",
+      payload: DOCTOR,
+    });
+
+    expect(wrongDoor.statusCode).toBe(401);
+    expect(wrongDoor.json()).toMatchObject({ code: "invalid_credentials" });
+    await app.close();
+  });
+});

@@ -20,6 +20,7 @@ import { rulesRoutes } from "./routes/rules.js";
 import { bindRoutes } from "./routes/bind.js";
 import { healthRoutes } from "./routes/health.js";
 import { bindingCodeRoutes } from "./routes/binding-code.js";
+import { loginRoutes } from "./routes/login.js";
 import { meRoutes } from "./routes/me.js";
 import { patientRoutes } from "./routes/patients.js";
 
@@ -91,6 +92,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(prescriptionRoutes, { prefix: "/api" });
   await app.register(watchRoutes, { prefix: "/api" });
   await app.register(rulesRoutes, { prefix: "/api" });
+  await app.register(loginRoutes);
 
   if (options.serveStatic) {
     await app.register(fastifyStatic, { root: join(here, "public") });
