@@ -1,3 +1,136 @@
+/*
+ * Patient surface: «Сегодня» (`_2`), «Дневник» (`_1`) and the parts of the shell that
+ * only the patient page uses. Colour, radius and shadow decisions live in tokens.css:
+ * the export's 8 px radii and 2 px borders (system §1.5) are not taken.
+ */
+
+/*
+ * The export gives the patient card 20 px inside, a 17/700 heading and 24 px between
+ * cards (system §2.4). 20 px is written as a literal: the spacing scale goes 16 → 24 and
+ * the export's value sits between them. Scoped to the patient page: the doctor's cabinet
+ * keeps its own denser rhythm, and the export itself has four card languages, not one.
+ */
+.page--patient .card {
+  padding: 20px;
+  margin-bottom: var(--space-5);
+}
+
+.page--patient .card:last-child {
+  margin-bottom: 0;
+}
+
+/* The patient column stacks cards; the card margin is the rhythm, so the generic 16 px
+   stack gap would double it to 40 px. Lists elsewhere set their own gap inline. */
+.page--patient .stack {
+  gap: 0;
+}
+
+.page--patient .card__title {
+  font-size: var(--text-h3);
+  font-weight: var(--fw-bold);
+}
+
+/* One form field for both patient forms: full width, 44 px floor, the same hairline. */
+.field {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  margin-top: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+  color: var(--text-body);
+  font: inherit;
+  font-size: var(--text-body);
+}
+
+/* ---------- «Сегодня»: назначения на сегодня ----------
+ * The export's intake row is «название + время справа» (system §2.3), but the patient
+ * side has no prescription client yet — the time of a dose is not in PatientCheckinItem,
+ * so no «08:00» is invented here (migration §3.5, separate ticket). What is taken: one
+ * row per intake with a rule between them, and the two answers side by side under it.
+ */
+.intake {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.intake__item {
+  padding: var(--space-4) 0;
+}
+
+.intake__item:first-child {
+  padding-top: 0;
+}
+
+.intake__item:last-child {
+  padding-bottom: 0;
+}
+
+.intake__item + .intake__item {
+  border-top: var(--border-width) solid var(--border-hairline);
+}
+
+.intake__title {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--fw-bold);
+  color: var(--text-strong);
+}
+
+.intake__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.intake__reason-label {
+  display: block;
+  margin-top: var(--space-3);
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.intake__status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: 14px;
+}
+
+.intake__status--done {
+  color: var(--signal-done);
+}
+
+.intake__status--skipped {
+  color: var(--signal-high);
+}
+
+/* ---------- «Сегодня»: самочувствие ---------- */
+
+.diary-form__edges {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.diary-form__comment {
+  margin-top: var(--space-3);
+}
+
+.diary-form__submit {
+  width: 100%;
+  margin-top: var(--space-3);
+}
+
 /* Ten 44 px targets in a row do not fit a 360 px phone; 5 x 2 keeps the thumb honest (§3.9). */
 .diary-scale {
   display: grid;
@@ -11,6 +144,76 @@
     gap: 8px;
   }
 }
+
+/* The chosen day value is marked by frame, weight and a mint grouping tint — the tint
+   means «выбрано», not «хорошо» (tokens.css, rule 5). */
+.diary-scale__option {
+  min-height: 44px;
+  padding: 0 var(--space-1);
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+  color: var(--text-body);
+  font: inherit;
+  font-size: var(--text-body);
+  cursor: pointer;
+}
+
+.diary-scale__option[aria-pressed="true"] {
+  border: var(--border-width-strong) solid var(--action-primary);
+  background: var(--surface-muted);
+  font-weight: var(--fw-bold);
+}
+
+/* ---------- «Дневник»: записи ----------
+ * One card, a rule between entries, the date on the left and the patient's own answer on
+ * the right (migration §1.1). The answer keeps body size: it is the patient's own raw
+ * value, not an assessment, and must not become the loudest element (§2.2).
+ */
+.diary-entries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.diary-entry {
+  padding: var(--space-3) 0;
+}
+
+.diary-entry:first-child {
+  padding-top: 0;
+}
+
+.diary-entry:last-child {
+  padding-bottom: 0;
+}
+
+.diary-entry + .diary-entry {
+  border-top: var(--border-width) solid var(--border-hairline);
+}
+
+.diary-entry__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.diary-entry__date {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.diary-entry__value {
+  color: var(--text-body);
+  font-weight: var(--fw-bold);
+  white-space: nowrap;
+}
+
+.diary-entry__comment {
+  margin: var(--space-1) 0 0;
+}
+
 /* The way into «Мои данные» from «Сегодня»: one calm line and a quiet button — no counter,
    no signal tone (§2.2: incompleteness is not risk). */
 .facts-invite {

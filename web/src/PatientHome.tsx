@@ -188,7 +188,7 @@ export function PatientHome({
             <TodayPlan />
           </Card>
 
-          <Card title="Самочувствие">
+          <Card title="Насколько вы сегодня себя чувствуете?">
             {entries.status === "loading" && <p className="notice">Проверяем запись за сегодня…</p>}
             {entries.status === "failed" && (
               <LoadError onRetry={reloadDiary}>
@@ -233,14 +233,14 @@ export function PatientHome({
             <Empty>Записей пока нет. Первая запись появится на вкладке «Сегодня».</Empty>
           )}
           {entries.status === "ready" && entries.data.length > 0 && (
-            <ul className="stack" style={{ gap: 10, margin: 0, padding: 0, listStyle: "none" }}>
+            <ul className="diary-entries">
               {entries.data.map((entry) => (
-                <li key={entry.id} style={{ borderTop: "1px solid var(--border-hairline)", paddingTop: 10 }}>
-                  <strong>{entry.value}</strong>
-                  <span className="hint" style={{ marginLeft: 4 }}>
-                    / 10 — {formatDate(entry.entryDate)}
-                  </span>
-                  {entry.comment && <p style={{ margin: "4px 0 0", color: "var(--text-body)" }}>{entry.comment}</p>}
+                <li key={entry.id} className="diary-entry">
+                  <div className="diary-entry__head">
+                    <span className="diary-entry__date">{formatDate(entry.entryDate)}</span>
+                    <span className="diary-entry__value">{entry.value} / 10</span>
+                  </div>
+                  {entry.comment && <p className="diary-entry__comment">{entry.comment}</p>}
                 </li>
               ))}
             </ul>

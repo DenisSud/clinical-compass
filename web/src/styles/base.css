@@ -58,37 +58,65 @@ th {
   min-height: 100vh;
 }
 
+/*
+ * One compact row for both roles: brand, address, quiet exit, hairline under it. The
+ * export's patient header is a 144 px app bar (system §2.1) and its doctor header 96 px;
+ * a phone cannot spend that on chrome, so the row is sticky and 52 px high instead. The
+ * safe-area insets are added rather than absorbed — on a notched phone the row is taller
+ * by the inset, because the alternative is the brand under the cutout (viewport-fit=cover
+ * in web/index.html). The height here is content plus insets; the exit keeps its 44 px
+ * target inside it (§3.9), so the row is 53 px, not 44.
+ */
 .topbar {
-  display: flex;
-  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
-  gap: 8px 16px;
-  padding: 10px 16px;
-  border-bottom: var(--border-width) solid var(--border-divider);
+  column-gap: var(--space-3);
+  min-height: 52px;
+  padding: var(--space-1) var(--space-4);
+  padding-top: calc(var(--space-1) + env(safe-area-inset-top));
+  padding-right: calc(var(--space-4) + env(safe-area-inset-right));
+  padding-left: calc(var(--space-4) + env(safe-area-inset-left));
+  background: var(--surface-page);
+  border-bottom: var(--border-width) solid var(--border-hairline);
 }
 
 .topbar__brand {
   margin: 0;
-  font-size: 17px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-strong);
 }
 
 .topbar__spacer {
-  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .topbar__email {
+  justify-self: end;
   min-width: 0;
-  overflow-wrap: anywhere;
-  font-size: 14px;
+  overflow: hidden;
+  font-size: var(--text-small);
   color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* On a phone the brand and the exit share the first row; the email drops below it,
-   instead of the exit button falling onto a line of its own under the rule. */
+/* On a phone the brand and the address share a column and the exit spans both lines:
+   the row stays one row of 53 px instead of growing a second line under the rule. */
 @media (max-width: 520px) {
   .topbar {
-    gap: 2px 12px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand exit"
+      "email exit";
+    align-content: center;
+    row-gap: 0;
   }
 
   .topbar__spacer {
@@ -96,18 +124,17 @@ th {
   }
 
   .topbar__brand {
-    order: 1;
-    flex: 1 1 auto;
-  }
-
-  .topbar button {
-    order: 2;
+    grid-area: brand;
   }
 
   .topbar__email {
-    order: 3;
-    flex-basis: 100%;
-    font-size: 13px;
+    grid-area: email;
+    justify-self: end;
+    max-width: 100%;
+  }
+
+  .topbar button {
+    grid-area: exit;
   }
 }
 
@@ -136,29 +163,33 @@ th {
   }
 }
 
-/* ---------- tabs ---------- */
+/* ---------- tabs ----------
+ * A row with an underline marker, not a segmented plate on a grey inset: the plate read
+ * as a switch between two values, and the marker of the export (system §2.3) reads as
+ * «this is where you are». The selected tab is marked by the 2 px rule and 700 weight at
+ * the same size as its neighbours — the export grows the selected label from 13 to
+ * 15 px, which moves the row on every switch (system §4, item 14).
+ */
 
 .tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  padding: 4px;
-  margin: 0 0 16px;
-  background: var(--surface-inset);
-  border: var(--border-width) solid var(--border-hairline);
-  border-radius: var(--radius-surface);
+  column-gap: var(--space-5);
+  margin: 0 0 var(--space-4);
+  border-bottom: var(--border-width) solid var(--border-hairline);
 }
 
 .tab {
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
+  min-width: 44px;
   min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-surface);
+  padding: 0 var(--space-1);
+  border: none;
+  border-bottom: var(--border-width-strong) solid transparent;
   background: none;
   font: inherit;
   font-size: 14px;
@@ -168,18 +199,18 @@ th {
 }
 
 .tab[aria-selected="true"] {
-  background: var(--surface-card);
-  border-color: var(--border-divider);
+  border-bottom-color: var(--link);
   color: var(--text-strong);
-  font-weight: 600;
+  font-weight: var(--fw-bold);
 }
 
 .tab__count {
   padding: 1px 7px;
   border-radius: var(--radius-pill);
-  background: var(--surface-card);
+  background: var(--surface-inset);
   font-size: 12px;
   font-weight: 600;
+  color: var(--text-muted);
 }
 
 /*
@@ -193,13 +224,12 @@ th {
  */
 @media (max-width: 520px) {
   .tabs {
-    gap: var(--space-1);
+    column-gap: var(--space-3);
   }
 
-  /* Grow into spare width, never shrink below the label: a tab is read, not truncated. */
+  /* Never shrink below the label: a tab is read, not truncated. */
   .tab {
-    flex: 1 0 auto;
-    padding: 0 var(--space-2);
+    flex: 0 0 auto;
   }
 }
 
@@ -282,6 +312,11 @@ th {
 
 .notice--error {
   color: var(--signal-critical);
+}
+
+/* «Запись сохранена» — a state of the action, not a severity level (tokens.css). */
+.notice--done {
+  color: var(--signal-done);
 }
 
 .load-error {
