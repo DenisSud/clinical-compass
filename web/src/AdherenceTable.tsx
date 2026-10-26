@@ -47,14 +47,14 @@ export function AdherenceTable({ patientId }: { patientId: string }) {
 
   if (failed) {
     return (
-      <p style={{ color: "var(--signal-critical)", fontSize: 14 }}>
+      <p className="notice notice--error">
         Не удалось загрузить приверженность. Это не значит, что пропусков нет — обновите страницу.
       </p>
     );
   }
-  if (data === null) return <p style={{ color: "var(--text-muted)" }}>Загрузка…</p>;
+  if (data === null) return <p className="notice">Загрузка…</p>;
   if (data.items.length === 0) {
-    return <p style={{ color: "var(--text-muted)" }}>В действующем плане пока нет назначений.</p>;
+    return <p className="notice">В действующем плане пока нет назначений.</p>;
   }
 
   return (

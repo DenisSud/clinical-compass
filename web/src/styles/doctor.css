@@ -660,6 +660,8 @@
 }
 
 .patient-list__name {
+  min-width: 0;
+  overflow-wrap: anywhere;
   font-size: var(--text-body);
 }
 
@@ -1033,6 +1035,11 @@
 }
 
 /* The legend spans the whole group, so it sits above the radios like a field label. */
+.plan-form__kinds .choice:has(input:checked) {
+  background: var(--surface-muted);
+  font-weight: var(--fw-bold);
+}
+
 .plan-form__kinds > legend {
   width: 100%;
   margin-bottom: var(--space-1);

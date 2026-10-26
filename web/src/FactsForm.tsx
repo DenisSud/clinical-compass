@@ -196,7 +196,7 @@ export function FactsForm() {
               {saved && !dirty && <p className="notice">Ответы сохранены.</p>}
               {failure && <p className="notice notice--error">{failure}</p>}
               {/* Неактивная кнопка объясняет себя там, где она неактивна (§5, вопрос 5). */}
-              {!dirty && !busy && !saved && (
+              {dirty && !busy && (
                 <p className="hint">Ответы сохранятся, когда вы нажмёте «Сохранить ответы».</p>
               )}
             </div>

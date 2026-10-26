@@ -141,7 +141,7 @@ export function PatientHome({
       )}
 
       {!profile.doctor && (
-        <Card className="bind-card">
+        <Card>
           <h2 className="card__title">Введите код от врача</h2>
           {bindDone ? (
             <p className="notice">Код принят — вы привязаны к врачу.</p>

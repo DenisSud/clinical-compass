@@ -183,6 +183,13 @@
   }
 }
 
+/* At 320 px an 8 px gap leaves each target 1 px under 44; the gap gives way, not the target. */
+@media (max-width: 360px) {
+  .diary-scale {
+    gap: 4px;
+  }
+}
+
 /* The chosen day value is marked by frame, weight and a mint grouping tint — the tint
    means «выбрано», not «хорошо» (tokens.css, rule 5). */
 .diary-scale__option {
