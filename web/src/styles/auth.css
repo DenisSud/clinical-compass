@@ -94,7 +94,7 @@
   display: grid;
   gap: var(--space-1);
   font-size: var(--text-small);
-  color: var(--text-body);
+  color: var(--color-body);
 }
 
 .auth-field input {

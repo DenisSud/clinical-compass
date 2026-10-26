@@ -50,7 +50,7 @@
   border: var(--border-width) solid var(--brand-slate); /* 5.86:1 — граница поля, WCAG 1.4.11 */
   border-radius: var(--radius-surface);
   background: var(--surface-card);
-  color: var(--text-body);
+  color: var(--color-body);
   font: inherit;
   font-size: var(--text-body);
 }
@@ -72,7 +72,7 @@
   border: var(--border-width) solid var(--brand-slate); /* 5.86:1 — граница поля, WCAG 1.4.11 */
   border-radius: var(--radius-surface);
   background: var(--surface-card);
-  color: var(--text-body);
+  color: var(--color-body);
   font-family: var(--font-mono);
   font-size: var(--text-body);
   letter-spacing: 2px;
@@ -198,7 +198,7 @@
   border: var(--border-width) solid var(--border-divider);
   border-radius: var(--radius-surface);
   background: var(--surface-card);
-  color: var(--text-body);
+  color: var(--color-body);
   font: inherit;
   font-size: var(--text-body);
   cursor: pointer;
@@ -252,7 +252,7 @@
 }
 
 .diary-entry__value {
-  color: var(--text-body);
+  color: var(--color-body);
   font-weight: var(--fw-bold);
   white-space: nowrap;
 }
@@ -376,7 +376,7 @@
 .past-answer__row {
   padding: var(--space-1) 0;
   font-size: var(--text-body);
-  color: var(--text-body);
+  color: var(--color-body);
 }
 
 .past-answer__row + .past-answer__row {
@@ -441,5 +441,5 @@
   margin: var(--space-1) 0 0;
   font-size: var(--text-small);
   line-height: var(--lh-dense);
-  color: var(--text-body);
+  color: var(--color-body);
 }

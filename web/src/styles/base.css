@@ -17,7 +17,7 @@ body {
   font-family: var(--font-sans);
   font-size: var(--text-body);
   line-height: var(--lh-body);
-  color: var(--text-body);
+  color: var(--color-body);
   background: var(--surface-page);
 }
 
@@ -375,7 +375,7 @@ th {
   min-height: 44px;
   padding: 0 var(--space-2);
   font-size: var(--text-body);
-  color: var(--text-body);
+  color: var(--color-body);
   cursor: pointer;
 }
 
@@ -452,7 +452,7 @@ th {
 .thread__body {
   margin: 0;
   font-size: var(--text-body);
-  color: var(--text-body);
+  color: var(--color-body);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
@@ -474,7 +474,7 @@ th {
   background: var(--surface-card);
   font: inherit;
   font-size: var(--text-body);
-  color: var(--text-body);
+  color: var(--color-body);
   resize: vertical;
 }
 

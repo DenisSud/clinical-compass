@@ -250,7 +250,7 @@
   margin: 0;
   font-size: var(--text-small);
   line-height: var(--lh-dense);
-  color: var(--text-body);
+  color: var(--color-body);
 }
 
 /* «Не спрашивали» is grey to the last word: nothing on this card is an answer. */
