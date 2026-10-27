@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { asc, eq } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import { watchCreateSchema } from "../../shared/contracts.js";
+import { instrument } from "../instruments/loader.js";
 import { requireAuth, requireRole } from "../auth/guard.js";
 import { watchItems } from "../db/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
@@ -50,6 +51,12 @@ export const watchRoutes: FastifyPluginAsync = async (app) => {
       const parsed = watchCreateSchema.safeParse(request.body);
       if (!parsed.success) {
         return fail(reply, 400, "invalid_request", "Проверьте параметры правила");
+      }
+
+      // Правило на несуществующую шкалу не сработает никогда: лучше отказать на создании,
+      // чем оставить врача с правилом, которое молчит (issue #68).
+      if (parsed.data.kind === "score_threshold" && !instrument(parsed.data.instrumentId)) {
+        return fail(reply, 400, "invalid_request", "Нет такой шкалы");
       }
 
       const [row] = await app.conn.db

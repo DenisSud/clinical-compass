@@ -11,6 +11,7 @@ import type {
   WatchItem,
   Signal,
   DoctorAssessment,
+  InstrumentChoice,
   InstrumentView,
   PatientInstrumentView,
   PatientAssessment,
@@ -271,6 +272,13 @@ export function submitCheckin(input: {
 
 export function fetchPatientCheckins(patientId: string, days = 14): Promise<DoctorAdherence> {
   return request<DoctorAdherence>(`/api/patients/${patientId}/checkins?days=${days}`);
+}
+
+/** Шкалы, которые пациент проходит сейчас: их можно выбрать в правиле «сумма выше порога». */
+export function fetchPatientInstruments(
+  patientId: string,
+): Promise<{ instruments: InstrumentChoice[] }> {
+  return request<{ instruments: InstrumentChoice[] }>(`/api/patients/${patientId}/instruments`);
 }
 
 export function fetchWatchItems(patientId: string): Promise<{ items: WatchItem[] }> {

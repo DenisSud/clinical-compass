@@ -198,6 +198,88 @@ describe("watch routes", () => {
     await app.close();
   });
 
+  it("gives the doctor the scales the patient actually has, to choose a threshold rule on", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientId } = await boundPair(app);
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/instruments`,
+      headers: { cookie: doctorCookie },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().instruments.map((item: { id: string }) => item.id)).toEqual(["phq-9"]);
+    await app.close();
+  });
+
+  it("refuses a threshold rule on a scale that does not exist", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientId } = await boundPair(app);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/patients/${patientId}/watch`,
+      headers: { cookie: doctorCookie },
+      payload: {
+        kind: "score_threshold",
+        title: "Порог по шкале, которой нет",
+        severity: "high",
+        instrumentId: "hads",
+        threshold: 10,
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it("raises a threshold rule on the HADS the patient actually fills in", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    await app.inject({
+      method: "PATCH",
+      url: `/api/patients/${patientId}/status`,
+      headers: { cookie: doctorCookie },
+      payload: { status: "treatment" },
+    });
+
+    await app.inject({
+      method: "POST",
+      url: `/api/patients/${patientId}/watch`,
+      headers: { cookie: doctorCookie },
+      payload: {
+        kind: "score_threshold",
+        title: "Тревога выросла",
+        severity: "high",
+        instrumentId: "hads-anxiety",
+        threshold: 11,
+      },
+    });
+
+    await app.inject({
+      method: "POST",
+      url: "/api/assessments/hads-anxiety",
+      headers: { cookie: patientCookie },
+      payload: {
+        submissionId: "hads-threshold",
+        answers: { a1: 3, a2: 3, a3: 3, a4: 3, a5: 3, a6: 3, a7: 3 },
+      },
+    });
+
+    const signals = await app.inject({
+      method: "GET",
+      url: "/api/signals",
+      headers: { cookie: doctorCookie },
+    });
+    const raised = (signals.json().signals as Array<{ title: string; ruleId: string | null }>).filter(
+      (signal) => signal.title === "Тревога выросла",
+    );
+
+    expect(raised).toHaveLength(1);
+    await app.close();
+  });
+
   it("keeps another doctor out", async () => {
     const app = await newApp();
     const { patientId } = await boundPair(app);

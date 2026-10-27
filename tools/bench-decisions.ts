@@ -83,22 +83,39 @@ function runEngine() {
   // читался бы как «медленный случай», которого нет.
   for (const item of cases) answerQuestions(questions, factsOf(item));
 
-  const times: number[] = [];
   const rows: Array<{ name: string; got: string[]; want: string[]; ok: boolean; micros: number }> = [];
 
-  for (const item of cases) {
-    const started = process.hrtime.bigint();
-    const answers = answerQuestions(questions, factsOf(item));
-    const elapsed = Number(process.hrtime.bigint() - started);
-    times.push(elapsed);
-    const got = verdictsOf(answers);
-    rows.push({
-      name: item.name,
-      got,
-      want: item.expect,
-      ok: got.every((verdict, index) => verdict === item.expect[index]),
-      micros: elapsed / 1000,
-    });
+  // Пять прогонов: один прогон ловит шум машины и выдаёт его за скорость движка.
+  // В отчёт идёт медиана прогонов, а не самый удачный.
+  const rounds = 5;
+  const roundTotals: number[] = [];
+  const roundMeans: number[] = [];
+  const roundP50: number[] = [];
+  const roundP95: number[] = [];
+
+  for (let round = 0; round < rounds; round += 1) {
+    const times: number[] = [];
+    for (const item of cases) {
+      const started = process.hrtime.bigint();
+      const answers = answerQuestions(questions, factsOf(item));
+      const elapsed = Number(process.hrtime.bigint() - started);
+      times.push(elapsed);
+      if (round === rounds - 1) {
+        const got = verdictsOf(answers);
+        rows.push({
+          name: item.name,
+          got,
+          want: item.expect,
+          ok: got.every((verdict, index) => verdict === item.expect[index]),
+          micros: elapsed / 1000,
+        });
+      }
+    }
+    const total = times.reduce((sum, value) => sum + value, 0);
+    roundTotals.push(total / 1000);
+    roundMeans.push(total / 1000 / times.length);
+    roundP50.push(percentile(times, 0.5) / 1000);
+    roundP95.push(percentile(times, 0.95) / 1000);
   }
 
   // Повторяемость: тот же вход обязан дать тот же выход, иначе это не движок, а генератор.
@@ -109,17 +126,19 @@ function runEngine() {
 
   const correct = rows.filter((row) => row.ok).length;
   const refusals = rows.filter((row) => row.got.includes("insufficient")).length;
-  const total = times.reduce((sum, value) => sum + value, 0);
+  const median = (values: number[]) => percentile(values, 0.5);
 
   return {
     questions: questions.length,
     cases: rows.length,
+    rounds,
     correct,
     refusals,
-    totalMicros: total / 1000,
-    meanMicros: total / 1000 / rows.length,
-    p50Micros: percentile(times, 0.5) / 1000,
-    p95Micros: percentile(times, 0.95) / 1000,
+    totalMicros: median(roundTotals),
+    meanMicros: median(roundMeans),
+    p50Micros: median(roundP50),
+    p95Micros: median(roundP95),
+    worstP95Micros: Math.max(...roundP95),
     deterministic: first === second,
     rows,
   };
@@ -244,7 +263,7 @@ console.log("\nДВИЖОК ВОПРОСОВ · детерминированны
 console.log(`  вопросов: ${engine.questions}, случаев: ${engine.cases}`);
 console.log(`  совпало с ожиданием: ${engine.correct}/${engine.cases}, отказов: ${engine.refusals}`);
 console.log(
-  `  время: всего ${engine.totalMicros.toFixed(1)} мкс, среднее ${engine.meanMicros.toFixed(1)} мкс, p50 ${engine.p50Micros.toFixed(1)} мкс, p95 ${engine.p95Micros.toFixed(1)} мкс`,
+  `  время: медиана из ${engine.rounds} прогонов, всего ${engine.totalMicros.toFixed(1)} мкс, среднее ${engine.meanMicros.toFixed(1)} мкс, p50 ${engine.p50Micros.toFixed(1)} мкс, p95 ${engine.p95Micros.toFixed(1)} мкс (худший прогон ${engine.worstP95Micros.toFixed(1)} мкс)`,
 );
 console.log(`  повторяемость: ${engine.deterministic ? "да, ответ побайтово тот же" : "НЕТ, ответ меняется"}`);
 table(engine.rows);

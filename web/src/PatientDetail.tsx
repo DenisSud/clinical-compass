@@ -336,7 +336,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
       {tab === "data" && (
         <div className="stack">
           <div>
-            <h3 className="section-title">Опросник PHQ-9</h3>
+            <h3 className="section-title">Опросники</h3>
             {assessments.status === "loading" && <p className="notice">Загрузка ответов…</p>}
             {assessments.status === "failed" && (
               <LoadError onRetry={loadAssessments}>
@@ -350,6 +350,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
               <table className="assessment-table">
                 <thead>
                   <tr>
+                    <th scope="col">Опросник</th>
                     <th scope="col">Дата</th>
                     <th scope="col">Сумма</th>
                     <th scope="col">Диапазон</th>
@@ -358,6 +359,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
                 <tbody>
                   {assessments.data.map((assessment) => (
                     <tr key={assessment.id}>
+                      <td>{assessment.instrumentTitle}</td>
                       <td>{formatDate(assessment.submittedAt)}</td>
                       <td>
                         {assessment.total}

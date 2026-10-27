@@ -597,7 +597,7 @@ const SCENARIOS: Record<string, Scenario> = {
     title: "Статус выбирает шкалы, вопрос к данным отвечает на событии",
     steps: [
       {
-        say: "Пациент только пришёл: скрининг, в наборе PHQ-9 и ASQ",
+        say: "Пациент только пришёл: скрининг, в наборе один PHQ-9",
         run: () => {
           console.log(`Статус ${state.status}. Шкалы: ${patientSet()}`);
         },

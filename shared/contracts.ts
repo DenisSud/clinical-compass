@@ -598,15 +598,38 @@ export type WatchItem = {
   pausedAt: string | null;
 };
 
-/** Plain-language description of a rule, so the doctor does not have to read JSON. */
-export function describeWatch(item: Pick<WatchItem, "kind" | "params">): string {
+/** Что можно выбрать в правиле «сумма выше порога»: шкалы из набора пациента. */
+export const instrumentChoiceSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+});
+
+export type InstrumentChoice = z.infer<typeof instrumentChoiceSchema>;
+
+export const instrumentChoicesResponseSchema = z.object({
+  instruments: z.array(instrumentChoiceSchema),
+});
+
+/**
+ * Plain-language description of a rule, so the doctor does not have to read JSON.
+ * `titles` — названия шкал: без них «сумма опросника 14 и выше» не говорит, какой
+ * именно шкалы, а у пациента их несколько.
+ */
+export function describeWatch(
+  item: Pick<WatchItem, "kind" | "params">,
+  titles: Record<string, string> = {},
+): string {
   switch (item.kind) {
     case "diary_below":
       return `самочувствие ${String(item.params.threshold)} или ниже`;
     case "diary_drop":
       return `падение самочувствия на ${String(item.params.points)} и больше`;
-    case "score_threshold":
-      return `сумма опросника ${String(item.params.threshold)} и выше`;
+    case "score_threshold": {
+      const title = titles[String(item.params.instrumentId)];
+      return title
+        ? `сумма «${title}» ${String(item.params.threshold)} и выше`
+        : `сумма опросника ${String(item.params.threshold)} и выше`;
+    }
     case "missed_doses":
       return `${String(item.params.days)} пропуска приёма подряд`;
     case "message_keyword":

@@ -175,6 +175,66 @@ describe("questions on an event", () => {
     await app.close();
   });
 
+  it("refuses when the prescription has not started yet", async () => {
+    const app = await newApp();
+    const cookie = await signUpPatient(app);
+    const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie } });
+    const patientId = me.json().profile.id as string;
+
+    await seedWorsening(app, patientId);
+    await app.conn.db.insert(prescriptions).values({
+      id: randomUUID(),
+      patientId,
+      drugId: null,
+      drugName: "Авиандр",
+      doseValue: 20,
+      doseUnit: "мг",
+      timesPerDay: 1,
+      timesOfDay: JSON.stringify(["08:00"]),
+      startsOn: shiftDay(wallClockDay(new Date()), 1),
+      endsOn: null,
+      status: "active",
+      createdAt: new Date().toISOString(),
+      confirmedAt: new Date().toISOString(),
+      confirmedBy: null,
+      archivedAt: null,
+    });
+
+    await runDecisionQuestions(app, { patientId, sourceType: "assessment", sourceId: "now" });
+
+    // Ни один приём ещё не наступил: «пропусков нет» здесь было бы утверждением без данных.
+    expect(await decisionSignals(app, patientId, ANY_DECISION_KIND)).toHaveLength(0);
+    await app.close();
+  });
+
+  it("raises the card again after closure when another event recomputes it", async () => {
+    const app = await newApp();
+    const cookie = await signUpPatient(app);
+    const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie } });
+    const patientId = me.json().profile.id as string;
+
+    await seedWorsening(app, patientId);
+    await seedAdherence(app, patientId, 3);
+
+    await runDecisionQuestions(app, { patientId, sourceType: "assessment", sourceId: "now" });
+    const [first] = await decisionSignals(app, patientId);
+    await app.conn.db
+      .update(signals)
+      .set({ status: "closed" })
+      .where(eq(signals.id, first!.id));
+
+    // Тот же источник — та же строка, второй карточки нет: событие не переигранное.
+    await runDecisionQuestions(app, { patientId, sourceType: "assessment", sourceId: "now" });
+    expect(await decisionSignals(app, patientId)).toHaveLength(1);
+    expect((await decisionSignals(app, patientId))[0]?.status).toBe("closed");
+
+    // Другое событие — новый разбор, карточка возвращается к врачу.
+    await runDecisionQuestions(app, { patientId, sourceType: "diary", sourceId: "2026-10-27" });
+    const open = (await decisionSignals(app, patientId)).filter((row) => row.status !== "closed");
+    expect(open).toHaveLength(1);
+    await app.close();
+  });
+
   it("keeps one open card when another event recomputes the same answer", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);

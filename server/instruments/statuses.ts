@@ -22,8 +22,9 @@ const statusInstrumentSchema = z.strictObject({
   id: z.string().min(1),
   /**
    * How soon this instrument opens again *in this status*. The schedule belongs to
-   * the assignment, not to the instrument: the same PHQ-9 is monthly in treatment and
-   * weekly when things get worse. Zero keeps the instrument's own "any time" meaning.
+   * the assignment, not to the instrument: HADS-тревога opens weekly in treatment and
+   * every three days once the doctor marks worsening. Zero keeps the instrument's own
+   * "any time" meaning (ASQ).
    */
   repeatAfterHours: z.number().int().nonnegative(),
 });

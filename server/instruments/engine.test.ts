@@ -113,6 +113,20 @@ describe("HADS", () => {
     expect(score(hadsAnxiety!, calm).total).toBe(0);
   });
 
+  it("keeps the reversed wording of a4 and d3 at the values the source gives", () => {
+    const a4 = hadsAnxiety!.items.find((item) => item.id === "a4");
+    const d3 = hadsDepression!.items.find((item) => item.id === "d3");
+
+    expect(optionsOf(hadsAnxiety!, a4!).find((option) => option.label === "совсем не могу")?.value).toBe(3);
+    expect(
+      optionsOf(hadsAnxiety!, a4!).find((option) => option.label === "определенно, это так")?.value,
+    ).toBe(0);
+    expect(optionsOf(hadsDepression!, d3!).find((option) => option.label === "совсем не испытываю")?.value).toBe(3);
+    expect(
+      optionsOf(hadsDepression!, d3!).find((option) => option.label === "практически все время")?.value,
+    ).toBe(0);
+  });
+
   it("gives each part its own total instead of one number for both", () => {
     const anxiety = score(hadsAnxiety!, answersOf(hadsAnxiety!, 3));
     const depression = score(hadsDepression!, answersOf(hadsDepression!, 1));

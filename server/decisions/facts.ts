@@ -164,7 +164,10 @@ async function adherenceFacts(
     // Последний состоявшийся приём без отметки — не «ноль пропусков», а «неизвестно»:
     // иначе вопрос «пропусков не было» получал бы «да» на пустом месте (S30, Q36).
     const elapsed = slots.filter((slot) => slot.state !== "scheduled");
-    if (elapsed.length > 0 && elapsed[elapsed.length - 1]?.state === "no_data") return null;
+    // Ни одного наступившего приёма (назначение начинается завтра) — это не «ноль
+    // пропусков», а отсутствие данных: отвечать «приёмов не пропускал» не на чем.
+    if (elapsed.length === 0) return null;
+    if (elapsed[elapsed.length - 1]?.state === "no_data") return null;
 
     const missed = trailingSkips(slots).length;
     worst = worst === null ? missed : Math.max(worst, missed);

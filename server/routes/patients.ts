@@ -9,12 +9,37 @@ import { requireAuth, requireRole } from "../auth/guard.js";
 import { fail } from "../http/errors.js";
 import { patients } from "../db/schema.js";
 import { forbidden, notFound } from "../http/errors.js";
+import { patientInstruments } from "../instruments/loader.js";
 import { statuses } from "../instruments/statuses.js";
+import { instrumentChoicesResponseSchema } from "../../shared/contracts.js";
 import { toPatientSummary } from "./profiles.js";
 
 const NOT_YOURS = "Этот пациент ведёт другой врач";
 
 export const patientRoutes: FastifyPluginAsync = async (app) => {
+  /**
+   * Шкалы, назначенные пациенту сейчас. Врачу они нужны для правила «сумма выше порога»:
+   * правило на шкалу, которую пациент пройти не может, не сработает ни разу.
+   */
+  app.get<{ Params: { id: string } }>(
+    "/patients/:id/instruments",
+    { preHandler: requireRole("doctor") },
+    async (request, reply) => {
+      const [patient] = await app.conn.db
+        .select()
+        .from(patients)
+        .where(eq(patients.id, request.params.id))
+        .limit(1);
+
+      if (!patient) return notFound(reply, "Пациент не найден");
+      if (patient.doctorId !== requireAuth(request).userId) return forbidden(reply, NOT_YOURS);
+
+      return instrumentChoicesResponseSchema.parse({
+        instruments: patientInstruments(patient.status).map(({ id, title }) => ({ id, title })),
+      });
+    },
+  );
+
   /** Перечень статусов и их подписей — для выбора в карточке, а не для пациента. */
   app.get("/patient-statuses", { preHandler: requireRole("doctor") }, async () =>
     patientStatusesResponseSchema.parse({

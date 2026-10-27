@@ -160,10 +160,22 @@ export const factsRoutes: FastifyPluginAsync = async (app) => {
      */
     const drafts = signalsForFacts(toFacts(row));
 
-    // Факты пациента меняют ответы вопросов так же, как шкала: пересчёт по событию,
-    // а не по кнопке «обновить» (Q44). Карточку вопроса дедуплицирует сам шлюз по виду,
-    // поэтому постоянный sourceId здесь не съедает второй ответ.
-    await runDecisionQuestions(app, { patientId, sourceType: "facts", sourceId: patientId });
+    /*
+     * Факты пациента меняют ответы вопросов так же, как шкала: пересчёт по событию, а не
+     * по кнопке «обновить» (Q44). `sourceId` — отпечаток ответов, а не пациент: с
+     * постоянным id закрытая врачом карточка больше не поднялась бы никогда, а тот же
+     * ответ, сохранённый дважды, не должен давать вторую (тот же довод, что ниже у правил).
+     */
+    const factsFingerprint = createHash("sha1")
+      .update(JSON.stringify(toFacts(row)))
+      .digest("hex")
+      .slice(0, 12);
+
+    await runDecisionQuestions(app, {
+      patientId,
+      sourceType: "facts",
+      sourceId: `${patientId}:${factsFingerprint}`,
+    });
 
     /*
      * A second contraindication must not hide behind the first card. The unique index

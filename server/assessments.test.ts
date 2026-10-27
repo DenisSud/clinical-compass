@@ -306,11 +306,16 @@ describe("the patient's set past PHQ-9", () => {
     await app.close();
   });
 
-  it("still refuses HADS, which is no longer in the set", async () => {
+  it("refuses HADS to a patient who is still on screening", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
-    const response = await submit(app, cookie, { submissionId: "h-1", answers: items(7, 0) }, "hads");
+    const response = await submit(
+      app,
+      cookie,
+      { submissionId: "h-1", answers: hadsAnswers(0) },
+      "hads-anxiety",
+    );
 
     expect(response.statusCode).toBe(404);
     await app.close();

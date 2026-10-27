@@ -30,7 +30,7 @@ import { saveSignals } from "./signals.js";
  * The interval belongs to the assignment, not to the route: the status file says how
  * often a questionnaire opens for this patient, and ASQ is not locked at all. A
  * suicide-risk screener that answers «спросите через неделю» is a safety problem, not
- * a rate limit. Сегодня в файле везде неделя, кроме GAD-7 в ухудшении (трое суток);
+ * a rate limit. Сегодня в файле везде неделя, кроме HADS в ухудшении (трое суток);
  * менять период — правка файла, а не маршрута.
  */
 const HOUR_MS = 60 * 60 * 1000;
