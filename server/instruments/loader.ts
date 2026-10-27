@@ -69,6 +69,14 @@ export function patientInstrument(status: string, id: string): Instrument | unde
 }
 
 /**
+ * Шкалы, которые заполняет врач (SPEC S9/S10, Q53). Набор этапа их не перечисляет:
+ * HDRS-17 заполняется после приёма, и назначает его приём, а не статус пациента.
+ */
+export function doctorInstruments(): Instrument[] {
+  return [...instruments().values()].filter((instrument) => instrument.audience === "doctor");
+}
+
+/**
  * Called at startup: a status file that names a missing instrument, or a doctor's scale,
  * must not wait for a patient. Проверка — тот же расчёт набора, которым пользуется
  * маршрут пациента, поэтому сборка падает на том же месте, где упал бы запрос.

@@ -4,8 +4,11 @@ import { doctors } from "../db/schema.js";
 import { forbidden, unauthorized } from "../http/errors.js";
 import { readSession, type Auth, type Role } from "./session.js";
 
-/** Отказ терапевту один и тот же: он не назначает и не меняет план лечения (SPEC S7, Q50). */
-const PSYCHIATRIST_ONLY = "Назначать препараты и менять план лечения может только психиатр";
+/**
+ * Отказ терапевту один и тот же: он не назначает препараты, не меняет план, не
+ * назначает приём и не заполняет шкалы врача (SPEC S7, S14, S24, Q50, Q53).
+ */
+const PSYCHIATRIST_ONLY = "Это действие доступно только психиатру";
 
 /** Rejects anonymous callers, and callers holding a session for the other role. */
 export function requireRole(role: Role) {

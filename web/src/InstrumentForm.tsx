@@ -1,18 +1,27 @@
 import { useCallback, useEffect, useState } from "react";
 import type { InstrumentView } from "../../shared/contracts";
-import { ApiRequestError, fetchInstrument, submitAssessment } from "./api";
+import {
+  ApiRequestError,
+  fetchDoctorInstrument,
+  fetchInstrument,
+  submitAssessment,
+  submitDoctorAssessment,
+} from "./api";
 import { Button, LoadError } from "./ui";
 
 /**
- * Форма любого опросника из набора пациента. Описание приходит с сервера: вопросы,
- * варианты и вступление — данные, а не код. Пока форма была одна, она называлась по
- * шкале; теперь шкалу выбирает статус пациента, и форма обязана быть общей (issue #68).
+ * Форма любого опросника. Описание приходит с сервера: вопросы, варианты и вступление —
+ * данные, а не код. Без `patientId` форма пациентская (шкала из своего набора), с ним —
+ * врачебная: шкалу и отправку задаёт карточка пациента, и маршрут другой (SPEC S14, Q53).
  */
 export function InstrumentForm({
   instrumentId,
+  patientId,
   onSaved,
 }: {
   instrumentId: string;
+  /** Карточка пациента для врачебной шкалы; у пациента её нет — он читает свои шкалы. */
+  patientId?: string;
   onSaved: () => void;
 }) {
   const [instrument, setInstrument] = useState<InstrumentView | null>(null);
@@ -23,12 +32,16 @@ export function InstrumentForm({
   const loadInstrument = useCallback(() => {
     setError(null);
     // Ответы принадлежат шкале: id пунктов у шкал разные (q1…q9 у PHQ-9, a1…a7 и d1…d7
-    // у HADS, u01…u48 у UKU), а варианты ответа — тем более.
+    // у HADS, u01…u48 у UKU, h01…h17 у HDRS-17), а варианты ответа — тем более.
     setAnswers({});
-    fetchInstrument(instrumentId)
+    const request =
+      patientId === undefined
+        ? fetchInstrument(instrumentId)
+        : fetchDoctorInstrument(patientId, instrumentId);
+    request
       .then((response) => setInstrument(response.instrument))
       .catch(() => setError("Не удалось загрузить опросник — повторите попытку."));
-  }, [instrumentId]);
+  }, [instrumentId, patientId]);
 
   useEffect(loadInstrument, [loadInstrument]);
 
@@ -42,7 +55,12 @@ export function InstrumentForm({
     setBusy(true);
     setError(null);
     try {
-      await submitAssessment(instrumentId, { submissionId: crypto.randomUUID(), answers });
+      const submissionId = crypto.randomUUID();
+      if (patientId === undefined) {
+        await submitAssessment(instrumentId, { submissionId, answers });
+      } else {
+        await submitDoctorAssessment(patientId, { submissionId, instrumentId, answers });
+      }
       setAnswers({});
       onSaved();
     } catch (cause) {

@@ -1,5 +1,6 @@
 import type {
   AssessmentSubmit,
+  Appointment,
   Credentials,
   DiaryEntry,
   DoctorSignal,
@@ -157,6 +158,69 @@ export function fetchMyAssessments(): Promise<{
 
 export function fetchPatientAssessments(id: string): Promise<{ assessments: DoctorAssessment[] }> {
   return request<{ assessments: DoctorAssessment[] }>(`/api/patients/${id}/assessments`);
+}
+
+/** Шкалы, которые заполняет врач, — из файлов шкал, а не из списка в коде карточки. */
+export function fetchDoctorInstruments(
+  patientId: string,
+): Promise<{ instruments: InstrumentChoice[] }> {
+  return request<{ instruments: InstrumentChoice[] }>(
+    `/api/patients/${patientId}/doctor-instruments`,
+  );
+}
+
+/** Текст шкалы врача для формы: тот же вид, что у пациента, без диапазонов. */
+export function fetchDoctorInstrument(
+  patientId: string,
+  instrumentId: string,
+): Promise<{ instrument: InstrumentView }> {
+  return request<{ instrument: InstrumentView }>(
+    `/api/patients/${patientId}/instruments/${instrumentId}`,
+  );
+}
+
+/** Оценка врача после приёма — тот же счёт и та же таблица, что у ответа пациента (S14, Q53). */
+export function submitDoctorAssessment(
+  patientId: string,
+  payload: AssessmentSubmit & { instrumentId: string },
+): Promise<{ assessment: DoctorAssessment }> {
+  return request<{ assessment: DoctorAssessment }>(
+    `/api/patients/${patientId}/doctor-assessments`,
+    { method: "POST", body: JSON.stringify(payload) },
+  );
+}
+
+/** Приёмы пациента. Читают и врач (карточка), и пациент (свои записи). */
+export function fetchPatientAppointments(id: string): Promise<{ appointments: Appointment[] }> {
+  return request<{ appointments: Appointment[] }>(`/api/patients/${id}/appointments`);
+}
+
+export function createAppointment(
+  patientId: string,
+  scheduledAt: string,
+): Promise<{ appointment: Appointment }> {
+  return request<{ appointment: Appointment }>(`/api/patients/${patientId}/appointments`, {
+    method: "POST",
+    body: JSON.stringify({ scheduledAt }),
+  });
+}
+
+export function cancelAppointment(
+  patientId: string,
+  appointmentId: string,
+): Promise<{ appointment: Appointment }> {
+  return request<{ appointment: Appointment }>(
+    `/api/patients/${patientId}/appointments/${appointmentId}`,
+    { method: "DELETE" },
+  );
+}
+
+/** Согласие пациента на напоминание по почте. Отправка писем — не здесь и пока нигде. */
+export function saveReminderEmail(remindByEmail: boolean): Promise<{ remindByEmail: boolean }> {
+  return request<{ remindByEmail: boolean }>("/api/appointment-reminder", {
+    method: "PUT",
+    body: JSON.stringify({ remindByEmail }),
+  });
 }
 
 export function submitDiary(payload: {

@@ -23,6 +23,7 @@ export function toPatientProfile(row: PatientRow, doctor: DoctorRow | undefined)
     name: row.name,
     doctor: doctor ? { id: doctor.id, email: doctor.email, name: doctor.name } : null,
     boundAt: row.boundAt,
+    remindByEmail: row.remindByEmail,
   };
 }
 

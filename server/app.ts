@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { createDb } from "./db/client.js";
 import { fail } from "./http/errors.js";
 import { authRoutes } from "./routes/auth.js";
+import { appointmentRoutes } from "./routes/appointments.js";
 import { assessmentRoutes } from "./routes/assessments.js";
 import { diaryRoutes } from "./routes/diary.js";
 import { factsRoutes } from "./routes/facts.js";
@@ -95,6 +96,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(recommendationRoutes, { prefix: "/api" });
   await app.register(checkinRoutes, { prefix: "/api" });
   await app.register(prescriptionRoutes, { prefix: "/api" });
+  await app.register(appointmentRoutes, { prefix: "/api" });
   await app.register(watchRoutes, { prefix: "/api" });
   await app.register(rulesRoutes, { prefix: "/api" });
   await app.register(loginRoutes);

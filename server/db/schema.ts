@@ -35,6 +35,11 @@ export const patients = sqliteTable(
       .notNull()
       .default("screening"),
     createdAt: text("created_at").notNull(),
+    /**
+     * Согласие на напоминание о приёме по почте (SPEC S24, Q49). Хранится как
+     * предпочтение пациента: отправки в продукте пока нет, и поле об этом не врёт.
+     */
+    remindByEmail: integer("remind_by_email", { mode: "boolean" }).notNull().default(false),
   },
   (table) => [index("idx_patients_doctor_id").on(table.doctorId)],
 );
@@ -263,6 +268,28 @@ export const prescriptions = sqliteTable(
  * пропуск — это разница между запланированным и фактическим временем. Нет строки —
  * не «принял» и не «пропустил», а «не спрашивали».
  */
+/**
+ * Приём, назначенный психиатром (SPEC S24, Q49). Отмена — дата в `cancelled_at`, а не
+ * удаление строки: история приёмов нужна врачу, а «следующий приём» — это единственная
+ * неудалённая и неотменённая запись в будущем.
+ */
+export const appointments = sqliteTable(
+  "appointments",
+  {
+    id: text("id").primaryKey(),
+    patientId: text("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+    /** Ведущий врач на момент записи; NULL — врач удалён, приём остаётся. */
+    doctorId: text("doctor_id").references(() => doctors.id, { onDelete: "set null" }),
+    /** ISO-время с зоной: и «следующий приём», и сутки до него считаются от момента. */
+    scheduledAt: text("scheduled_at").notNull(),
+    createdAt: text("created_at").notNull(),
+    cancelledAt: text("cancelled_at"),
+  },
+  (table) => [index("idx_appointments_patient").on(table.patientId, table.scheduledAt)],
+);
+
 export const doseEvents = sqliteTable(
   "dose_event",
   {

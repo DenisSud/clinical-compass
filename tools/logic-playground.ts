@@ -16,12 +16,17 @@
 import { createInterface } from "node:readline/promises";
 import { stdin, stdout } from "node:process";
 
-import type { PatientFacts } from "../shared/contracts.js";
+import type { Appointment, PatientFacts } from "../shared/contracts.js";
 import { patientFactsSchema } from "../shared/contracts.js";
+import { nextAppointment, reminderDue } from "../shared/appointments.js";
 import { factAnswerText, factState } from "../shared/facts.js";
 import type { PreviousAssessment, RuleCondition, RuleFacts } from "../shared/rules.js";
 import { criticalItems, score } from "../server/instruments/engine.js";
-import { instrument as findInstrument, patientInstruments } from "../server/instruments/loader.js";
+import {
+  doctorInstruments,
+  instrument as findInstrument,
+  patientInstruments,
+} from "../server/instruments/loader.js";
 import { patientStatus, statusForSpecialty, statusLabel } from "../server/instruments/statuses.js";
 import type { Instrument } from "../server/instruments/schema.js";
 import { evaluateRule, findRule, listRules, requireRule } from "../server/rules/registry.js";
@@ -105,6 +110,7 @@ function emptyState(): State {
     startsOn: shiftDay(TODAY, -2),
     endsOn: null,
     specialty: "therapist",
+    appointments: [],
   };
 }
 
@@ -113,6 +119,13 @@ let state = emptyState();
 /** Набор шкал текущего этапа — площадка берёт его тем же загрузчиком, что и маршрут пациента. */
 function patientSet(): string {
   return patientInstruments(stage())
+    .map((item) => item.id)
+    .join(", ");
+}
+
+/** Шкалы, которые заполняет врач: их назначает приём, а не этап пациента (Q53). */
+function doctorSet(): string {
+  return doctorInstruments()
     .map((item) => item.id)
     .join(", ");
 }
@@ -429,6 +442,12 @@ function markLastSkips(n: number, reason: string): boolean {
   return true;
 }
 
+/** «+2» для приёма: он всегда в будущем, а resolveDay знает только прошедшие дни. */
+function resolveFutureDay(token: string): string {
+  if (/^[+-]\d+$/.test(token)) return shiftDay(TODAY, Number(token));
+  return resolveDay(token);
+}
+
 /** «-1» или «25.10» — в дату ГГГГ-ММ-ДД. */
 function resolveDay(token: string): string {
   if (/^-\d+$/.test(token)) return shiftDay(TODAY, Number(token));
@@ -483,6 +502,40 @@ function pillbox(): void {
   console.log(`\nПодряд пропусков (подтверждённых пациентом): ${skips.length}`);
   if (skips.length > 0) console.log(`  цепочка: ${skips.map((slot) => slot.scheduledAt).join(", ")}`);
   console.log("Пустая отметка после наступившего времени — «нет данных», а не нарушение.");
+}
+
+/** Дата и время приёма так, как их читают врач и пациент. */
+function formatMoment(iso: string): string {
+  return new Date(iso).toLocaleString("ru-RU", {
+    day: "numeric",
+    month: "long",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/**
+ * Приём: что видит врач и что видит пациент. Срок напоминания — правило продукта
+ * (сутки), поэтому считается той же функцией, что и на экране пациента (S24).
+ */
+function appointmentTable(): void {
+  const now = new Date();
+  const next = nextAppointment(state.appointments, now);
+
+  head(`ПРИЁМ · сейчас ${NOW}`);
+  if (!next) {
+    console.log("Следующий приём не назначен: строки нет, а не «приёма не будет».");
+    return;
+  }
+
+  console.log(`Врач видит: следующий приём — ${formatMoment(next.scheduledAt)}`);
+  console.log(`Пациент видит: «Врач назначил приём: ${formatMoment(next.scheduledAt)}.»`);
+  console.log(
+    reminderDue(next, now)
+      ? "Напоминание в приложении: да — до приёма меньше суток."
+      : "Напоминание в приложении: нет — до приёма больше суток.",
+  );
+  console.log(`Отменённых приёмов в истории: ${state.appointments.filter((row) => row.cancelledAt !== null).length}`);
 }
 
 // ────────────────────────────────────────────────────────────── сценарии
@@ -685,6 +738,8 @@ const HELP = `
                                childPugh=B, беременность=pregnant, галактоза=no,
                                факт эпилепсия=null — снова «не спрашивали»
   шкала <id> [все=N] [q9=1]    phq-9, hads-anxiety, hads-depression, uku
+  оценка <id> [все=N] [h01=2]  шкала врача после приёма: hdrs-17
+  приём [+2 | 3.11] 14:00      назначить следующий приём (только психиатр)
   прошлый <балл> [от <шкала> [версия X]]  прошлая сумма, шкала и версия
   дневник <1-10> [было <1-10>] самочувствие сегодня
   пропуски <n> <причина>       отметить последние n наступивших приёмов пропуском
@@ -952,6 +1007,73 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
       state.marks = {};
       pillbox();
       dump();
+      return;
+    }
+    case "оценка": {
+        const [id, ...pairs] = rest;
+        const instrument = id ? findInstrument(id) : undefined;
+        if (!instrument) {
+          console.log(`Нет шкалы ${id ?? ""}. Шкалы врача: ${doctorSet()}`);
+          return;
+        }
+        // Шкалу пациента заполняет пациент: врачебная команда не подменяет его ответ.
+        if (instrument.audience !== "doctor") {
+          console.log(`Шкала ${instrument.id} пациентская — заполняется командой шкала`);
+          return;
+        }
+        const preset: Record<string, number> = {};
+        let fallback: number | null = null;
+        for (const pair of pairs) {
+          const [key, raw] = pair.split("=");
+          const value = Number(raw);
+          if (Number.isNaN(value)) {
+            console.log(`Не понял «${pair}»`);
+            return;
+          }
+          if (key === "все") fallback = value;
+          else if (key) preset[key] = value;
+        }
+        // Как и маршрут врача: неполная отправка отклоняется, а не считается с нулями.
+        if (fallback === null && Object.keys(preset).length !== instrument.items.length) {
+          console.log(
+            `Отвечено ${Object.keys(preset).length} из ${instrument.items.length} — продукт такую отправку отклоняет. Укажи все=N.`,
+          );
+          return;
+        }
+        applyAssessment(instrument.id, preset, fallback ?? 0);
+        dump();
+        return;
+      }
+    case "приём": {
+      if (state.specialty !== "psychiatrist") {
+        console.log("Приём назначает психиатр: сначала статус психиатр (SPEC S24, Q49).");
+        return;
+      }
+      const parts = tail.trim().split(/\s+/);
+      const time = parts.pop() ?? "";
+      const day = parts.length > 0 ? resolveFutureDay(parts[0]!) : TODAY;
+      if (!/^\d{2}:\d{2}$/.test(time) || !/^\d{4}-\d{2}-\d{2}$/.test(day)) {
+        console.log("Формат: приём [+2 | 3.11] 14:00");
+        return;
+      }
+      const at = new Date(`${day}T${time}:00`);
+      if (at.getTime() <= Date.now()) {
+        console.log("Продукт отклонил бы это: приём назначают на будущее время (400 appointment_in_past).");
+        return;
+      }
+      const now = new Date().toISOString();
+      // Новый приём заменяет прошлый будущий: отмена датой, история остаётся.
+      state.appointments = state.appointments.map((row) =>
+        row.cancelledAt === null && row.scheduledAt > now ? { ...row, cancelledAt: now } : row,
+      );
+      state.appointments.push({
+        id: `a${state.appointments.length + 1}`,
+        patientId: "p1",
+        scheduledAt: at.toISOString(),
+        createdAt: now,
+        cancelledAt: null,
+      });
+      appointmentTable();
       return;
     }
     case "сценарий":

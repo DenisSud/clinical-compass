@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AdherenceTable } from "./AdherenceTable";
+import { DoctorAppointment } from "./Appointments";
+import { DoctorAssessmentForm } from "./DoctorAssessmentForm";
 import { PatientFactsPanel } from "./PatientFactsPanel";
 import { WatchPanel } from "./WatchPanel";
 import { DiaryChart } from "./DiaryChart";
@@ -94,12 +96,15 @@ function PatientSignals({ patientId }: { patientId: string }) {
 
 export function PatientDetail({
   patient,
-  canEditPlan,
+  isPsychiatrist,
   onUnbound,
 }: {
   patient: PatientSummary;
-  /** Психиатр правит план, терапевт его только видит (SPEC S7, Q50). */
-  canEditPlan: boolean;
+  /**
+   * Психиатр правит план и назначает приём, терапевт их только видит (SPEC S7, S24, Q50).
+   * Специальность — поле врача, а не роль (S2), поэтому решение одно на всю карточку.
+   */
+  isPsychiatrist: boolean;
   onUnbound: () => void;
 }) {
   const [tab, setTab] = useState<PatientTab>("overview");
@@ -176,6 +181,8 @@ export function PatientDetail({
 
       {tab === "overview" && (
         <div className="stack">
+          <DoctorAppointment patientId={patient.id} canEdit={isPsychiatrist} />
+
           <div>
             <h3 className="section-title">Приверженность</h3>
             <AdherenceTable patientId={patient.id} />
@@ -262,7 +269,7 @@ export function PatientDetail({
         </div>
       )}
 
-      {tab === "plan" && <PlanPanel patientId={patient.id} canEdit={canEditPlan} />}
+      {tab === "plan" && <PlanPanel patientId={patient.id} canEdit={isPsychiatrist} />}
 
       {tab === "messages" && (
         <>
@@ -292,6 +299,12 @@ export function PatientDetail({
 
       {tab === "data" && (
         <div className="stack">
+          <DoctorAssessmentForm
+            patientId={patient.id}
+            canFill={isPsychiatrist}
+            onSaved={loadAssessments}
+          />
+
           <div>
             <h3 className="section-title">Опросники</h3>
             {assessments.status === "loading" && <p className="notice">Загрузка ответов…</p>}

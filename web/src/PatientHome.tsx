@@ -17,8 +17,10 @@ import {
   fetchMyInstruments,
   fetchMyMessages,
   fetchMyPlan,
+  saveReminderEmail,
   sendMessage,
 } from "./api";
+import { PatientAppointment } from "./Appointments";
 import { DiaryForm } from "./DiaryForm";
 import { FactsForm } from "./FactsForm";
 import { TodayPlan } from "./TodayPlan";
@@ -72,6 +74,10 @@ export function PatientHome({
   /** Какой опросник открыт прямо сейчас; null — список. */
   const [openInstrumentId, setOpenInstrumentId] = useState<string | null>(null);
   const [answersSaved, setAnswersSaved] = useState(false);
+  /** Согласие на напоминание по почте — предпочтение пациента, а не отправка (SPEC S24). */
+  const [remindByEmail, setRemindByEmail] = useState(profile.remindByEmail);
+  const [remindBusy, setRemindBusy] = useState(false);
+  const [remindError, setRemindError] = useState<string | null>(null);
 
   const reloadAssessments = useCallback(() => {
     track(setAssessments, fetchMyAssessments());
@@ -105,6 +111,21 @@ export function PatientHome({
     reloadMessages();
     reloadFacts();
   }, [reloadAssessments, reloadInstruments, reloadDiary, reloadPlan, reloadMessages, reloadFacts]);
+
+  async function toggleReminder(next: boolean) {
+    setRemindBusy(true);
+    setRemindError(null);
+    try {
+      const saved = await saveReminderEmail(next);
+      setRemindByEmail(saved.remindByEmail);
+    } catch (cause) {
+      setRemindError(
+        cause instanceof ApiRequestError ? cause.message : "Не удалось сохранить настройку",
+      );
+    } finally {
+      setRemindBusy(false);
+    }
+  }
 
   async function bind(event: React.FormEvent) {
     event.preventDefault();
@@ -192,6 +213,8 @@ export function PatientHome({
 
       {tab === "today" && (
         <div className="stack">
+          <PatientAppointment patientId={profile.id} />
+
           <Card title="Назначения на сегодня">
             <TodayPlan />
           </Card>
@@ -400,6 +423,30 @@ export function PatientHome({
           ) : (
             <p className="muted">
               Вы пока не привязаны к врачу. Введите код приглашения — форма выше на этом экране.
+            </p>
+          )}
+
+          <h3 className="section-title section-title--spaced">Напоминание о приёме</h3>
+          <label className="choice">
+            <input
+              type="checkbox"
+              checked={remindByEmail}
+              disabled={remindBusy}
+              onChange={(event) => void toggleReminder(event.target.checked)}
+            />
+            Напоминать на почту
+          </label>
+          {/*
+            * Отправки писем в продукте нет: строка говорит, что происходит на самом деле,
+            * а не обещает письмо, которого никто не отправит (SPEC S24).
+            */}
+          <p className="hint">
+            Напоминание в приложении приходит всегда. Почтовую отправку ещё не включили —
+            сейчас письма не уходят.
+          </p>
+          {remindError && (
+            <p className="notice notice--error" role="alert">
+              {remindError}
             </p>
           )}
 

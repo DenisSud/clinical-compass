@@ -28,8 +28,10 @@ function egfrOf(sqlite: Database.Database): unknown {
 describe("миграция 0015: этап пациента и специальность врача", () => {
   const MIGRATION = "0015_stage_and_specialty.sql";
 
-  it("файл на месте и идёт последним", () => {
-    expect(files.at(-1)).toBe(MIGRATION);
+  it("файл на месте и идёт после дробной СКФ", () => {
+    // Последней теперь стала миграция приёмов, поэтому здесь проверяется место 0015 среди
+    // уже накопленных: файл не переименован и порядок не нарушен.
+    expect(files.indexOf(MIGRATION)).toBeGreaterThan(files.indexOf(EGFR_MIGRATION));
   });
 
   it("даёт существующему пациенту скрининг, а врачу — терапию по умолчанию", () => {
@@ -102,6 +104,51 @@ describe("миграция 0013: СКФ перестаёт быть целой",
     expect(() =>
       sqlite.prepare("UPDATE patient_facts SET egfr_ml_min = 250 WHERE patient_id = 'p1'").run(),
     ).toThrow();
+    sqlite.close();
+  });
+});
+
+describe("миграция 0016: приёмы и напоминание на почту", () => {
+  const MIGRATION = "0016_appointments.sql";
+
+  it("файл на месте и идёт последним", () => {
+    expect(files.at(-1)).toBe(MIGRATION);
+  });
+
+  it("сохраняет историю приёмов и не включает почту без согласия пациента", () => {
+    const sqlite = new Database(":memory:");
+    for (const file of files) {
+      if (file === MIGRATION) continue;
+      apply(sqlite, file);
+    }
+    sqlite
+      .prepare("INSERT INTO doctors (id, email, password_hash, created_at) VALUES ('d1', 'd@b.c', 'x', '2026-10-27')")
+      .run();
+    sqlite
+      .prepare("INSERT INTO patients (id, email, password_hash, created_at) VALUES ('p1', 'a@b.c', 'x', '2026-10-27')")
+      .run();
+
+    apply(sqlite, MIGRATION);
+
+    // Согласие по умолчанию не дано: напоминание на почту — выбор пациента (S24, Q49).
+    const remind = sqlite.prepare("SELECT remind_by_email AS value FROM patients WHERE id = 'p1'").get() as {
+      value: number;
+    };
+    expect(remind.value).toBe(0);
+
+    sqlite
+      .prepare(
+        "INSERT INTO appointments (id, patient_id, doctor_id, scheduled_at, created_at) VALUES ('a1', 'p1', 'd1', '2026-11-03T14:00:00.000Z', '2026-10-27T09:00:00.000Z')",
+      )
+      .run();
+    // Отмена — дата, а не удаление строки: приём остаётся в истории.
+    sqlite.prepare("UPDATE appointments SET cancelled_at = '2026-10-27T10:00:00.000Z' WHERE id = 'a1'").run();
+    const rows = sqlite.prepare("SELECT id FROM appointments WHERE patient_id = 'p1'").all();
+    expect(rows).toHaveLength(1);
+
+    expect(() =>
+      sqlite.prepare("UPDATE patients SET remind_by_email = 2 WHERE id = 'p1'").run(),
+    ).toThrow(/CHECK/);
     sqlite.close();
   });
 });

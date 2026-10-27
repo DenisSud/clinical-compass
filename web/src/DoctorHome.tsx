@@ -17,8 +17,8 @@ function formatDate(iso: string): string {
 }
 
 export function DoctorHome({ doctor }: { doctor: DoctorProfile }) {
-  /** План и назначения ведёт психиатр; терапевт их только читает (SPEC S7, Q50). */
-  const canEditPlan = doctor.specialty === "psychiatrist";
+  /** План, приём и врачебные шкалы ведёт психиатр; терапевт их только читает (S7, S24, Q50). */
+  const isPsychiatrist = doctor.specialty === "psychiatrist";
   const [view, setView] = useState<DoctorView>("signals");
   const [signals, setSignals] = useState<Load<DoctorSignal[]>>(loading());
   const [patients, setPatients] = useState<Load<PatientSummary[]>>(loading());
@@ -204,7 +204,7 @@ export function DoctorHome({ doctor }: { doctor: DoctorProfile }) {
                 <PatientDetail
                   key={selected.id}
                   patient={selected}
-                  canEditPlan={canEditPlan}
+                  isPsychiatrist={isPsychiatrist}
                   onUnbound={() => {
                     setSelected(null);
                     loadPatients();

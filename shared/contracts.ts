@@ -51,6 +51,11 @@ export const patientProfileSchema = z.object({
   name: z.string().nullable(),
   doctor: z.object({ id: z.string(), email: z.string(), name: z.string().nullable() }).nullable(),
   boundAt: z.string().nullable(),
+  /**
+   * Напоминать о приёме на почту — предпочтение пациента (SPEC S24, Q49).
+   * Согласие, а не факт отправки: отправки писем в продукте нет.
+   */
+  remindByEmail: z.boolean(),
 });
 
 export type PatientProfile = z.infer<typeof patientProfileSchema>;
@@ -106,6 +111,16 @@ export const assessmentSubmitSchema = z.object({
 });
 
 export type AssessmentSubmit = z.infer<typeof assessmentSubmitSchema>;
+
+/**
+ * Отправка шкалы врачом (SPEC S14, Q53): маршрут пациента её не принимает, а маршрут
+ * врача требует, чтобы шкала была объявлена врачебной в своём файле (audience "doctor").
+ */
+export const doctorAssessmentSubmitSchema = assessmentSubmitSchema.extend({
+  instrumentId: z.string().min(1),
+});
+
+export type DoctorAssessmentSubmit = z.infer<typeof doctorAssessmentSubmitSchema>;
 
 export const assessmentAnswerSchema = z.object({
   itemId: z.string(),
@@ -393,6 +408,29 @@ export const doseEventSchema = z.object({
 });
 
 export type DoseEvent = z.infer<typeof doseEventSchema>;
+
+/**
+ * Приём, назначенный психиатром (SPEC S24, Q49). `cancelledAt` — отмена, а не
+ * отсутствие строки: история приёмов остаётся, и «перенесли» отличимо от «не было».
+ */
+export const appointmentSchema = z.object({
+  id: z.string(),
+  patientId: z.string(),
+  /** ISO-время с зоной: сутки до приёма считаются от текущего момента. */
+  scheduledAt: z.string(),
+  createdAt: z.string(),
+  cancelledAt: z.string().nullable(),
+});
+
+export type Appointment = z.infer<typeof appointmentSchema>;
+
+/** Время приёма вводит врач: ISO-строка с зоной, а не «завтра после обеда». */
+export const appointmentCreateSchema = z.object({
+  scheduledAt: z.iso.datetime(),
+});
+
+/** Напоминание на почту: согласие пациента, а не запись об отправке письма (S24). */
+export const appointmentReminderSchema = z.object({ remindByEmail: z.boolean() });
 
 /** `scheduled` — время ещё не наступило; это не «нет данных» и не пропуск. */
 export const doseSlotStateSchema = z.enum(["scheduled", "taken", "skipped", "no_data"]);
