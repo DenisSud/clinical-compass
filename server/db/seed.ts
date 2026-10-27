@@ -90,7 +90,7 @@ const PLAN_DRAFT: Record<string, string> = {
   "mikhail@example.com": "Дневник тревоги дважды в день",
 };
 
-// 6 days since the prescription: three taken, one skipped with a reason, one day silent.
+// 6 дней от назначения: три приёма, один пропуск с причиной, один день без ответа.
 const PLAN_HISTORY: Record<string, { daysAgo: number; status: string; reason?: string }[]> = {
   "anna@example.com": [
     { daysAgo: 5, status: "done" },
@@ -215,7 +215,7 @@ for (const demo of DEMO_PATIENTS) {
       confirmedAt,
     });
 
-    // Done, skipped and a day nobody answered — all three states in the demo.
+    // Выполнено, пропуск и день без ответа: все три состояния в демо.
     for (const day of PLAN_HISTORY[demo.email] ?? []) {
       const createdAt = daysAgo(day.daysAgo);
       await db.insert(planCheckins).values({

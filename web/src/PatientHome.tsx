@@ -42,9 +42,9 @@ function formatDayMonth(iso: string): string {
 }
 
 /*
- * The plan's kinds in the doctor's own words (`PlanPanel.tsx`, `KIND`). Written out here
- * rather than imported so the patient screen does not reach into a doctor screen module;
- * a fifth kind has to change both maps in the same commit.
+ * Виды пунктов плана словами врача (`PlanPanel.tsx`, `KIND`). Выписаны здесь, а не
+ * импортированы, чтобы экран пациента не лез в модуль экрана врача; пятый вид требует
+ * правки обеих карт в одном коммите.
  */
 const PLAN_KIND_LABEL: Record<PlanItem["kind"], string> = {
   medication: "Препарат",
@@ -387,10 +387,10 @@ export function PatientHome({
             </Empty>
           )}
           {/*
-           * Only confirmed items: `/api/plan` returns `active` ones
-           * (`server/routes/plan.ts:115`), so a draft never reaches this screen and no
-           * state word or filter is drawn here. The kind is the doctor's word, the
-           * explanation is optional and stays under the title (patient.css, `.plan-entry`).
+           * Только подтверждённые пункты: `/api/plan` возвращает `active`
+           * (`server/routes/plan.ts:115`), поэтому черновик на этот экран не попадает и слова
+           * о состоянии или фильтра здесь нет. Вид это слово врача, пояснение необязательно
+           * и остаётся под названием (patient.css, `.plan-entry`).
            */}
           {plan.status === "ready" && plan.data.length > 0 && (
             <>
@@ -404,8 +404,8 @@ export function PatientHome({
                 ))}
               </ul>
               {/*
-               * No actions here and one quiet line saying why: an item becomes visible
-               * only after the doctor confirms it (GLOSSARY.md, «План»).
+               * Никаких действий и одна тихая строка о причине: пункт становится видимым
+               * только после того, как врач его подтвердил (GLOSSARY.md, «План»).
                */}
               <p className="hint">План ведёт врач.</p>
             </>

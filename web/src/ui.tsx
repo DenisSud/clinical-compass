@@ -45,14 +45,14 @@ export function Tabs<T extends string>({
   const [overflowing, setOverflowing] = useState(false);
 
   /*
-   * The row wraps instead of scrolling (#48 revised the scrolling choice of #35): a
-   * clipped row hid two patient sections behind a fade that read as the edge of the
-   * row. The fade stays for the row that cannot wrap — a single label wider than the
-   * row at a phone zoomed to 200–250 % — so a cut label is still announced. It may only
-   * be there when something really is cut off: a fade over a fully visible tab reads as
-   * «этот раздел недоступен». So the row is measured: on resize, when the number of
-   * tabs changes, and once the font has loaded, because Lato's metrics decide the last
-   * few pixels.
+   * Строка переносится вместо прокрутки (#48 пересмотрел прокрутку из #35): обрезанная
+   * строка прятала два раздела пациента за градиентом, который читался как край строки.
+   * Градиент остаётся для строки, которая переноситься не может: одна подпись шире строки
+   * на телефоне с масштабом 200–250 %, так что обрезанная подпись всё равно объявлена. Он может
+   * появляться только когда что-то действительно обрезано: градиент над полностью видимой вкладкой
+   * читается как «этот раздел недоступен». Поэтому строка измеряется: при изменении размера,
+   * при смене числа вкладок и после загрузки шрифта, потому что метрики Lato решают последние
+   * несколько пикселей.
    */
   useEffect(() => {
     const node = bar.current;

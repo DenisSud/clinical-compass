@@ -7,10 +7,10 @@ import { Button, Empty } from "./ui";
 export type MessageViewer = "patient" | "doctor";
 
 /*
- * The export writes the author as a caption inside the bubble, «Пациент · 25 октября,
- * 09:14» (system §2.15), and the same bubble is signed differently on the two screens:
- * on the patient's page a doctor's message is «Врач», on the doctor's page the very same
- * message is «Пациент». So the word comes from the reader's role, never from a literal.
+ * В экспорте автор подписан подписью внутри пузыря, «Пациент · 25 октября,
+ * 09:14» (system §2.15), и один и тот же пузырь подписан по-разному на двух экранах:
+ * на странице пациента сообщение врача это «Врач», на странице врача то же самое
+ * сообщение это «Пациент». Поэтому слово берётся из роли читателя, а не из литерала.
  */
 function authorLabel(viewer: MessageViewer, authorRole: Message["authorRole"]): string {
   if (authorRole === viewer) return "Вы";

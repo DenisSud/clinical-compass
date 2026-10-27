@@ -29,10 +29,10 @@ function tileTitle(day: AdherenceDay): string {
 }
 
 /**
- * Done, skipped and unknown are three different facts. Collapsing them into a
- * percentage would tell the doctor a patient missed doses we simply never asked about,
- * so the count of each state stays a count and the tile for «нет сведений» takes an
- * empty outline instead of a fill (DESIGN.md §2.5).
+ * Выполнено, пропуск и отсутствие сведений это три разных факта. Слить их в
+ * процент значит сказать врачу, что пациент пропустил приёмы, о которых мы вовсе
+ * не спрашивали, поэтому каждое состояние остаётся числом, а плитка «нет сведений»
+ * получает пустой контур вместо заливки (DESIGN.md §2.5).
  */
 export function AdherenceTable({ patientId }: { patientId: string }) {
   const [data, setData] = useState<DoctorAdherence | null>(null);
@@ -61,16 +61,18 @@ export function AdherenceTable({ patientId }: { patientId: string }) {
     <div className="adherence">
       {data.items.map((item) => {
         const counts = { done: item.done, skipped: item.skipped, no_data: item.noData };
-        /* A skipped day is the only day that has a reason: a miss without one cannot be
-           recorded (TodayPlan), so a missing reason hides nothing — there is no such day. */
+        /* Причина есть только у дня с пропуском: пропуск без причины невозможен
+         * (запись идёт в TodayPlan), поэтому отсутствие причины ничего не прячет, такого дня нет.
+         */
         const reasons = item.days.filter((day) => day.state === "skipped" && day.reason);
 
         return (
           <section key={item.planItemId} className="adherence__item">
             <h4 className="adherence__title">{item.title}</h4>
 
-            {/* No count and no window length in the label: the route returns from the item's
-                start date, so «последние 14 дней» would be a claim the data does not always meet. */}
+            {/* Ни числа, ни длины окна в подписи: маршрут считает от даты начала пункта,
+             * поэтому «последние 14 дней» было бы утверждением, которое данные выполняют не всегда.
+             */}
             <div className="adherence__grid">
               {item.days.map((day) => (
                 <span

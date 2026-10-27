@@ -15,10 +15,10 @@ function formatDate(iso: string): string {
 }
 
 /**
- * The state word is the first channel: it survives greyscale and forced-colors, and the
- * surface (filled / outline / dashed) only confirms it (signal-semantics.md §1). «Не
- * отмечено» and «Не спрашивали» stay two different words — the export glues them into one
- * line with the answer, which is exactly the confusion GLOSSARY.md forbids.
+ * Слово о состоянии это первый канал: оно выживает в оттенках серого и в forced-colors, а
+ * поверхность (заливка, контур, пунктир) его только подтверждает (signal-semantics.md §1).
+ * «Не отмечено» и «Не спрашивали» остаются двумя разными словами: в экспорте они склеены в одну
+ * строку с ответом, и это ровно та путаница, которую запрещает GLOSSARY.md.
  */
 const STATE_LABEL: Record<FactState, string> = {
   marked: "Отмечено",

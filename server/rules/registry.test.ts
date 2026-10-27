@@ -56,8 +56,8 @@ function scaleFacts(input: {
   };
 }
 
-describe("rule files", () => {
-  it("loads a minimal set of rules, each with a source", () => {
+describe("файлы правил", () => {
+  it("загружает минимальный набор правил, у каждого есть источник", () => {
     const rules = listRules();
 
     expect(rules.length).toBeGreaterThanOrEqual(3);
@@ -67,31 +67,31 @@ describe("rule files", () => {
     }
   });
 
-  it("registers every id once", () => {
+  it("регистрирует каждый идентификатор один раз", () => {
     const ids = listRules().map((rule) => rule.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it("points every reference at a file that exists in the corpus", () => {
+  it("указывает каждой ссылкой на файл, который есть в корпусе", () => {
     for (const rule of listRules()) {
       const path = rule.source.ref.split("#")[0]!;
       expect(existsSync(join(process.cwd(), path)), `${rule.id}: ${rule.source.ref}`).toBe(true);
     }
   });
 
-  it("refuses a rule without a source instead of registering it", () => {
+  it("отказывает в правиле без источника, а не регистрирует его", () => {
     const { source: _source, ...withoutSource } = ruleById("critical-item");
 
     expect(() => parseRule(withoutSource)).toThrow(InvalidRule);
   });
 
-  it("refuses a source with an empty reference", () => {
+  it("отказывает в источнике с пустой ссылкой", () => {
     const rule = ruleById("critical-item");
 
     expect(() => parseRule({ ...rule, source: { ...rule.source, ref: "" } })).toThrow(InvalidRule);
   });
 
-  it("refuses a template that names a value the condition does not produce", () => {
+  it("отказывает в шаблоне, который называет значение, не даваемое условием", () => {
     const rule = ruleById("diary-sharp-drop");
 
     expect(() =>
@@ -99,7 +99,7 @@ describe("rule files", () => {
     ).toThrow(InvalidRule);
   });
 
-  it("refuses a template name that only one of the conditions produces", () => {
+  it("отказывает в имени шаблона, которое даёт только одно из условий", () => {
     // Условия соединены «или», поэтому сработать может любое: имя, которое даёт
     // только второе, — ошибка загрузки, а не 500 в момент срабатывания (issue #47).
     const partial = {
@@ -132,8 +132,8 @@ describe("rule files", () => {
   });
 });
 
-describe("executing one rule", () => {
-  it("fires the critical-item rule and names the flagged items", () => {
+describe("выполнение одного правила", () => {
+  it("срабатывает по правилу критического пункта и называет отмеченные пункты", () => {
     const match = evaluateRule(ruleById("critical-item"), {
       ...NO_FACTS,
       assessment: scaleFacts({ total: 12, criticalItems: ["q9"] }),
@@ -145,7 +145,7 @@ describe("executing one rule", () => {
     expect(match!.source.kind).toBe("ours");
   });
 
-  it("fires the worsening rule and prints both totals", () => {
+  it("срабатывает по правилу ухудшения и печатает обе суммы", () => {
     const match = evaluateRule(ruleById("worsening"), {
       ...NO_FACTS,
       assessment: scaleFacts({ total: 18, previous: { total: 10 } }),
@@ -156,7 +156,7 @@ describe("executing one rule", () => {
     expect(match!.detail).toContain("18");
   });
 
-  it("refuses to compare two different scales", () => {
+  it("отказывается сравнивать две разные шкалы", () => {
     const rule = ruleById("worsening");
 
     // HADS-Т — тревога, HADS-Д — депрессия. Рост между ними — сравнение двух
@@ -178,7 +178,7 @@ describe("executing one rule", () => {
     ).toBeNull();
   });
 
-  it("refuses to compare the same scale before and after a version change", () => {
+  it("отказывается сравнивать ту же шкалу до и после смены версии", () => {
     const match = evaluateRule(ruleById("worsening"), {
       ...NO_FACTS,
       assessment: scaleFacts({ total: 18, previous: { instrumentVersion: "0.9.0", total: 10 } }),
@@ -187,13 +187,13 @@ describe("executing one rule", () => {
     expect(match).toBeNull();
   });
 
-  it("does not compare when there is no previous submission", () => {
+  it("не сравнивает, когда предыдущей отправки нет", () => {
     expect(
       evaluateRule(ruleById("worsening"), { ...NO_FACTS, assessment: scaleFacts({ total: 18 }) }),
     ).toBeNull();
   });
 
-  it("fires the contraindication rule on a low eGFR", () => {
+  it("срабатывает по правилу противопоказания при низкой СКФ", () => {
     const match = evaluateRule(ruleById("aviandr-contraindications"), {
       ...NO_FACTS,
       patientFacts: { ...NO_PATIENT_FACTS, egfrMlMin: 55 },
@@ -206,7 +206,7 @@ describe("executing one rule", () => {
     expect(match!.source.status).toBe("confirmed");
   });
 
-  it("names every matched contraindication, not only the first", () => {
+  it("называет каждое совпавшее противопоказание, а не только первое", () => {
     const match = evaluateRule(ruleById("aviandr-contraindications"), {
       ...NO_FACTS,
       patientFacts: { ...NO_PATIENT_FACTS, egfrMlMin: 45, pregnancy: "pregnant" },
@@ -216,7 +216,7 @@ describe("executing one rule", () => {
     expect(match!.detail).toContain("беременность");
   });
 
-  it("words a one-condition match exactly as before joining was added", () => {
+  it("формулирует совпадение по одному условию ровно как до появления объединения", () => {
     const match = evaluateRule(ruleById("aviandr-contraindications"), {
       ...NO_FACTS,
       patientFacts: { ...NO_PATIENT_FACTS, pregnancy: "lactating" },
@@ -227,14 +227,14 @@ describe("executing one rule", () => {
     );
   });
 
-  it("does not fire on an unanswered fact", () => {
+  it("не срабатывает по факту без ответа", () => {
     const rule = ruleById("aviandr-contraindications");
 
     expect(evaluateRule(rule, { ...NO_FACTS, patientFacts: NO_PATIENT_FACTS })).toBeNull();
     expect(evaluateRule(rule, NO_FACTS)).toBeNull();
   });
 
-  it("does not fire below the threshold", () => {
+  it("не срабатывает ниже порога", () => {
     const rule = ruleById("worsening");
 
     const match = evaluateRule(rule, {
@@ -245,7 +245,7 @@ describe("executing one rule", () => {
     expect(match).toBeNull();
   });
 
-  it("gives the same answer on two runs over the same facts", () => {
+  it("даёт тот же ответ на двух прогонах по одним и тем же фактам", () => {
     const facts: RuleFacts = {
       ...NO_FACTS,
       assessment: scaleFacts({ total: 18, previous: { total: 10 } }),
@@ -260,7 +260,7 @@ describe("executing one rule", () => {
 });
 
 describe("GET /api/rules", () => {
-  it("gives the doctor every rule with its source", async () => {
+  it("даёт врачу каждое правило с его источником", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
 
@@ -277,7 +277,7 @@ describe("GET /api/rules", () => {
     await app.close();
   });
 
-  it("keeps the rule list away from the patient", async () => {
+  it("держит список правил вне доступа пациента", async () => {
     const app = await newApp();
     const patientCookie = await signUpPatient(app);
 

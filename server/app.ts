@@ -44,9 +44,9 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   // пациента: пустой список опросников выглядит как «врач ничего не назначил».
   assertStatusInstrumentsExist();
 
-  // An empty body announced as JSON is not a server fault: a bodyless action
-  // (pause a rule, take a signal) sends no body at all. Without this parser
-  // Fastify rejects the request before routing and the doctor's click fails.
+  // Пустое тело, объявленное как JSON, не поломка сервера: действие без тела
+  // (пауза правила, взятие сигнала в разбор) вообще не присылает тело. Без этого
+  // разбора Fastify отклоняет запрос до маршрутизации, и нажатие врача падает.
   app.addContentTypeParser(
     "application/json",
     { parseAs: "string" },
@@ -67,10 +67,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     },
   );
 
-  // Without this, a thrown error returns Fastify's own body, and a client that
-  // validates against apiErrorSchema sees garbage exactly when something broke.
-  // A refusal stays a refusal: turning a 400 into a 500 tells the doctor the
-  // server broke when in fact the request did.
+  // Без этого брошенная ошибка возвращает собственное тело Fastify, и клиент,
+  // сверяющий ответ с apiErrorSchema, получает мусор ровно тогда, когда что-то сломалось.
+  // Отказ остаётся отказом: превратить 400 в 500 значит сказать врачу, что сломался
+  // сервер, хотя на самом деле ошибочен запрос.
   app.setErrorHandler((error: { statusCode?: number; code?: string; message?: string }, request, reply) => {
     const status = error.statusCode ?? 500;
     if (status < 500) {

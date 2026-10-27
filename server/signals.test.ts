@@ -41,8 +41,8 @@ function listSignals(app: App, cookie: string) {
   return app.inject({ method: "GET", url: "/api/signals", headers: { cookie } });
 }
 
-describe("what raises a signal", () => {
-  it("raises a critical signal for item 9", async () => {
+describe("что поднимает сигнал", () => {
+  it("поднимает критический сигнал по пункту 9", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
     await submit(app, patientCookie, 0, { q9: 1 });
@@ -54,7 +54,7 @@ describe("what raises a signal", () => {
     await app.close();
   });
 
-  it("raises nothing for a low score with no critical answer", async () => {
+  it("ничего не поднимает при низкой сумме без критического ответа", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
     await submit(app, patientCookie, 0);
@@ -63,7 +63,7 @@ describe("what raises a signal", () => {
     await app.close();
   });
 
-  it("raises a high signal for a severe total", async () => {
+  it("поднимает высокий сигнал при тяжёлой сумме", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
     await submit(app, patientCookie, 2);
@@ -73,13 +73,13 @@ describe("what raises a signal", () => {
     await app.close();
   });
 
-  it("raises a worsening signal only when there is something to compare", async () => {
+  it("поднимает сигнал об ухудшении только когда есть с чем сравнить", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
     await submit(app, patientCookie, 0);
     expect((await listSignals(app, doctorCookie)).json().signals).toEqual([]);
 
-    // the questionnaire is weekly, so age the first submission before the second
+    // опросник недельный, поэтому первая отправка должна «состариться» до второй
     app.conn.sqlite
       .prepare("UPDATE assessments SET submitted_at = ?")
       .run(new Date(Date.now() - 8 * 86_400_000).toISOString());
@@ -90,7 +90,7 @@ describe("what raises a signal", () => {
     await app.close();
   });
 
-  it("names the scale and both sums when it calls a worsening", async () => {
+  it("называет шкалу и обе суммы, когда говорит об ухудшении", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
     // PHQ-9: пять баллов на пяти пунктах.
@@ -115,7 +115,7 @@ describe("what raises a signal", () => {
     await app.close();
   });
 
-  it("does not compare one questionnaire with another", async () => {
+  it("не сравнивает один опросник с другим", async () => {
     const app = await newApp();
     const { patientCookie } = await boundPair(app);
 
@@ -147,7 +147,7 @@ describe("what raises a signal", () => {
     await app.close();
   });
 
-  it("raises a signal for a very low diary score", async () => {
+  it("поднимает сигнал при очень низкой оценке дневника", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
     await app.inject({
@@ -162,7 +162,7 @@ describe("what raises a signal", () => {
     await app.close();
   });
 
-  it("does not duplicate a signal when the same submission is retried", async () => {
+  it("не дублирует сигнал, когда ту же отправку повторяют", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
     const payload = { submissionId: "same", answers: answers(3) };
@@ -188,8 +188,8 @@ describe("what raises a signal", () => {
   });
 });
 
-describe("the signal lifecycle", () => {
-  it("moves saved to in_review and refuses a second take", async () => {
+describe("жизненный путь сигнала", () => {
+  it("переводит saved в in_review и отказывает во втором взятии", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
     await submit(app, patientCookie, 3);
@@ -212,7 +212,7 @@ describe("the signal lifecycle", () => {
     await app.close();
   });
 
-  it("does not close a signal just because it was read", async () => {
+  it("не закрывает сигнал только потому, что его прочитали", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
     await submit(app, patientCookie, 3);
@@ -224,7 +224,7 @@ describe("the signal lifecycle", () => {
     await app.close();
   });
 
-  it("refuses to close without an outcome", async () => {
+  it("отказывает в закрытии без исхода", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
     await submit(app, patientCookie, 3);
@@ -241,7 +241,7 @@ describe("the signal lifecycle", () => {
     await app.close();
   });
 
-  it("closes with an outcome and keeps it", async () => {
+  it("закрывает с исходом и сохраняет его", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     await submit(app, patientCookie, 3);
@@ -274,7 +274,7 @@ describe("the signal lifecycle", () => {
     await app.close();
   });
 
-  it("keeps another doctor out of a signal", async () => {
+  it("не пускает другого врача к сигналу", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
     await submit(app, patientCookie, 3);
@@ -293,7 +293,7 @@ describe("the signal lifecycle", () => {
     await app.close();
   });
 
-  it("keeps the patient out of the signal routes", async () => {
+  it("не пускает пациента на маршруты сигналов", async () => {
     const app = await newApp();
     const { patientCookie } = await boundPair(app);
 
@@ -302,8 +302,8 @@ describe("the signal lifecycle", () => {
   });
 });
 
-describe("UKU has no total, so its band raises no card", () => {
-  it("stores the answers and adds no total-score signal", async () => {
+describe("у UKU нет суммы, поэтому её полоса не поднимает карточку", () => {
+  it("сохраняет ответы и не добавляет сигнал по общей сумме", async () => {
     const app = await newApp();
     const { patientCookie } = await boundPair(app);
     const psychiatristCookie = await signUpDoctor(app, {
@@ -340,8 +340,8 @@ describe("UKU has no total, so its band raises no card", () => {
   });
 });
 
-describe("the card says which rule fired", () => {
-  it("names the rule and its placeholder source for the doctor", async () => {
+describe("карточка говорит, какое правило сработало", () => {
+  it("называет врачу правило и его источник-заглушку", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
     await submit(app, patientCookie, 0, { q9: 1 });
@@ -359,7 +359,7 @@ describe("the card says which rule fired", () => {
     await app.close();
   });
 
-  it("points a diary card at the rule that raised it", async () => {
+  it("указывает в карточке дневника на правило, которое её подняло", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
     await app.inject({
@@ -377,8 +377,8 @@ describe("the card says which rule fired", () => {
   });
 });
 
-describe("a signal names the questionnaire it came from", () => {
-  it("says which instrument has the critical item, not just that one exists", async () => {
+describe("сигнал называет опросник, из которого пришёл", () => {
+  it("говорит, у какого инструмента критический пункт, а не просто что он есть", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
 
@@ -393,8 +393,8 @@ describe("a signal names the questionnaire it came from", () => {
       (signal) => signal.kind === "critical_item",
     );
 
-    // The doctor reads a card, not a rule id: without the title he has to guess
-    // which form the patient filled in.
+    // Врач читает карточку, а не идентификатор правила: без названия ему остаётся гадать,
+    // какую форму заполнил пациент.
     expect(critical?.detail).toContain("PHQ-9");
     await app.close();
   });

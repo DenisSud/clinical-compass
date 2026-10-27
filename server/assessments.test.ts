@@ -37,8 +37,8 @@ async function boundPair(app: App, specialty: "therapist" | "psychiatrist" = "th
   return { doctorCookie, patientCookie, patientId: me.json().profile.id as string };
 }
 
-describe("submitting an assessment", () => {
-  it("stores the answers and returns them without a score", async () => {
+describe("отправка опросника", () => {
+  it("сохраняет ответы и возвращает их без суммы", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -52,7 +52,7 @@ describe("submitting an assessment", () => {
     await app.close();
   });
 
-  it("returns the first result when the same submission arrives twice", async () => {
+  it("возвращает первый результат, когда та же отправка приходит дважды", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -66,7 +66,7 @@ describe("submitting an assessment", () => {
     await app.close();
   });
 
-  it("refuses a half-filled questionnaire", async () => {
+  it("отказывает в наполовину заполненном опроснике", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -77,7 +77,7 @@ describe("submitting an assessment", () => {
     await app.close();
   });
 
-  it("refuses a value outside the scale", async () => {
+  it("отказывает в значении вне шкалы", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -90,7 +90,7 @@ describe("submitting an assessment", () => {
     await app.close();
   });
 
-  it("refuses an unknown instrument", async () => {
+  it("отказывает в неизвестном инструменте", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -100,7 +100,7 @@ describe("submitting an assessment", () => {
     await app.close();
   });
 
-  it("keeps a doctor out of the submission route", async () => {
+  it("не пускает врача на маршрут отправки", async () => {
     const app = await newApp();
     const cookie = await signUpDoctor(app);
 
@@ -111,8 +111,8 @@ describe("submitting an assessment", () => {
   });
 });
 
-describe("reading assessments", () => {
-  it("shows the patient only their own history", async () => {
+describe("чтение оценок", () => {
+  it("показывает пациенту только его историю", async () => {
     const app = await newApp();
     const mine = await signUpPatient(app);
     const theirs = await signUpPatient(app, { email: "other@example.com", password: "other password" });
@@ -131,7 +131,7 @@ describe("reading assessments", () => {
     await app.close();
   });
 
-  it("shows the doctor the score and the band", async () => {
+  it("показывает врачу сумму и полосу", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     await submit(app, patientCookie, { submissionId: "s-1", answers: answers(2) });
@@ -149,7 +149,7 @@ describe("reading assessments", () => {
     await app.close();
   });
 
-  it("marks item 9 for the doctor when it is answered", async () => {
+  it("отмечает пункт 9 для врача, когда на него ответили", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     await submit(app, patientCookie, { submissionId: "s-1", answers: answers(0, { q9: 2 }) });
@@ -164,7 +164,7 @@ describe("reading assessments", () => {
     await app.close();
   });
 
-  it("keeps another doctor out", async () => {
+  it("не пускает другого врача", async () => {
     const app = await newApp();
     const { patientCookie, patientId } = await boundPair(app);
     await submit(app, patientCookie, { submissionId: "s-1", answers: answers(1) });
@@ -180,7 +180,7 @@ describe("reading assessments", () => {
     await app.close();
   });
 
-  it("keeps a patient off the doctor's route", async () => {
+  it("не пускает пациента на маршрут врача", async () => {
     const app = await newApp();
     const { patientCookie, patientId } = await boundPair(app);
 
@@ -212,8 +212,8 @@ function ukuAnswers(value: number, overrides: Record<string, number> = {}) {
   };
 }
 
-describe("the psychiatrist's set", () => {
-  it("takes a HADS submission and keeps the score away from the patient", async () => {
+describe("набор психиатра", () => {
+  it("принимает отправку HADS и не показывает сумму пациенту", async () => {
     const app = await newApp();
     const { patientCookie } = await boundPair(app, "psychiatrist");
 
@@ -231,7 +231,7 @@ describe("the psychiatrist's set", () => {
     await app.close();
   });
 
-  it("shows the doctor the HADS total and its band", async () => {
+  it("показывает врачу сумму HADS и её полосу", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app, "psychiatrist");
     await submit(
@@ -254,7 +254,7 @@ describe("the psychiatrist's set", () => {
     await app.close();
   });
 
-  it("takes a UKU submission of all 48 items and flags no critical item", async () => {
+  it("принимает отправку UKU по всем 48 пунктам и не отмечает критический пункт", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app, "psychiatrist");
 
@@ -276,7 +276,7 @@ describe("the psychiatrist's set", () => {
     await app.close();
   });
 
-  it("keeps the PHQ-9 critical item raising a signal with the psychiatrist's set in play", async () => {
+  it("при наборе психиатра критический пункт PHQ-9 всё равно поднимает сигнал", async () => {
     const app = await newApp();
     const { patientCookie } = await boundPair(app);
 
@@ -312,7 +312,7 @@ describe("the psychiatrist's set", () => {
     await app.close();
   });
 
-  it("refuses HADS to a patient who is still on screening", async () => {
+  it("отказывает в HADS пациенту, который ещё на скрининге", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 

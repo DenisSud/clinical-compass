@@ -34,8 +34,8 @@ function createItem(app: App, cookie: string, patientId: string, title = "Сер
   });
 }
 
-describe("the plan", () => {
-  it("keeps a draft invisible to the patient until it is confirmed", async () => {
+describe("план", () => {
+  it("держит черновик невидимым для пациента, пока его не подтвердят", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
 
@@ -56,7 +56,7 @@ describe("the plan", () => {
     await app.close();
   });
 
-  it("shows the doctor both drafts and confirmed items", async () => {
+  it("показывает врачу и черновики, и подтверждённые пункты", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const created = await createItem(app, doctorCookie, patientId);
@@ -78,7 +78,7 @@ describe("the plan", () => {
     await app.close();
   });
 
-  it("refuses to confirm the same item twice", async () => {
+  it("отказывает в повторном подтверждении того же пункта", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
     const created = await createItem(app, doctorCookie, patientId);
@@ -91,7 +91,7 @@ describe("the plan", () => {
     await app.close();
   });
 
-  it("hides an archived item from the patient", async () => {
+  it("прячет архивный пункт от пациента", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const created = await createItem(app, doctorCookie, patientId);
@@ -105,7 +105,7 @@ describe("the plan", () => {
     await app.close();
   });
 
-  it("keeps the patient from writing the plan", async () => {
+  it("не даёт пациенту писать план", async () => {
     const app = await newApp();
     const { patientCookie, patientId } = await boundPair(app);
 
@@ -115,7 +115,7 @@ describe("the plan", () => {
     await app.close();
   });
 
-  it("keeps another doctor out", async () => {
+  it("не пускает другого врача", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
     const created = await createItem(app, doctorCookie, patientId);
@@ -137,7 +137,7 @@ describe("the plan", () => {
     await app.close();
   });
 
-  it("lets a therapist read the plan but not create, confirm or archive", async () => {
+  it("даёт терапевту читать план, но не создавать, подтверждать и архивировать", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const created = await createItem(app, doctorCookie, patientId);
@@ -175,7 +175,7 @@ describe("the plan", () => {
     await app.close();
   });
 
-  it("refuses an item without a title", async () => {
+  it("отказывает в пункте без названия", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
 

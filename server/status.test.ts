@@ -28,8 +28,8 @@ function instrumentIds(body: { instruments: { id: string }[] }): string[] {
   return body.instruments.map((instrument) => instrument.id);
 }
 
-describe("the patient's stage", () => {
-  it("is the therapist's stage, with the screening set", async () => {
+describe("этап пациента", () => {
+  it("это этап терапевта, с набором скрининга", async () => {
     const { app, patientCookie } = await boundPair();
 
     const response = await app.inject({
@@ -43,7 +43,7 @@ describe("the patient's stage", () => {
     await app.close();
   });
 
-  it("is the psychiatrist's stage, with HADS and UKU", async () => {
+  it("это этап психиатра, с HADS и UKU", async () => {
     const { app, patientCookie } = await boundPair("psychiatrist");
 
     const response = await app.inject({
@@ -56,7 +56,7 @@ describe("the patient's stage", () => {
     await app.close();
   });
 
-  it("follows the transfer to a psychiatrist and back, with no separate switch", async () => {
+  it("следует за переводом к психиатру и обратно, без отдельного переключателя", async () => {
     const { app, patientCookie } = await boundPair();
     const psychiatristCookie = await signUpDoctor(app, PSYCHIATRIST);
     const therapistCookie = await signUpDoctor(app, {
@@ -82,7 +82,7 @@ describe("the patient's stage", () => {
     await app.close();
   });
 
-  it("refuses an instrument the stage does not assign, as if it did not exist", async () => {
+  it("отказывает в инструменте, которого этап не назначает, как будто его нет", async () => {
     const { app, patientCookie } = await boundPair();
 
     const response = await app.inject({
@@ -95,7 +95,7 @@ describe("the patient's stage", () => {
     await app.close();
   });
 
-  it("refuses a submission of an instrument outside the stage", async () => {
+  it("отказывает в отправке инструмента вне этапа", async () => {
     const { app, patientCookie } = await boundPair();
     const answers = hadsAnswers(1);
 
@@ -110,7 +110,7 @@ describe("the patient's stage", () => {
     await app.close();
   });
 
-  it("never lets a patient fill in the doctor's scale", async () => {
+  it("никогда не даёт пациенту заполнить шкалу врача", async () => {
     const { app, patientCookie } = await boundPair("psychiatrist");
 
     const form = await app.inject({
@@ -130,7 +130,7 @@ describe("the patient's stage", () => {
     await app.close();
   });
 
-  it("says when a questionnaire opens again, and only for the one already passed", async () => {
+  it("говорит, когда опросник откроется снова, и только про уже пройденный", async () => {
     const { app, patientCookie } = await boundPair("psychiatrist");
     await app.inject({
       method: "POST",
@@ -156,7 +156,7 @@ describe("the patient's stage", () => {
     await app.close();
   });
 
-  it("never sends the stage to the patient", async () => {
+  it("никогда не отправляет этап пациенту", async () => {
     const { app, patientCookie } = await boundPair("psychiatrist");
 
     const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie: patientCookie } });
@@ -173,8 +173,8 @@ describe("the patient's stage", () => {
   });
 });
 
-describe("the doctor's view of the stage", () => {
-  it("reads the stage on the patient card", async () => {
+describe("взгляд врача на этап", () => {
+  it("читает этап в карточке пациента", async () => {
     const { app, doctorCookie, patientId } = await boundPair("psychiatrist");
 
     const response = await app.inject({
@@ -189,7 +189,7 @@ describe("the doctor's view of the stage", () => {
     await app.close();
   });
 
-  it("has no route to move the stage by hand", async () => {
+  it("не имеет маршрута, чтобы двигать этап вручную", async () => {
     const { app, doctorCookie, patientId } = await boundPair();
 
     const response = await app.inject({

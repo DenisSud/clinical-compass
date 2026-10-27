@@ -37,8 +37,8 @@ const guideline = (firstLine: string): KnowledgeDocument => ({
   sections: { recommendations: "", firstLine, referral: "" },
 });
 
-describe("recommendations without a corpus", () => {
-  it("returns no cards and says exactly what is missing", () => {
+describe("рекомендации без корпуса", () => {
+  it("не возвращает карточек и точно говорит, чего не хватает", () => {
     const result = recommendations(context, []);
 
     expect(result.cards).toEqual([]);
@@ -46,7 +46,7 @@ describe("recommendations without a corpus", () => {
     expect(result.missing).toContain("Нет клинических рекомендаций — основание «первая линия» нечем подтвердить");
   });
 
-  it("names the gap when the patient has no questionnaire", () => {
+  it("называет пробел, когда у пациента нет опросника", () => {
     const result = recommendations({ ...context, hasAssessment: false }, []);
 
     expect(result.missing).toContain(
@@ -55,8 +55,8 @@ describe("recommendations without a corpus", () => {
   });
 });
 
-describe("recommendations with a corpus", () => {
-  it("builds a card whose basis comes from the guideline, not from a guess", () => {
+describe("рекомендации с корпусом", () => {
+  it("строит карточку, основание которой взято из рекомендации, а не из догадки", () => {
     const result = recommendations(context, [smpc(), guideline("СИОЗС — препараты первой линии.")]);
 
     expect(result.cards).toHaveLength(1);
@@ -71,7 +71,7 @@ describe("recommendations with a corpus", () => {
     expect(result.missing).toContain("Нет клинических рекомендаций — основание «первая линия» нечем подтвердить");
   });
 
-  it("refuses a card that has nothing to stand on", () => {
+  it("отказывает в карточке, которой не на что опереться", () => {
     const bare = smpc({
       sections: {
         indications: "",
@@ -89,7 +89,7 @@ describe("recommendations with a corpus", () => {
     expect(result.missing.some((line) => line.includes("основание отсутствует"))).toBe(true);
   });
 
-  it("lists the gaps inside a card instead of hiding them", () => {
+  it("перечисляет пробелы внутри карточки, а не прячет их", () => {
     const thin = smpc({
       sections: {
         indications: "Депрессивные эпизоды.",
@@ -110,14 +110,14 @@ describe("recommendations with a corpus", () => {
     expect(card?.missing).toContain("В ОХЛП не указано дозирование");
   });
 
-  it("warns that a worsening patient needs a review before a therapy change", () => {
+  it("предупреждает, что ухудшающемуся пациенту нужен разбор до смены терапии", () => {
     const [card] = recommendations({ ...context, trend: "worsening" }, [smpc()]).cards;
 
     expect(card?.missing).toContain("Состояние ухудшается — нужен разбор сигнала до смены терапии");
   });
 });
 
-describe("the recommendations route", () => {
+describe("маршрут рекомендаций", () => {
   it("builds a card from the shipped ОХЛП and names what is still missing", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
@@ -152,7 +152,7 @@ describe("the recommendations route", () => {
     await app.close();
   });
 
-  it("keeps another doctor out", async () => {
+  it("не пускает другого врача", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
     const patientCookie = await signUpPatient(app);

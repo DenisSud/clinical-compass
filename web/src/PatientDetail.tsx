@@ -42,11 +42,10 @@ function patientSignalClassName(signal: Pick<Signal, "severity" | "status">): st
 }
 
 /**
- * The patient's own signals, compact and read-only: this tab shows what the doctor's rules
- * and the patient's facts produced, so the history stays visible (DESIGN.md §2.4). It keeps
- * the word, the shape and the 8 / 4 / 0 px bar of a level and drops the review actions — a
- * signal is taken into review on its own screen, where the result of the review is written
- * (§3.2).
+ * Собственные сигналы пациента, компактно и только для чтения: эта вкладка показывает,
+ * что дали правила врача и факты пациента, поэтому история остаётся видимой (DESIGN.md §2.4).
+ * Она сохраняет слово, форму и полосу 8 / 4 / 0 px, а действия разбора убирает: сигнал
+ * берут в разбор на его собственном экране, где и записывают исход разбора (§3.2).
  */
 function PatientSignals({ patientId }: { patientId: string }) {
   const [signals, setSignals] = useState<Load<Signal[]>>(loading());

@@ -31,8 +31,8 @@ function daysAgo(days: number): string {
   return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
 }
 
-describe("the diary is one entry per day", () => {
-  it("refuses a second entry for the same day", async () => {
+describe("в дневнике одна запись в день", () => {
+  it("отказывает во второй записи за тот же день", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -45,7 +45,7 @@ describe("the diary is one entry per day", () => {
     await app.close();
   });
 
-  it("still returns the first entry when the same submission is retried", async () => {
+  it("всё равно возвращает первую запись, когда ту же отправку повторяют", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
     const payload = { submissionId: "retry", value: 5, entryDate: today() };
@@ -59,7 +59,7 @@ describe("the diary is one entry per day", () => {
     await app.close();
   });
 
-  it("accepts yesterday and refuses a date far from today", async () => {
+  it("принимает вчера и отказывает в дате далеко от сегодня", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -70,7 +70,7 @@ describe("the diary is one entry per day", () => {
     await app.close();
   });
 
-  it("lets the next day through", async () => {
+  it("пропускает следующий день", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -82,8 +82,8 @@ describe("the diary is one entry per day", () => {
   });
 });
 
-describe("the questionnaire is weekly", () => {
-  it("refuses a second attempt within a week", async () => {
+describe("опросник недельный", () => {
+  it("отказывает во второй попытке в пределах недели", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -97,7 +97,7 @@ describe("the questionnaire is weekly", () => {
     await app.close();
   });
 
-  it("does not let the refusal block a retry of the same submission", async () => {
+  it("не даёт отказу заблокировать повтор той же отправки", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
     const payload = { submissionId: "one", answers: answers(1) };
@@ -114,7 +114,7 @@ describe("the questionnaire is weekly", () => {
     await app.close();
   });
 
-  it("reports no waiting time once the week has passed", async () => {
+  it("не сообщает ожидания, когда неделя прошла", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
     await submitAssessment(app, cookie);
@@ -128,7 +128,7 @@ describe("the questionnaire is weekly", () => {
     await app.close();
   });
 
-  it("opens again after seven days", async () => {
+  it("открывается снова через семь дней", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
     await submitAssessment(app, cookie);
@@ -141,7 +141,7 @@ describe("the questionnaire is weekly", () => {
     await app.close();
   });
 
-  it("tells the patient when the next attempt opens", async () => {
+  it("говорит пациенту, когда откроется следующая попытка", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
     expect(

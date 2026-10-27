@@ -5,8 +5,8 @@ export class InvalidAnswers extends Error {}
 export type Score = { total: number; band: InstrumentBand };
 
 /**
- * Sum scoring with band lookup. Bands must cover the whole range: a score that
- * falls outside every band is a broken instrument, not a zero.
+ * Суммарная оценка с поиском полосы. Полосы должны покрывать весь диапазон: сумма,
+ * не попавшая ни в одну полосу, это сломанный инструмент, а не ноль.
  */
 export function score(instrument: Instrument, answers: Record<string, number>): Score {
   for (const item of instrument.items) {

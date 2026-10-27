@@ -233,7 +233,7 @@ export const prescriptionRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const reason = parsed.data.reason?.trim() ?? "";
-    // Same rule as the plan: a skip without a reason tells the doctor nothing they can act on.
+    // То же правило, что и в плане: пропуск без причины не даёт врачу ничего, с чем можно работать.
     if (parsed.data.status === "skipped" && reason.length < REASON_MIN_LENGTH) {
       return fail(
         reply,
@@ -256,7 +256,7 @@ export const prescriptionRoutes: FastifyPluginAsync = async (app) => {
         reason: parsed.data.status === "skipped" ? reason : null,
         createdAt,
       })
-      // A mis-tap is corrected, not preserved: the same planned time is overwritten.
+      // Случайное нажатие исправляют, а не сохраняют: то же запланированное время перезаписывается.
       .onConflictDoUpdate({
         target: [doseEvents.prescriptionId, doseEvents.scheduledAt],
         set: {

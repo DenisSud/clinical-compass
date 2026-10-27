@@ -42,9 +42,9 @@ const COPY: Record<Role, Copy> = {
 };
 
 /**
- * A failed sign-in says the same thing whether the address is unknown or belongs to
- * the other role: the screen names no account (DESIGN.md §2.5). The role is named by
- * the address; the server still decides who may enter.
+ * Неудачный вход говорит одно и то же и когда адрес неизвестен, и когда он принадлежит
+ * другой роли: экран не называет аккаунт (DESIGN.md §2.5). Роль называет адрес,
+ * а кто может войти, всё равно решает сервер.
  */
 function authErrorMessage(cause: unknown, role: Role, mode: Mode): string {
   if (cause instanceof ApiRequestError) {
@@ -69,9 +69,9 @@ function authErrorMessage(cause: unknown, role: Role, mode: Mode): string {
 }
 
 /**
- * Two doors, one per role (#55). The address names who enters, so the screen does not
- * offer a role choice: the only way to the other door is the quiet line at the bottom.
- * The frame borrows the source's cover (Lato Black under a thin rule), nothing more
+ * Две двери, по одной на роль (#55). Адрес называет, кто входит, поэтому экран не
+ * предлагает выбор роли: единственный путь к другой двери это тихая строка внизу.
+ * Рамка берёт обложку источника (Lato Black под тонкой линией) и ничего больше
  * (DESIGN.md §2.3).
  */
 export function AuthScreen({

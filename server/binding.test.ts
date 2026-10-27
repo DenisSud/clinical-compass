@@ -20,8 +20,8 @@ function bind(app: App, patientCookie: string, code: string) {
   });
 }
 
-describe("doctor's link code", () => {
-  it("issues a six-character code without ambiguous symbols", async () => {
+describe("код привязки врача", () => {
+  it("выдаёт код из шести символов без неоднозначных знаков", async () => {
     const app = await newApp();
     const cookie = await signUpDoctor(app);
 
@@ -32,7 +32,7 @@ describe("doctor's link code", () => {
     await app.close();
   });
 
-  it("keeps returning the same code while it is valid", async () => {
+  it("возвращает тот же код, пока он действителен", async () => {
     const app = await newApp();
     const cookie = await signUpDoctor(app);
 
@@ -40,7 +40,7 @@ describe("doctor's link code", () => {
     await app.close();
   });
 
-  it("invalidates the previous code when rotated", async () => {
+  it("гасит прежний код при смене", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
     const patientCookie = await signUpPatient(app);
@@ -58,7 +58,7 @@ describe("doctor's link code", () => {
     await app.close();
   });
 
-  it("is not readable by a patient", async () => {
+  it("не читается пациентом", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -69,8 +69,8 @@ describe("doctor's link code", () => {
   });
 });
 
-describe("patient binding", () => {
-  it("links the patient to the doctor and shows up in the doctor's list", async () => {
+describe("привязка пациента", () => {
+  it("привязывает пациента к врачу, и он появляется в списке врача", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
     const patientCookie = await signUpPatient(app);
@@ -92,7 +92,7 @@ describe("patient binding", () => {
     await app.close();
   });
 
-  it("accepts the code in any case and with surrounding spaces", async () => {
+  it("принимает код в любом регистре и с пробелами вокруг", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
     const patientCookie = await signUpPatient(app);
@@ -104,7 +104,7 @@ describe("patient binding", () => {
     await app.close();
   });
 
-  it("rejects an unknown code", async () => {
+  it("отклоняет неизвестный код", async () => {
     const app = await newApp();
     const patientCookie = await signUpPatient(app);
 
@@ -115,7 +115,7 @@ describe("patient binding", () => {
     await app.close();
   });
 
-  it("rejects an expired code", async () => {
+  it("отклоняет просроченный код", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
     const patientCookie = await signUpPatient(app);
@@ -131,7 +131,7 @@ describe("patient binding", () => {
     await app.close();
   });
 
-  it("lets one code bind several patients", async () => {
+  it("позволяет одному коду привязать несколько пациентов", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
     const first = await signUpPatient(app);
@@ -146,7 +146,7 @@ describe("patient binding", () => {
     await app.close();
   });
 
-  it("moves the patient to another doctor, and the first doctor loses sight of them", async () => {
+  it("переносит пациента к другому врачу, и первый врач теряет его из виду", async () => {
     const app = await newApp();
     const firstDoctor = await signUpDoctor(app);
     const secondDoctor = await signUpDoctor(app, {

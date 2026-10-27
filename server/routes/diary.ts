@@ -11,8 +11,8 @@ import { raiseWatchSignals } from "../watch-service.js";
 import { saveSignals } from "./signals.js";
 
 /**
- * Derives and stores the signals for one entry. Conflict-safe, so calling it again
- * on a retry repairs a first attempt that died between the insert and the signals.
+ * Выводит и сохраняет сигналы для одной записи. Устойчиво к повторам, поэтому повторный
+ * вызов исправляет первую попытку, умершую между вставкой и сигналами.
  */
 async function deriveDiarySignals(
   app: FastifyInstance,
@@ -58,8 +58,9 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
     if (!parsed.success) return fail(reply, 400, "invalid_request", "Оценка — от 1 до 10");
 
     const patientId = requireAuth(request).userId;
-    // Scoped to this patient: the unique index is (patient_id, submission_id), so two
-    // patients may hold the same id and an unscoped lookup could miss the caller's row.
+    // В границах этого пациента: уникальный индекс это (patient_id, submission_id), так что
+    // два пациента могут держать один и тот же идентификатор, и поиск без границ пропустил бы
+    // строку вызывающего.
     const [existing] = await app.conn.db
       .select()
       .from(diaryEntries)
@@ -78,7 +79,7 @@ export const diaryRoutes: FastifyPluginAsync = async (app) => {
     const createdAt = new Date().toISOString();
     const entryDate = parsed.data.entryDate ?? createdAt.slice(0, 10);
 
-    // The patient's own date wins over the server's, but only by a day either way.
+    // Дата пациента главнее серверной, но расходятся они не больше чем на день.
     const skewDays = Math.abs(Date.parse(entryDate) - Date.parse(createdAt.slice(0, 10))) / 86_400_000;
     if (Number.isNaN(skewDays) || skewDays > 1) {
       return fail(reply, 400, "invalid_request", "Дата записи вне допустимого диапазона");

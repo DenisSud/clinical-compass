@@ -15,9 +15,9 @@ const DEFAULT_DIRECTORY = join(import.meta.dirname, "..", "..", "content", "rule
 export class InvalidRule extends Error {}
 
 /**
- * Which template names a fact produces. The template is checked against what every
- * condition can produce (see `assertPlaceholders`), so a `{drop}` on a total-score
- * condition fails at load instead of reaching the doctor as a placeholder or as a 500.
+ * Какое имя шаблона даёт факт. Шаблон сверяется с тем, что может дать каждое условие
+ * (см. `assertPlaceholders`), поэтому `{drop}` на условии по общей сумме падает при загрузке,
+ * а не доходит до врача как заглушка или как 500.
  */
 const FACT_VALUES: Record<RuleCondition["fact"], readonly string[]> = {
   "assessment.criticalItem": ["instrument", "items"],
@@ -48,9 +48,9 @@ export function parseRule(value: unknown): Rule {
 }
 
 /**
- * Reads every `*.json` in the directory. A file that fails the schema stops the
- * load: a broken rule must not be skipped silently, because a skipped rule is a
- * clinical rule that stopped working without anyone noticing.
+ * Читает каждый `*.json` в каталоге. Файл, не прошедший схему, останавливает загрузку: сломанное
+ * правило нельзя пропускать молча, потому что пропущенное правило это клиническое правило,
+ * переставшее работать без чьего-либо ведома.
  */
 function loadRules(directory: string): Rule[] {
   const rules: Rule[] = [];
@@ -80,8 +80,9 @@ export function findRule(id: string): Rule | undefined {
 }
 
 /**
- * The rule the signal engine names. A missing file is broken content, not a quiet
- * no-op: a rule that stopped firing must be louder than a signal that never existed.
+ * Правило, на которое ссылается движок сигналов. Отсутствующий файл это сломанный контент, а не
+ * тихое пустое действие: правило, переставшее срабатывать, должно звучать громче сигнала,
+ * которого никогда не было.
  */
 export function requireRule(id: string): Rule {
   const rule = findRule(id);
@@ -90,13 +91,13 @@ export function requireRule(id: string): Rule {
 }
 
 /**
- * One rule against one patient's facts. Pure: no database, no clock, no model.
- * Returns null when the rule does not fire — an unknown fact ("не спрашивали")
- * never fires a rule.
+ * Одно правило против фактов одного пациента. Чистое: ни базы, ни часов, ни модели.
+ * Возвращает null, когда правило не срабатывает: неизвестный факт («не спрашивали»)
+ * никогда не поднимает правило.
  *
- * Every matching check reaches the card, not only the first one: a patient with an
- * eGFR of 45 and a pregnancy has two contraindications from one rule, and a card that
- * names one of them tells the doctor the other does not exist (issue #38).
+ * Каждая совпавшая проверка доходит до карточки, а не только первая: у пациента с
+ * СКФ 45 и беременностью два противопоказания из одного правила, и карточка, где названо
+ * одно из них, говорит врачу, что другого нет (issue #38).
  */
 export function evaluateRule(rule: Rule, facts: RuleFacts): RuleMatch | null {
   const matched = rule.when
@@ -116,9 +117,9 @@ export function evaluateRule(rule: Rule, facts: RuleFacts): RuleMatch | null {
 }
 
 /**
- * One template name, several matches: the doctor reads them as a list. With a single
- * match the value is the same string the rule produced before, so rules that check
- * one thing word themselves exactly as they did (#38).
+ * Одно имя шаблона, несколько совпадений: врач читает их как список. При единственном
+ * совпадении значение это та же строка, что правило давало раньше, поэтому правила,
+ * проверяющие одно, формулируются ровно как прежде (#38).
  */
 function joinMatches(matched: Record<string, string>[]): Record<string, string> {
   const collected = new Map<string, string[]>();
@@ -258,20 +259,20 @@ export function renderTemplate(template: string, values: Record<string, string>)
 }
 
 /**
- * A template name must be produced by EVERY condition that can fire: conditions are
- * joined by "or", so any one of them may be the only match. Checking the union let a
- * two-condition rule keep `{items}` from the first condition and threw at firing time,
- * which on a route is a 500 instead of a card (issue #47).
+ * Имя шаблона обязано даваться КАЖДЫМ условием, которое может сработать: условия
+ * соединены через «или», поэтому любое из них может оказаться единственным совпадением.
+ * Проверка по объединению позволяла правилу из двух условий сохранить `{items}` от первого
+ * условия и падала при срабатывании, а на маршруте это 500 вместо карточки (issue #47).
  */
 function assertPlaceholders(rule: Rule): void {
   assertTemplateNames(`правило ${rule.id}`, [rule.output.title, rule.output.detail], rule.when, "every");
 }
 
 /**
- * Which template names the conditions can fill. `every` is the rules' rule: checks are
- * joined by "or", so any one of them may be the only match. `any` is the questions':
- * all checks must hold at once, and the values are merged, so a name produced by one
- * check is there when the answer is built.
+ * Какие имена шаблонов условия могут заполнить. `every` это правило правил: проверки
+ * соединены через «или», поэтому любая из них может оказаться единственным совпадением.
+ * `any` это правило вопросов: все проверки должны выполняться сразу, а значения сливаются,
+ * поэтому имя, данное одной проверкой, есть к моменту сборки ответа.
  */
 export function assertTemplateNames(
   label: string,

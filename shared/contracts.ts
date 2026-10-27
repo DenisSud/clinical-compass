@@ -97,8 +97,8 @@ export const bindingCodeResponseSchema = z.object({
 export type BindingCodeResponse = z.infer<typeof bindingCodeResponseSchema>;
 
 /**
- * A model's proposal. `confirmedAt` stays null until a doctor confirms it;
- * an unconfirmed draft never changes what the patient sees.
+ * Предложение модели. `confirmedAt` остаётся null, пока врач его не подтвердит;
+ * неподтверждённый черновик никогда не меняет то, что видит пациент.
  */
 export type Draft<T> = {
   readonly value: T;
@@ -211,8 +211,8 @@ export const instrumentListResponseSchema = z.object({
 export type InstrumentListResponse = z.infer<typeof instrumentListResponseSchema>;
 
 /**
- * Where a rule came from. `status` is the honesty marker: a placeholder says the
- * source is ours until the clinical materials arrive (decisions.md Q31).
+ * Откуда взялось правило. `status` это маркер честности: заглушка говорит, что
+ * источник наш, пока не пришли клинические материалы (decisions.md Q31).
  */
 export const signalRuleSourceSchema = z.object({
   kind: z.enum(["guideline", "ohlp", "ours"]),
@@ -237,8 +237,8 @@ export const signalSchema = z.object({
   /** Set when the signal came from a rule the doctor wrote, not from the built-in set. */
   watchItemId: z.string().nullable(),
   /**
-   * The registry rule behind the card. Null for the instrument-band signal and for
-   * the doctor's own rules, where there is no rule file to point at.
+   * Правило реестра за карточкой. Null для сигнала по полосе шкалы и для правил
+   * врача, где нет файла правила, на который можно указать.
    */
   ruleId: z.string().nullable(),
   ruleTitle: z.string().nullable(),
@@ -294,9 +294,9 @@ export const messageSchema = z.object({
 export type Message = z.infer<typeof messageSchema>;
 
 /**
- * A recommendation the doctor may act on. `basis` is why it is on screen at all,
- * `missing` is what we do not know and would need before deciding. A card with an
- * empty basis is a defect: the case requires every recommendation to explain itself.
+ * Рекомендация, с которой врач может работать. `basis` это почему она вообще на экране,
+ * `missing` это чего мы не знаем и что нужно до решения. Карточка с пустым основанием
+ * это дефект: кейс требует, чтобы каждая рекомендация объясняла себя.
  */
 export const therapyCardSchema = z.object({
   id: z.string(),
@@ -316,7 +316,7 @@ export const checkinSubmitSchema = z.object({
   planItemId: z.string().min(1),
   status: checkinStatusSchema,
   reason: z.string().trim().max(500).optional(),
-  // Same shape as the diary: everything downstream keys on this exact string.
+  // Та же форма, что у дневника: всё дальше по цепочке смотрит на эту самую строку.
   checkinDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
@@ -335,8 +335,8 @@ export type PatientCheckinItem = {
 export type PatientCheckins = { today: string; items: PatientCheckinItem[] };
 
 /**
- * Three states, never two. A day with no answer is not a missed dose, and a doctor
- * who cannot tell them apart will read silence as non-adherence.
+ * Три состояния, никогда два. День без ответа это не пропущенный приём, и врач,
+ * который их не различает, прочитает молчание как неприверженность.
  */
 export type AdherenceDay = {
   date: string;
@@ -644,8 +644,8 @@ export const instrumentChoicesResponseSchema = z.object({
 });
 
 /**
- * Plain-language description of a rule, so the doctor does not have to read JSON.
- * `titles` — названия шкал: без них «сумма опросника 14 и выше» не говорит, какой
+ * Описание правила человеческим языком, чтобы врачу не приходилось читать JSON.
+ * `titles` это названия шкал: без них «сумма опросника 14 и выше» не говорит, какой
  * именно шкалы, а у пациента их несколько.
  */
 export function describeWatch(

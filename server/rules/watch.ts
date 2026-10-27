@@ -10,11 +10,11 @@ export type WatchEvent =
 export type WatchSignalDraft = SignalDraft & { watchItemId: string };
 
 /**
- * The doctor's own rules, evaluated against one new event. Same contract as the
- * built-in rules: a signal is a question to look at, never an instruction.
+ * Правила самого врача, проверяемые против одного нового события. Контракт тот же, что
+ * у встроенных правил: сигнал это вопрос, на который надо посмотреть, а не указание.
  *
- * These are additions to the built-in safety net, not a replacement. Nothing here
- * can switch off the critical-item rule — that one is not the doctor's to disable.
+ * Это дополнение к встроенной страховке, а не замена. Ничто здесь не может выключить правило
+ * критического пункта: его не врачу отключать.
  */
 export function signalsForWatchItems(items: WatchItem[], event: WatchEvent): WatchSignalDraft[] {
   const drafts: WatchSignalDraft[] = [];

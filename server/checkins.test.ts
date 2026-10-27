@@ -49,8 +49,8 @@ const mark = (app: App, cookie: string, planItemId: string, status: string, reas
     payload: { planItemId, status, reason },
   });
 
-describe("the patient's daily check-in", () => {
-  it("shows only what is actually prescribed today", async () => {
+describe("ежедневная отметка пациента", () => {
+  it("показывает только то, что действительно назначено на сегодня", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     await app.inject({
@@ -70,7 +70,7 @@ describe("the patient's daily check-in", () => {
     await app.close();
   });
 
-  it("records a dose and shows it back", async () => {
+  it("записывает приём и показывает его обратно", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const itemId = await activeItem(app, doctorCookie, patientId);
@@ -83,7 +83,7 @@ describe("the patient's daily check-in", () => {
     await app.close();
   });
 
-  it("refuses a skip with no reason", async () => {
+  it("отказывает в пропуске без причины", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const itemId = await activeItem(app, doctorCookie, patientId);
@@ -95,7 +95,7 @@ describe("the patient's daily check-in", () => {
     await app.close();
   });
 
-  it("keeps the reason for a skip", async () => {
+  it("сохраняет причину пропуска", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const itemId = await activeItem(app, doctorCookie, patientId);
@@ -108,7 +108,7 @@ describe("the patient's daily check-in", () => {
     await app.close();
   });
 
-  it("lets a mis-tap be corrected the same day", async () => {
+  it("даёт исправить случайное нажатие в тот же день", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const itemId = await activeItem(app, doctorCookie, patientId);
@@ -121,7 +121,7 @@ describe("the patient's daily check-in", () => {
     await app.close();
   });
 
-  it("refuses an item that is still a draft", async () => {
+  it("отказывает в пункте, который ещё черновик", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const created = await app.inject({
@@ -138,7 +138,7 @@ describe("the patient's daily check-in", () => {
     await app.close();
   });
 
-  it("does not let a patient mark someone else's prescription", async () => {
+  it("не даёт пациенту отметить чужое назначение", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
     const itemId = await activeItem(app, doctorCookie, patientId);
@@ -151,8 +151,8 @@ describe("the patient's daily check-in", () => {
   });
 });
 
-describe("what the doctor sees", () => {
-  it("keeps done, skipped and no data apart", async () => {
+describe("что видит врач", () => {
+  it("разделяет выполненные приёмы, пропуски и отсутствие сведений", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const itemId = await activeItem(app, doctorCookie, patientId);
@@ -172,7 +172,7 @@ describe("what the doctor sees", () => {
     await app.close();
   });
 
-  it("does not count days before the prescription as missing", async () => {
+  it("не считает пропуском дни до назначения", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
     await activeItem(app, doctorCookie, patientId);
@@ -189,7 +189,7 @@ describe("what the doctor sees", () => {
     await app.close();
   });
 
-  it("keeps another doctor out", async () => {
+  it("не пускает другого врача", async () => {
     const app = await newApp();
     const { patientId } = await boundPair(app);
     const stranger = await signUpDoctor(app, { email: "other@example.com", password: "other password" });

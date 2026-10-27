@@ -36,12 +36,12 @@
   letter-spacing: 2px;
 }
 
-/* ---------- doctor: signals ----------
+/* ---------- врач: сигналы ----------
  *
- * Encoding follows signal-semantics.md #32 §1.1 channel by channel: word (always),
- * shape (second), colour (third, and never alone). Stripped of colour the three
- * levels must still be told apart, because forced-colors removes every one of these
- * tones (#32 §4.4).
+ * Кодирование идёт по signal-semantics.md #32 §1.1 канал за каналом: слово (всегда),
+ * форма (второй), цвет (третий и никогда не один). Без цвета три уровня
+ * всё равно должны различаться, потому что forced-colors убирает каждый из этих
+ * тонов (#32 §4.4).
  */
 
 .signal-list {
@@ -59,19 +59,20 @@
   gap: var(--space-5);
 }
 
-/* The visible boundary between levels (DESIGN.md §3.6, §3.7): a heading plus the number
- * of cards in the group, counted with the folded ones. */
+/* Видимая граница между уровнями (DESIGN.md §3.6, §3.7): заголовок и число
+ * карточек в группе, посчитанное вместе со сложенными.
+ */
 .signal-group {
   display: grid;
   gap: var(--space-2);
 }
 
 /*
- * Only the word and the number, both neutral: --text-strong for the word, --text-muted
- * for the count. The export paints these headings red and orange; that is the one thing
- * a heading must not do, because level tone belongs to the card (DESIGN.md §2.3).
- * 15 px / 700 against a 20 px / 700 card title keeps the critical card the loudest
- * thing in greyscale — the heading of the group it opens must not compete with it.
+ * Только слово и число, оба нейтральные: --text-strong для слова, --text-muted
+ * для счёта. В экспорте эти заголовки покрашены в красный и оранжевый; этого заголовку
+ * делать нельзя, потому что тон уровня принадлежит карточке (DESIGN.md §2.3).
+ * 15 px / 700 против названия карточки 20 px / 700 сохраняет критическую карточку самым громким
+ * элементом в оттенках серого: заголовок группы, которую она открывает, не должен с ней соревноваться.
  */
 .signal-group__head {
   margin: 0;
@@ -103,9 +104,9 @@
 }
 
 /*
- * Critical — the one loud thing on the screen (DESIGN.md §2.3, §3.1): 8 px bar,
- * 2 px dark frame, 20 px title, filled triangle. Nothing else on the screen carries
- * two of those at once.
+ * Критичный: единственная громкая вещь на экране (DESIGN.md §2.3, §3.1): полоса 8 px,
+ * тёмная рамка 2 px, название 20 px, залитый треугольник. Больше ничто на экране не несёт
+ * двух из этого сразу.
  */
 .signal--critical {
   padding: 20px;
@@ -174,9 +175,10 @@
   font-weight: 600;
 }
 
-/* Critical and high share 20 px: the 8 px bar and the 2 px frame are what still separates
- * them in greyscale (tokens.css, правила 1), and the export's 18 px for both flattens the
- * title against the section heading instead. */
+/* Критичный и высокий делят 20 px: полоса 8 px и рамка 2 px это то, что ещё разделяет
+ * их в оттенках серого (tokens.css, правило 1), а 18 px из экспорта для обоих сглаживает
+ * название против заголовка раздела.
+ */
 .signal--critical .signal__title,
 .signal--high .signal__title {
   font-size: 20px;
@@ -184,9 +186,9 @@
 }
 
 /*
- * Status pill — neutral on every level: it says where the signal is in the workflow, not
- * how heavy it is, so it takes no level tone (the export fills it red on all three levels;
- * §3.1). Closed drops the pill for the bare word (§32 §6).
+ * Плашка состояния нейтральна на любом уровне: она говорит, где сигнал в рабочем процессе, а не
+ * насколько он тяжёлый, поэтому не берёт тон уровня (в экспорте она залита красным на всех трёх
+ * уровнях; §3.1). Закрытый сигнал меняет плашку на голое слово (§32 §6).
  */
 .signal__status {
   flex: none;
@@ -200,11 +202,11 @@
 }
 
 /*
- * Closed — never louder than the open card of the same level (#32 §6). No bar, no
- * level colour, no icon, 1 px frame, title as in an ordinary medium card, a padding step
- * tighter than an open card; what separates it is the word «закрыт», the absent action and
- * the mandatory outcome text. A closed «критично» that kept its frame and fill would be
- * the loudest thing in the patient's history.
+ * Закрытый: никогда громче открытой карточки того же уровня (#32 §6). Ни полосы, ни
+ * цвета уровня, ни иконки, рамка 1 px, название как в обычной средней карточке, шаг padding
+ * теснее, чем у открытой карточки; разделяет его слово «закрыт», отсутствующее действие и
+ * обязательный текст исхода. Закрытый «критично», сохранивший рамку и заливку, был бы
+ * самым громким элементом в истории пациента.
  */
 .signal--closed {
   padding: 12px 14px;
@@ -264,10 +266,10 @@
 }
 
 /*
- * The rule and its source on an inset panel with both labels spelled out (_8): the doctor
- * reads «какое правило сработало» and «откуда оно» as two facts, and a mono path inside a
- * sentence was competing with the title. It sits on --surface-inset, where --text-muted is
- * 5.59:1 (tokens.css header).
+ * Правило и его источник на вставной панели, где обе подписи выписаны (_8): врач
+ * читает «какое правило сработало» и «откуда оно» как два факта, а моно-путь внутри
+ * фразы соревновался с названием. Панель на --surface-inset, где --text-muted даёт
+ * 5.59:1 (шапка tokens.css).
  */
 .signal__rule {
   margin: 12px 0 0;
@@ -296,9 +298,9 @@
 }
 
 /*
- * Which rule raised the card and where it came from. Muted, because it is context for
- * the decision, not the decision; a placeholder says its status in words and is set
- * apart in italics, so it cannot pass for a rule taken from the guidelines.
+ * Какое правило подняло карточку и откуда оно. Приглушённо, потому что это контекст
+ * решения, а не решение; заглушка говорит свой статус словами и выделена
+ * курсивом, поэтому не может сойти за правило, взятое из рекомендаций.
  */
 .signal__source {
   margin: 8px 0 0;
@@ -311,8 +313,8 @@
 }
 
 /*
- * The path is audit evidence, not a sentence for a doctor: it stays readable for
- * whoever checks the rule, but it does not compete with the words above it.
+ * Путь это доказательство для аудита, а не фраза для врача: он остаётся читаемым для
+ * того, кто проверяет правило, но не соревнуется со словами над ним.
  */
 .signal__source-ref {
   font-family: var(--font-mono, ui-monospace, monospace);
@@ -321,8 +323,9 @@
   word-break: break-all;
 }
 
-/* On the panel the path is what the doctor copies into the rule file, so it keeps full
- * contrast (5.59:1 on --surface-inset) instead of the 0.75 the sentence form uses. */
+/* На панели путь это то, что врач копирует в файл правила, поэтому он сохраняет полный
+ * контраст (5.59:1 на --surface-inset) вместо 0.75, которые использует форма фразы.
+ */
 .signal__rule .signal__source-ref {
   display: block;
   margin-top: 4px;
@@ -359,10 +362,10 @@
 }
 
 /*
- * The rest of a level: «Ещё N: важно» (signal-semantics.md #32 §3). Same frame as the
- * closed group; the header carries both the level word and the level mark, so a folded
- * card is still counted and still says what it is. Level colours on white are 5.43:1
- * and 7.69:1 — AA for text (tokens.css header).
+ * Остаток уровня: «Ещё N: важно» (signal-semantics.md #32 §3). Та же рамка, что у
+ * закрытой группы; заголовок несёт и слово уровня, и метку уровня, поэтому сложенная
+ * карточка всё равно посчитана и всё равно говорит, что она такое. Цвета уровней на белом это 5.43:1
+ * и 7.69:1, AA для текста (шапка tokens.css).
  */
 .signal-more {
   padding: 0 14px;
@@ -396,17 +399,17 @@
   padding-bottom: 12px;
 }
 
-/* ---------- doctor: watch rules ----------
+/* ---------- врач: правила наблюдения ----------
  *
- * The doctor's own rules use the same classes and tokens as the rest of the card, so
- * they stop being a second visual language (#35). Every target is 44 px (DESIGN.md
- * §3.9). Field borders take --brand-slate, as the login fields do: --border-divider is
- * 1.71:1 on white and a field's only edge has to reach 3:1 (WCAG 1.4.11).
+ * Правила самого врача используют те же классы и значения, что и остальная карточка, поэтому
+ * они перестают быть вторым визуальным языком (#35). Каждая цель это 44 px (DESIGN.md
+ * §3.9). Границы полей берут --brand-slate, как и поля входа: --border-divider это
+ * 1.71:1 на белом, а единственный край поля обязан дотягивать до 3:1 (WCAG 1.4.11).
  *
- * One row is two lines with its action on the right, as the export draws it (_7): title
- * and state, then threshold and level. The level is a word in --text-muted and nothing
- * else — the export's red capsule on this row would make a rule louder than the signal
- * card it explains (DESIGN.md §2.3, §3.1).
+ * Одна строка это две линии с действием справа, как рисует экспорт (_7): название
+ * и состояние, затем порог и уровень. Уровень это слово в --text-muted и ничего
+ * больше: красная капсула из экспорта в этой строке сделала бы правило громче, чем карточка
+ * сигнала, которое оно объясняет (DESIGN.md §2.3, §3.1).
  */
 
 .watch-list {
@@ -426,8 +429,9 @@
   background: var(--surface-card);
 }
 
-/* A 44 px target and a title do not share a phone width, so the row stacks there and
- * only becomes a row where both fit. */
+/* Цель 44 px и название не делят телефонную ширину, поэтому строка там складывается и
+ * становится строкой только там, где влезает и то, и другое.
+ */
 @media (min-width: 560px) {
   .watch-item {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -436,8 +440,9 @@
   }
 }
 
-/* A paused rule is quieter in surface, not in contrast: opacity 0.55 pushed its title
-   under 4.5:1, and the rule's own text still has to be readable (DESIGN.md §2.4). */
+/* Правило на паузе тише поверхностью, а не контрастом: opacity 0.55 уводил его название
+ * ниже 4.5:1, а текст правила всё равно должен читаться (DESIGN.md §2.4).
+ */
 .watch-item--paused {
   background: var(--surface-inset);
 }
@@ -514,14 +519,14 @@
   width: 88px;
 }
 
-/* ---------- doctor: watch, the patient's signals ----------
+/* ---------- врач: наблюдение, сигналы пациента ----------
  *
- * The same signals as on the «Сигналы» screen, read-only and compact: the watch tab
- * explains what the rules and the facts produced, it does not review anything, so there
- * are no review buttons here (DESIGN.md §2.4 — the history stays visible). Level is
- * word and shape first and keeps the 8 / 4 / 0 px bar, which is the channel that
- * survives forced-colors; the card is one step denser than a signal card so the block
- * of rules above it never competes with what it leads to (§2.3).
+ * Те же сигналы, что на экране «Сигналы», только для чтения и компактно: вкладка наблюдения
+ * объясняет, что дали правила и факты, она ничего не разбирает, поэтому
+ * кнопок разбора здесь нет (DESIGN.md §2.4: история остаётся видимой). Уровень это
+ * слово и форма в первую очередь, и полоса 8 / 4 / 0 px сохраняется, потому что это канал, который
+ * выживает в forced-colors; карточка на шаг плотнее карточки сигнала, чтобы блок
+ * правил над ней никогда не соревновался с тем, к чему он ведёт (§2.3).
  */
 
 .patient-signals {
@@ -547,8 +552,9 @@
   border-left: var(--signal-bar-high) solid var(--signal-bar);
 }
 
-/* Medium has no bar at all: thickness is not the channel that separates it (#32 §1.1).
- * Closed keeps only the word — no bar, no level tone (#32 §6). */
+/* У среднего полосы нет вообще: толщина не тот канал, который его отделяет (#32 §1.1).
+ * Закрытый сохраняет только слово: ни полосы, ни тона уровня (#32 §6).
+ */
 .patient-signal--medium,
 .patient-signal--closed {
   border-left: var(--border-width) solid var(--border-divider);
@@ -580,9 +586,10 @@
   line-height: var(--lh-dense);
 }
 
-/* The word and the mark keep the level tone of the signals list; the compact card only
- * borrows .signal__severity, so the colour is re-stated here instead of inherited from
- * a .signal--* modifier this card does not wear (DESIGN.md §2.3). */
+/* Слово и метка сохраняют тон уровня из списка сигналов; компактная карточка только
+ * занимает .signal__severity, поэтому цвет выписан здесь заново, а не унаследован от
+ * модификатора .signal--*, который эта карточка не носит (DESIGN.md §2.3).
+ */
 .patient-signal--critical .signal__severity {
   font-weight: var(--fw-bold);
   color: var(--signal-critical);
@@ -596,11 +603,11 @@
   color: var(--signal-medium);
 }
 
-/* ---------- doctor: patients ----------
+/* ---------- врач: пациенты ----------
  *
- * List and card side by side on a desktop, one screen at a time on a phone (DESIGN.md
- * §3.10). The list column is the export's 300 px (_9): a row carries a name and one line
- * of context, and a wider column would take the width the 14-day grid needs.
+ * Список и карточка рядом на настольном экране, по одному экрану на телефоне (DESIGN.md
+ * §3.10). Колонка списка это 300 px из экспорта (_9): строка несёт имя и одну строку
+ * контекста, а более широкая колонка забрала бы ширину, нужную сетке на 14 дней.
  */
 
 .patients {
@@ -620,11 +627,11 @@
 }
 
 /*
- * Rows of one register, divided by a hairline — the frame belongs to the list, not to
- * every row (_9). The selected row is a fill plus a 4 px marker in the same blue as the
- * selected tab: a fill alone would make «where am I» a colour-only channel (§3.7), and
- * the marker keeps the row geometry so nothing jumps on selection. Fonts are the
- * export's: name 15 px, context 13 px muted, 16 px padding.
+ * Строки одного регистра, разделённые линией: рамка принадлежит списку, а не
+ * каждой строке (_9). Выбранная строка это заливка и метка 4 px тем же синим, что
+ * выбранная вкладка: одна заливка сделала бы «где я» каналом только цвета (§3.7), а
+ * метка сохраняет геометрию строки, поэтому при выборе ничего не прыгает. Шрифты
+ * из экспорта: имя 15 px, контекст 13 px приглушённо, padding 16 px.
  */
 .patient-list {
   margin: 0;
@@ -685,8 +692,9 @@
   font-weight: var(--fw-bold);
 }
 
-/* Email and the binding date are context for the decision, so they are one size and one
-   tone below the name (_9). */
+/* Email и дата привязки это контекст решения, поэтому они одного размера и одного
+ * тона ниже имени (_9).
+ */
 .patient-card__meta {
   margin: var(--space-1) 0 0;
   font-size: var(--text-small);
@@ -741,18 +749,18 @@
   }
 }
 
-/* ---------- doctor: adherence ----------
+/* ---------- врач: приверженность ----------
  *
- * Three states and three shapes: ✓ on --signal-done, ✗ on --signal-critical, «—» on an
- * empty outline for «нет сведений». Colour is the third channel here, not the first: the
- * export tells the states apart by tone alone on 14 px squares, which reads neither in
- * greyscale, nor on a phone, nor in a screen reader (_9, system §2.14). «Нет сведений» is
- * not a miss and takes no fill.
+ * Три состояния и три формы: ✓ на --signal-done, ✗ на --signal-critical, «—» на
+ * пустом контуре для «нет сведений». Цвет здесь третий канал, а не первый: в
+ * экспорте состояния различаются только тоном на квадратах 14 px, и это не читается ни в
+ * оттенках серого, ни на телефоне, ни в скринридере (_9, system §2.14). «Нет сведений»
+ * не пропуск и заливки не получает.
  *
- * Seven columns is two weeks — the shape the export actually renders (_9's
- * `sm:grid-cols-14` is not a Tailwind 3 class). At a 4 px gap every tile stays at or
- * above 32 px from a 312 px viewport up, and the tile is a grid cell rather than a fixed
- * square, so nothing scrolls sideways at 375 px (WCAG 2.2 §1.4.10).
+ * Семь колонок это две недели: та форма, которую экспорт действительно рисует (у _9
+ * `sm:grid-cols-14` не класс Tailwind 3). При зазоре 4 px каждая плитка остаётся не меньше
+ * 32 px начиная с ширины 312 px, а плитка это ячейка сетки, а не фиксированный
+ * квадрат, поэтому на 375 px ничего не прокручивается вбок (WCAG 2.2 §1.4.10).
  */
 
 .adherence {
@@ -795,8 +803,9 @@
   color: var(--text-invert);
 }
 
-/* A missed dose is a fact, not an alarm: the outline and the glyph carry it, the fill
- * does not. A solid red block at this size competes with the critical signal card. */
+/* Пропущенный приём это факт, а не тревога: его несут контур и глиф, а заливка
+ * нет. Сплошной красный блок такого размера соревнуется с карточкой критического сигнала.
+ */
 .adherence-tile--skipped {
   border-color: var(--signal-critical);
   background: none;
@@ -857,8 +866,9 @@
   gap: 6px;
 }
 
-/* One line per miss: the day the patient named and the reason they gave. No block when
-   nothing was missed. */
+/* Одна строка на пропуск: день, который назвал пациент, и причину, которую он дал. Блока нет, когда
+ * не пропущено ничего.
+ */
 .adherence__reasons {
   padding: var(--space-3) var(--space-4);
   background: var(--surface-inset);
@@ -880,17 +890,17 @@
   list-style: none;
 }
 
-/* ---------- doctor: plan ----------
+/* ---------- врач: план ----------
  *
- * One row per item: kind, title, the explanation under them, the state on the right and
- * the actions after it (system §2.16). The export separates rows by a coloured capsule
- * per kind and per state — eight capsules on four rows. Words stay, colour does not: on
- * this screen the only tone that means anything is clinical severity, and a blue capsule
- * for «Направление» would take the accent away from the critical signal card (§2.3, §3.1).
+ * Одна строка на пункт: вид, название, пояснение под ними, состояние справа и
+ * действия после него (system §2.16). В экспорте строки разделены цветной капсулой
+ * по виду и по состоянию: восемь капсул на четырёх строках. Слова остаются, цвет нет: на
+ * этом экране единственный тон, который что-то значит, это клиническая тяжесть, а синяя капсула
+ * для «Направление» отняла бы акцент у карточки критического сигнала (§2.3, §3.1).
  *
- * State is a word in --text-strong, not a smaller muted tail: «черновик» means the
- * patient does not see the item at all, and that must read before the actions do
- * (DESIGN.md §3.2 — the state belongs to the title line).
+ * Состояние это слово в --text-strong, а не мелкий приглушённый хвост: «черновик» значит, что
+ * пациент пункт вообще не видит, и это должно читаться раньше действий
+ * (DESIGN.md §3.2: состояние принадлежит строке названия).
  */
 
 .plan-list {
@@ -927,11 +937,11 @@
   background: var(--surface-inset);
 }
 
-/* A 44 px target and a title do not share a phone width, so the actions stay on their
- * own line under it; where the row is wide enough they move to the right edge of the
- * line the explanation sits on (the breakpoint a watch rule uses). The state never
- * moves: it ends the heading line on every width, so «черновик» and «подтверждён» line
- * up down the list instead of jumping with the width of the buttons beside them.
+/* Цель 44 px и название не делят телефонную ширину, поэтому действия остаются на своей
+ * строке под ним; там, где строка достаточно широка, они уходят к правому краю
+ * строки, на которой стоит пояснение (та же точка перелома, что у правила наблюдения). Состояние никогда не
+ * двигается: оно закрывает строку заголовка на любой ширине, поэтому «черновик» и «подтверждён» стоят
+ * друг под другом по списку, а не прыгают вместе с шириной кнопок рядом.
  */
 @media (min-width: 560px) {
   .plan-item {
@@ -1012,11 +1022,11 @@
   gap: var(--space-2);
 }
 
-/* ---------- doctor: plan, adding an item ----------
+/* ---------- врач: план, добавление пункта ----------
  *
- * Fields take --brand-slate as their edge for the same reason the watch form does:
- * --border-divider is 1.71:1 on white, and the edge of a field is its only outline
- * (WCAG 1.4.11 to 3:1). 44 px is the floor for the field and for the button (§3.9).
+ * Поля берут --brand-slate как свой край по той же причине, что и форма наблюдения:
+ * --border-divider это 1.71:1 на белом, а край поля это его единственный контур
+ * (WCAG 1.4.11 до 3:1). 44 px это минимум и для поля, и для кнопки (§3.9).
  */
 
 .plan-form {
@@ -1077,14 +1087,14 @@
   margin: 0;
 }
 
-/* ---------- doctor: data (questionnaire slices and diary) ----------
+/* ---------- врач: данные (срезы опросника и дневник) ----------
  *
- * Three values per slice read as three columns, so the table is held by horizontal
- * hairlines only. The export frames every cell on four sides with 1 px `_12`, which turns
- * the block into a form and draws a grid of lines between the doctor and the numbers
- * (system §2.9, §4.15). The rhythm is --row-dense, and every cell wraps instead of
- * scrolling sideways: a band is a whole clinical phrase, and at 375 px it takes a second
- * line rather than a horizontal scrollbar (WCAG 2.2 §1.4.10).
+ * Три значения в срезе читаются как три колонки, поэтому таблицу держат только горизонтальные
+ * линии. В экспорте каждая ячейка обведена с четырёх сторон линией 1 px `_12`, и это превращает
+ * блок в форму, а между врачом и числами рисует сетку линий
+ * (system §2.9, §4.15). Ритм это --row-dense, и каждая ячейка переносится вместо
+ * прокрутки вбок: полоса это целая клиническая фраза, и на 375 px она занимает вторую
+ * строку, а не горизонтальную прокрутку (WCAG 2.2 §1.4.10).
  */
 
 .assessment-table {
@@ -1095,8 +1105,9 @@
   text-align: left;
 }
 
-/* The header names a column and stays quieter than the values it names: 13 px muted, one
- * hairline under it. */
+/* Заголовок называет колонку и остаётся тише значений, которые называет: 13 px приглушённо, одна
+ * линия под ним.
+ */
 .assessment-table th {
   padding: 0 var(--space-3) var(--space-1) 0;
   border-bottom: var(--border-width) solid var(--border-hairline);
@@ -1120,9 +1131,10 @@
   padding-right: 0;
 }
 
-/* The critical item is a word under the total, as in the export: it is the one line of
- * this table the doctor must not read past, and it belongs to the sum it explains
- * (DESIGN.md §2.3). */
+/* Критический пункт это слово под суммой, как в экспорте: это единственная строка
+ * этой таблицы, мимо которой врач не должен прочитать, и она принадлежит сумме, которую объясняет
+ * (DESIGN.md §2.3).
+ */
 .assessment-table__critical {
   display: block;
   margin-top: 2px;
@@ -1131,11 +1143,12 @@
   color: var(--signal-critical);
 }
 
-/* One diary entry is the date and the patient's own mark on one line, the comment under
- * it, and a hairline between the entries — the export's row of four rules does not make
- * four records easier to tell apart (`_12`). The mark keeps body size: it is the patient's
- * raw value, not an assessment, so it must not become the loudest number on the screen
- * (§2.2). */
+/* Одна запись дневника это дата и собственная отметка пациента на одной строке, комментарий под
+ * ней и линия между записями: ряд из четырёх линий в экспорте не делает
+ * четыре записи легче различимыми (`_12`). Отметка сохраняет основной размер: это собственное
+ * сырое значение пациента, а не оценка, поэтому она не должна становиться самым громким числом на экране
+ * (§2.2).
+ */
 .diary-log {
   margin: 0;
   padding: 0;
@@ -1172,11 +1185,11 @@
   color: var(--text-muted);
 }
 
-/* ---------- doctor: diary chart ----------
+/* ---------- врач: график дневника ----------
  *
- * The doctor may see numbers and a trend; the patient never does (§2.2). The chart is
- * one line on the 1–10 scale with no zones, bands or words of judgement: the shapes are
- * the values the patient recorded, and the list under it stays the readable source.
+ * Врач может видеть числа и динамику; пациент не видит их никогда (§2.2). График это
+ * одна линия по шкале 1–10 без зон, полос и слов оценки: формы это
+ * значения, которые записал пациент, а список под ним остаётся читаемым источником.
  */
 .diary-chart {
   margin: 0 0 var(--space-4);

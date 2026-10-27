@@ -22,8 +22,8 @@ function generateCode(): string {
 async function issueCode(app: FastifyInstance, doctorId: string): Promise<BindingCodeResponse> {
   const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString();
 
-  // Six symbols collide rarely, but "rarely" is not "never", and a 500 on issuing a
-  // code is a dead end for the doctor. Try another one.
+  // Шесть символов совпадают редко, но «редко» не значит «никогда», а 500 при выдаче кода
+  // это тупик для врача. Пробуем следующий.
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const code = generateCode();
     try {

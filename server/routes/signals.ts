@@ -27,8 +27,8 @@ export function toSignal(row: typeof signals.$inferSelect): Signal {
     closedAt: row.closedAt,
     watchItemId: row.watchItemId === "" ? null : row.watchItemId,
     ruleId,
-    // Read from the registry rather than stored twice: the card always shows the rule
-    // as it is written now, not a copy that can go stale (decisions.md Q31).
+    // Читается из реестра, а не хранится дважды: карточка всегда показывает правило в том виде,
+    // в каком оно написано сейчас, а не копию, которая устаревает (decisions.md Q31).
     ruleTitle: rule?.title ?? null,
     ruleSource: rule?.source ?? null,
   };
@@ -129,7 +129,7 @@ export const signalRoutes: FastifyPluginAsync = async (app) => {
       if (signal.row.status === "closed") {
         return fail(reply, 409, "wrong_status", "Сигнал уже закрыт");
       }
-      // saved -> closed would leave a closed signal nobody ever took into review.
+      // saved -> closed оставил бы закрытый сигнал, который никто никогда не взял в разбор.
       if (signal.row.status === "saved") {
         return fail(reply, 409, "wrong_status", "Сначала возьмите сигнал в разбор");
       }

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DOCTOR, PATIENT, cookieOf, newApp, signUpDoctor, signUpPatient } from "./test-support.js";
 
-describe("patient signup and signin", () => {
-  it("creates a patient, starts a session and returns the patient role", async () => {
+describe("регистрация и вход пациента", () => {
+  it("создаёт пациента, открывает сессию и возвращает роль пациента", async () => {
     const app = await newApp();
 
     const cookie = await signUpPatient(app);
@@ -16,7 +16,7 @@ describe("patient signup and signin", () => {
     await app.close();
   });
 
-  it("refuses a second account on the same email", async () => {
+  it("отказывает во втором аккаунте на тот же адрес", async () => {
     const app = await newApp();
     await signUpPatient(app);
 
@@ -31,7 +31,7 @@ describe("patient signup and signin", () => {
     await app.close();
   });
 
-  it("refuses a wrong password", async () => {
+  it("отказывает при неверном пароле", async () => {
     const app = await newApp();
     await signUpPatient(app);
 
@@ -46,7 +46,7 @@ describe("patient signup and signin", () => {
     await app.close();
   });
 
-  it("signs an existing patient in and returns the patient role", async () => {
+  it("вводит существующего пациента и возвращает роль пациента", async () => {
     const app = await newApp();
     await signUpPatient(app);
 
@@ -62,8 +62,8 @@ describe("patient signup and signin", () => {
   });
 });
 
-describe("doctor signup and signin", () => {
-  it("creates a doctor and returns the doctor role", async () => {
+describe("регистрация и вход врача", () => {
+  it("создаёт врача и возвращает роль врача", async () => {
     const app = await newApp();
 
     const cookie = await signUpDoctor(app);
@@ -74,7 +74,7 @@ describe("doctor signup and signin", () => {
     await app.close();
   });
 
-  it("reads the specialty into the doctor's profile: therapist by default", async () => {
+  it("читает специальность в профиль врача: по умолчанию терапевт", async () => {
     const app = await newApp();
 
     const cookie = await signUpDoctor(app);
@@ -85,7 +85,7 @@ describe("doctor signup and signin", () => {
     await app.close();
   });
 
-  it("keeps the specialty the doctor chose at signup", async () => {
+  it("сохраняет специальность, которую врач выбрал при регистрации", async () => {
     const app = await newApp();
 
     const cookie = await signUpDoctor(app, {
@@ -105,7 +105,7 @@ describe("doctor signup and signin", () => {
     await app.close();
   });
 
-  it("reads an unknown specialty as therapist instead of inventing a third one", async () => {
+  it("читает неизвестную специальность как терапевта, а не выдумывает третью", async () => {
     const app = await newApp();
 
     const response = await app.inject({
@@ -120,8 +120,8 @@ describe("doctor signup and signin", () => {
   });
 });
 
-describe("session", () => {
-  it("rejects a request without a cookie", async () => {
+describe("сессия", () => {
+  it("отклоняет запрос без cookie", async () => {
     const app = await newApp();
 
     const me = await app.inject({ method: "GET", url: "/api/me" });
@@ -131,7 +131,7 @@ describe("session", () => {
     await app.close();
   });
 
-  it("stores a httpOnly lax cookie that lasts a week", async () => {
+  it("хранит httpOnly lax cookie, которая живёт неделю", async () => {
     const app = await newApp();
 
     const response = await app.inject({
@@ -148,7 +148,7 @@ describe("session", () => {
     await app.close();
   });
 
-  it("keeps only a hash of the token in the database", async () => {
+  it("держит в базе только хеш токена", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
     const token = cookie.split("=")[1] ?? "";
@@ -163,7 +163,7 @@ describe("session", () => {
     await app.close();
   });
 
-  it("re-issues the cookie when the session slides, so an active browser keeps it", async () => {
+  it("выдаёт cookie заново, когда сессия продлевается, поэтому активный браузер её сохраняет", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
     app.conn.sqlite
@@ -179,7 +179,7 @@ describe("session", () => {
     await app.close();
   });
 
-  it("invalidates the session on signout", async () => {
+  it("гасит сессию при выходе", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -196,8 +196,8 @@ describe("session", () => {
   });
 });
 
-describe("role isolation", () => {
-  it("stops a patient from reading the doctor's patient list", async () => {
+describe("изоляция ролей", () => {
+  it("не даёт пациенту прочитать список пациентов врача", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -208,7 +208,7 @@ describe("role isolation", () => {
     await app.close();
   });
 
-  it("gives a doctor an empty list before anyone is bound", async () => {
+  it("даёт врачу пустой список, пока никто не привязан", async () => {
     const app = await newApp();
     const cookie = await signUpDoctor(app);
 

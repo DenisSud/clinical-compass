@@ -33,9 +33,9 @@ export class UnknownStatus extends Error {}
 const statusInstrumentSchema = z.strictObject({
   id: z.string().min(1),
   /**
-   * How soon this instrument opens again *in this status*. The schedule belongs to
-   * the assignment, not to the instrument: одна и та же шкала может открываться в
-   * разных этапах с разным периодом. Ноль сохраняет смысл «в любой момент».
+   * Как скоро этот инструмент откроется снова *в этом статусе*. Расписание принадлежит
+   * назначению, а не инструменту: одна и та же шкала может открываться в разных этапах
+   * с разным периодом. Ноль сохраняет смысл «в любой момент».
    */
   repeatAfterHours: z.number().int().nonnegative(),
 });
@@ -61,9 +61,8 @@ const FILE = join(import.meta.dirname, "..", "..", "content", "instrument-status
 let cache: Map<PatientStatusId, PatientStatus> | null = null;
 
 /**
- * Validates the file's content. Separated from the reading so the failure modes are
- * testable without writing files: a status with no instruments, an instrument twice,
- * a source that is absent.
+ * Проверяет содержимое файла. Отделено от чтения, чтобы отказы были проверяемы без записи
+ * файлов: статус без инструментов, инструмент дважды, отсутствующий источник.
  */
 export function parseStatusesFile(value: unknown): Map<PatientStatusId, PatientStatus> {
   const parsed = statusesFileSchema.safeParse(value);

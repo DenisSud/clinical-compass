@@ -156,9 +156,9 @@ export const signals = sqliteTable(
 );
 
 /**
- * A rule the doctor wrote for one patient. Built-in rules always run and cannot be
- * switched off; these are additions. They are paused, never deleted — a signal may
- * still point at one.
+ * Правило, которое врач написал для одного пациента. Встроенные правила работают всегда,
+ * их нельзя выключить, эти идут в дополнение. Их ставят на паузу, но не удаляют: сигнал
+ * может на них ссылаться.
  */
 export const watchItems = sqliteTable(
   "watch_items",

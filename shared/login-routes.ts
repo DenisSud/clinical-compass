@@ -17,8 +17,8 @@ export function roleFromLoginPath(pathname: string): Role | null {
 }
 
 /**
- * `/login` is the shared address the product had before #55. It keeps working and
- * leads to the patient screen, as does any address that does not name a role.
+ * `/login` это общий адрес, который был у продукта до #55. Он продолжает работать и
+ * ведёт на экран пациента, как и любой адрес, который не называет роль.
  */
 export function canonicalLoginPath(pathname: string): string {
   return roleFromLoginPath(pathname) === null ? LOGIN_PATH.patient : pathname;

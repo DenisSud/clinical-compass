@@ -1,21 +1,21 @@
 import type { Draft, TherapyCard } from "../../shared/contracts.js";
 
 /**
- * The seam where a model will sit. Slice 1 shipped this declaration and no
- * implementation, so nothing could call a model by accident; the port now carries
- * the shape the doctor actually needs on screen.
+ * Шов, куда сядет модель. Слайс 1 привёз это объявление и никакой реализации, чтобы никто
+ * не мог случайно вызвать модель; теперь порт несёт ту форму, которая врачу действительно
+ * нужна на экране.
  *
- * Every method returns a Draft: a proposal with no clinical effect until a doctor
- * confirms it. That rule lives in the type, not in a prompt.
+ * Каждый метод возвращает Draft: предложение без клинического эффекта, пока врач его не
+ * подтвердил. Это правило живёт в типе, а не в подсказке модели.
  */
 export type ClinicalAssistant = {
   summarizeHistory(input: { patientId: string }): Promise<Draft<string>>;
   draftConclusion(input: { patientId: string }): Promise<Draft<string>>;
   extractFacts(input: { patientId: string }): Promise<Draft<Record<string, string>>>;
   /**
-   * Recommendation cards. Each one must say what it rests on (`basis`) and what is
-   * still missing to decide (`missing`). A card with an empty basis is a bug, not a
-   * style choice: the case requires every recommendation to explain itself.
+   * Карточки рекомендаций. Каждая должна сказать, на чём стоит (`basis`) и чего ещё не хватает
+   * для решения (`missing`). Карточка с пустым basis это ошибка, а не выбор стиля: кейс требует,
+   * чтобы каждая рекомендация объясняла себя.
    */
   suggestTherapy(input: { patientId: string }): Promise<Draft<TherapyCard[]>>;
 };

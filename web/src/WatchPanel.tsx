@@ -20,8 +20,8 @@ const STATUS_LABEL: Record<WatchItem["status"], string> = {
 };
 
 /**
- * The doctor's own rules. They sit on top of the built-in safety net, which cannot
- * be switched off from here — a critical questionnaire answer always raises a signal.
+ * Правила самого врача. Они лежат поверх встроенной страховки, которую отсюда
+ * выключить нельзя: критический ответ в опроснике поднимает сигнал всегда.
  */
 export function WatchPanel({ patientId }: { patientId: string }) {
   const [items, setItems] = useState<Load<WatchItem[]>>(loading());
@@ -128,9 +128,9 @@ export function WatchPanel({ patientId }: { patientId: string }) {
                   <span className="watch-item__status">{STATUS_LABEL[item.status]}</span>
                 </div>
                 {/*
-                 * The level is the last word on the threshold line, in --text-muted: the
-                 * export gives it a red capsule, and a red capsule on a rule row would take
-                 * the one loud accent away from the critical signal card below (§2.3, §3.1).
+                 * Уровень это последнее слово в строке порога, в --text-muted: в экспорте он
+                 * красной капсулой, а красная капсула в строке правила отняла бы единственный
+                 * громкий акцент у карточки критического сигнала ниже (§2.3, §3.1).
                  */}
                 <p className="watch-item__detail">
                   {describeWatch(item, titles)} · {SEVERITY_LABEL[item.severity]}

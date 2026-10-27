@@ -31,9 +31,9 @@ const NOT_YOURS = "Этот пациент ведёт другой врач";
 
 /** An absent row and a row of nulls mean the same thing: nothing was asked yet. */
 /**
- * Which facts are still missing. This is a completeness list, not a verdict:
- * the doctor needs to know what was never asked, the patient has the right to see
- * the same thing about themselves, and neither gets a score out of it.
+ * Каких фактов ещё нет. Это список полноты, а не вердикт: врачу нужно знать, о чём
+ * не спрашивали, пациент имеет право видеть то же самое о себе, и ни один из них
+ * не получает из этого оценку.
  */
 function unansweredOf(facts: PatientFacts): (keyof PatientFacts)[] {
   return FACT_KEYS.filter((key) => facts[key] === null);
@@ -103,9 +103,9 @@ export const factsRoutes: FastifyPluginAsync = async (app) => {
   });
 
   /**
-   * Partial writes on purpose: a patient may answer three questions today and the
-   * rest later. An omitted field keeps its value; an explicit `null` clears it back
-   * to «не спрашивали», which is a legitimate answer to give.
+   * Частичная запись сделана намеренно: пациент может ответить на три вопроса сегодня, а
+   * на остальные позже. Пропущенное поле сохраняет значение; явный `null` возвращает его
+   * к «не спрашивали», и это законный ответ.
    */
   app.put("/facts", { preHandler: requireRole("patient") }, async (request, reply) => {
     const parsed = patientFactsUpdateSchema.safeParse(request.body ?? {});
@@ -151,21 +151,20 @@ export const factsRoutes: FastifyPluginAsync = async (app) => {
       .limit(1);
 
     /*
-     * A contraindication written and never raised is a rule the doctor does not read
-     * (issue #37). The facts row is one per patient, so `sourceId` is the patient: the
-     * unique index on (source_type, source_id, kind) turns the second write of the same
-     * facts into a no-op instead of a second card. A card already raised is not closed
-     * by a later answer — closure is the doctor's action with an outcome (Q17).
+     * Противопоказание, записанное и никогда не поднятое, это правило, которое врач не прочитает
+     * (issue #37). Строка фактов одна на пациента, поэтому `sourceId` это пациент: уникальный
+     * индекс по (source_type, source_id, kind) превращает вторую запись тех же фактов в пустое
+     * действие вместо второй карточки. Уже поднятая карточка не закрывается более поздним
+     * ответом: закрытие это действие врача с исходом (Q17).
      */
     const drafts = signalsForFacts(toFacts(row));
 
     /*
-     * A second contraindication must not hide behind the first card. The unique index
-     * dedupes on (source_type, source_id, kind), so a constant source id would swallow
-     * every later answer: the patient adds an eGFR of 45 to a recorded pregnancy and
-     * the doctor keeps a card that names only the pregnancy. The id carries a
-     * fingerprint of what fired, so the same answers stay a no-op and a different set
-     * raises its own card.
+     * Второе противопоказание не должно прятаться за первой карточкой. Уникальный индекс
+     * дедуплицирует по (source_type, source_id, kind), поэтому постоянный source id проглотил бы
+     * каждый следующий ответ: пациент добавляет СКФ 45 к записанной беременности, а врач держит
+     * карточку, где названа только беременность. Идентификатор несёт отпечаток того, что
+     * сработало, поэтому те же ответы остаются пустым действием, а другой набор поднимает свою карточку.
      */
     const fingerprint = createHash("sha1")
       .update(drafts.map((draft) => `${draft.kind}:${draft.detail}`).sort().join("|"))

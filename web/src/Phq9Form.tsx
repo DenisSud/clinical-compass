@@ -47,13 +47,12 @@ export function Phq9Form({ onSaved }: { onSaved: () => void }) {
   }
 
   /*
-   * All nine items stay on one page. The export shows one question per screen with
-   * «Назад / Дальше» (system §2.7); a wizard would hide the ninth item — the one about
-   * suicidal thoughts — behind eight clicks, and the local answer map is what tells the
-   * patient which items are still unanswered (DESIGN.md §2.1, §2.4; migration §1.3).
-   * What is taken from the export: the visible choice on the whole row, «Вопрос N из 9»
-   * as the place in the list (§3.6), the question at 17/700, the answers at 15 with 8 px
-   * between them, and the submit button across the full width.
+   * Все девять пунктов остаются на одной странице. В экспорте один вопрос на экран с
+   * «Назад / Дальше» (system §2.7); мастер спрятал бы девятый пункт, тот самый про
+   * суицидальные мысли, за восемью нажатиями, а карта ответов на месте это то, что говорит
+   * пациенту, на какие пункты он ещё не ответил (DESIGN.md §2.1, §2.4; migration §1.3).
+   * Из экспорта взято: видимый выбор на всей строке, «Вопрос N из 9» как место в списке
+   * (§3.6), вопрос 17/700, ответы 15 с 8 px между ними и кнопка отправки на всю ширину.
    */
   return (
     <form onSubmit={submit} className="phq9">

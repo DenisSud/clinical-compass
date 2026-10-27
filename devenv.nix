@@ -28,7 +28,7 @@
     package = pkgs.nodejs_22;
   };
 
-  # SQLite is the datastore; no database service to run.
+  # Хранилище это SQLite; отдельный сервис базы не нужен.
   env.SQLITE_DB = "var/app.db";
 
   enterShell = ''

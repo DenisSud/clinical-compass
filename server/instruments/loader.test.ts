@@ -8,8 +8,8 @@ import {
 } from "./loader.js";
 import { PATIENT_STATUS_IDS, UnknownStatus } from "./statuses.js";
 
-describe("the patient's set", () => {
-  it("comes from the status, not from a list in code", () => {
+describe("набор пациента", () => {
+  it("берётся из статуса, а не из списка в коде", () => {
     expect(patientInstruments("screening").map((item) => item.id)).toEqual(["phq-9"]);
     expect(patientInstruments("treatment").map((item) => item.id)).toEqual([
       "hads-anxiety",
@@ -18,13 +18,13 @@ describe("the patient's set", () => {
     ]);
   });
 
-  it("keeps a questionnaire out of a status that does not assign it", () => {
+  it("держит опросник вне статуса, который его не назначает", () => {
     expect(patientInstrument("screening", "hads-anxiety")).toBeUndefined();
     expect(patientInstrument("screening", "uku")).toBeUndefined();
     expect(patientInstrument("treatment", "hads-anxiety")?.id).toBe("hads-anxiety");
   });
 
-  it("never gives a patient the doctor's scale", () => {
+  it("никогда не даёт пациенту шкалу врача", () => {
     expect(instrument("hdrs-17")?.audience).toBe("doctor");
     for (const status of PATIENT_STATUS_IDS) {
       expect(patientInstruments(status).map((item) => item.id)).not.toContain("hdrs-17");
@@ -32,15 +32,15 @@ describe("the patient's set", () => {
     }
   });
 
-  it("refuses an unknown status instead of returning an empty set", () => {
+  it("отказывает в неизвестном статусе, а не возвращает пустой набор", () => {
     expect(() => patientInstruments("remission")).toThrow(UnknownStatus);
   });
 
-  it("names a missing instrument file at the assembly, not on the patient's screen", () => {
+  it("называет отсутствующий файл инструмента на сборке, а не на экране пациента", () => {
     expect(() => assertStatusInstrumentsExist()).not.toThrow();
   });
 
-  it("prefers the status interval over the instrument's own", () => {
+  it("предпочитает интервал статуса собственному интервалу инструмента", () => {
     expect(instrument("phq-9")?.repeatAfterHours).toBe(168);
     // PHQ-9 — скрининг на входе: в терапии его нет, динамику ведут другие шкалы.
     expect(patientInstrument("treatment", "phq-9")).toBeUndefined();
@@ -48,12 +48,12 @@ describe("the patient's set", () => {
     expect(repeatAfterHours("treatment", "hads-depression")).toBe(168);
   });
 
-  it("returns null for an instrument the status does not assign", () => {
+  it("возвращает null для инструмента, который статус не назначает", () => {
     expect(repeatAfterHours("screening", "uku")).toBeNull();
     expect(repeatAfterHours("treatment", "phq-9")).toBeNull();
   });
 
-  it("describes every assigned instrument's origin in text the patient can read", () => {
+  it("описывает происхождение каждого назначенного инструмента текстом, который пациент может прочитать", () => {
     for (const status of PATIENT_STATUS_IDS) {
       for (const assigned of patientInstruments(status)) {
         expect(assigned.source.note.length).toBeGreaterThan(20);

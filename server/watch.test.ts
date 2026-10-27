@@ -16,8 +16,8 @@ const watch = (overrides: Partial<WatchItem> = {}): WatchItem => ({
   ...overrides,
 });
 
-describe("the doctor's own rules", () => {
-  it("fires when the diary drops to the threshold", () => {
+describe("правила самого врача", () => {
+  it("срабатывает, когда дневник опускается до порога", () => {
     const drafts = signalsForWatchItems([watch()], { type: "diary", value: 3, previousValue: 6 });
 
     expect(drafts).toHaveLength(1);
@@ -25,24 +25,24 @@ describe("the doctor's own rules", () => {
     expect(drafts[0]?.severity).toBe("high");
   });
 
-  it("stays quiet one point above the threshold", () => {
+  it("молчит на один балл выше порога", () => {
     expect(signalsForWatchItems([watch()], { type: "diary", value: 4, previousValue: 6 })).toEqual([]);
   });
 
-  it("does not fire a paused rule", () => {
+  it("не срабатывает по правилу на паузе", () => {
     expect(
       signalsForWatchItems([watch({ status: "paused" })], { type: "diary", value: 1, previousValue: 6 }),
     ).toEqual([]);
   });
 
-  it("needs a previous entry before it can call something a drop", () => {
+  it("требует предыдущей записи, чтобы назвать что-то падением", () => {
     const drop = watch({ kind: "diary_drop", params: { points: 3 } });
 
     expect(signalsForWatchItems([drop], { type: "diary", value: 2, previousValue: null })).toEqual([]);
     expect(signalsForWatchItems([drop], { type: "diary", value: 2, previousValue: 6 })).toHaveLength(1);
   });
 
-  it("matches a keyword in a message regardless of case", () => {
+  it("находит ключевое слово в сообщении независимо от регистра", () => {
     const keywords = watch({ kind: "message_keyword", params: { terms: ["не хочу жить"] } });
 
     const drafts = signalsForWatchItems([keywords], {
@@ -54,14 +54,14 @@ describe("the doctor's own rules", () => {
     expect(drafts[0]?.detail).toContain("не хочу жить");
   });
 
-  it("ignores a questionnaire rule meant for another instrument", () => {
+  it("игнорирует правило опросника, предназначенное другому инструменту", () => {
     const score = watch({ kind: "score_threshold", params: { instrumentId: "phq-9", threshold: 10 } });
 
     expect(signalsForWatchItems([score], { type: "assessment", instrumentId: "hads", total: 20 })).toEqual([]);
     expect(signalsForWatchItems([score], { type: "assessment", instrumentId: "phq-9", total: 20 })).toHaveLength(1);
   });
 
-  it("counts consecutive skips only", () => {
+  it("считает только подряд идущие пропуски", () => {
     const missed = watch({ kind: "missed_doses", params: { days: 2 } });
 
     expect(signalsForWatchItems([missed], { type: "checkin", consecutiveSkips: 1 })).toEqual([]);
@@ -87,8 +87,8 @@ async function boundPair(app: App) {
   return { doctorCookie, patientCookie, patientId: me.json().profile.id as string };
 }
 
-describe("watch routes", () => {
-  it("lets the doctor add a rule and pause it", async () => {
+describe("маршруты наблюдения", () => {
+  it("даёт врачу добавить правило и поставить его на паузу", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
 
@@ -110,7 +110,7 @@ describe("watch routes", () => {
     await app.close();
   });
 
-  it("pauses a rule even when the client announces JSON with an empty body", async () => {
+  it("ставит правило на паузу, даже когда клиент объявляет JSON с пустым телом", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
 
@@ -121,7 +121,7 @@ describe("watch routes", () => {
       payload: { kind: "diary_below", title: "Плохое самочувствие", severity: "high", threshold: 3 },
     });
 
-    // Exactly what the browser used to send: a content-type with no body at all.
+    // Ровно то, что присылал браузер: content-type без тела вообще.
     const paused = await app.inject({
       method: "POST",
       url: `/api/watch/${created.json().item.id}/pause`,
@@ -133,7 +133,7 @@ describe("watch routes", () => {
     await app.close();
   });
 
-  it("keeps a refusal a refusal instead of dressing it as a server error", async () => {
+  it("оставляет отказ отказом, а не выдаёт его за ошибку сервера", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
 
@@ -149,7 +149,7 @@ describe("watch routes", () => {
     await app.close();
   });
 
-  it("rejects a rule without its parameter", async () => {
+  it("отклоняет правило без его параметра", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
 
@@ -164,7 +164,7 @@ describe("watch routes", () => {
     await app.close();
   });
 
-  it("raises a signal from a patient message", async () => {
+  it("поднимает сигнал по сообщению пациента", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     await app.inject({
@@ -198,7 +198,7 @@ describe("watch routes", () => {
     await app.close();
   });
 
-  it("gives the doctor the scales the patient actually has, to choose a threshold rule on", async () => {
+  it("даёт врачу те шкалы, которые у пациента действительно есть, чтобы выбрать правило порога", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
 
@@ -213,7 +213,7 @@ describe("watch routes", () => {
     await app.close();
   });
 
-  it("refuses a threshold rule on a scale that does not exist", async () => {
+  it("отказывает в правиле порога по несуществующей шкале", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
 
@@ -234,7 +234,7 @@ describe("watch routes", () => {
     await app.close();
   });
 
-  it("raises a threshold rule on the HADS the patient actually fills in", async () => {
+  it("поднимает правило порога по HADS, которую пациент действительно заполняет", async () => {
     const app = await newApp();
     const { patientCookie, patientId } = await boundPair(app);
     // HADS живёт в терапии: набор шкал приходит вместе с психиатром (SPEC S3, Q49).
@@ -281,7 +281,7 @@ describe("watch routes", () => {
     await app.close();
   });
 
-  it("keeps another doctor out", async () => {
+  it("не пускает другого врача", async () => {
     const app = await newApp();
     const { patientId } = await boundPair(app);
     const stranger = await signUpDoctor(app, { email: "other@example.com", password: "other password" });

@@ -12,21 +12,21 @@ export type SignalDraft = {
   title: string;
   detail: string;
   /**
-   * The registry rule that raised the signal. Null for the instrument-band signal
-   * and for the doctor's own rules: neither has a rule file behind it.
+   * Правило реестра, поднявшее сигнал. Null для сигнала по полосе шкалы и для правил врача:
+   * за ними нет файла правила.
    */
   ruleId: string | null;
 };
 
 /**
- * Rules the signal engine reads, with the kind stored on the signal. The kind is what
- * the unique index dedupes on and what the cards already in the database carry; the
- * doctor reads the rule id and its source on the card.
+ * Правила, которые читает движок сигналов, вместе с видом, сохранённым в сигнале. Вид это то,
+ * по чему дедуплицирует уникальный индекс и что уже несут карточки в базе; врач читает
+ * идентификатор правила и его источник на карточке.
  *
- * This list is the code side of the parity test (rules/parity.test.ts): a rule file
- * without an entry here can never fire, and an entry with no file behind it stops the
- * build instead of quietly dropping a signal. Thresholds, severity and wording live
- * in content/rules/*.json, not here (decisions.md Q31).
+ * Этот список это кодовая сторона теста чётности (rules/parity.test.ts): файл правила без
+ * записи здесь не может сработать, а запись без файла за ней останавливает сборку вместо
+ * того, чтобы тихо потерять сигнал. Пороги, тяжесть и формулировки живут в
+ * content/rules/*.json, а не здесь (decisions.md Q31).
  */
 const SIGNAL_RULES = [
   { kind: "critical_item", ruleId: "critical-item" },
@@ -38,20 +38,20 @@ const SIGNAL_RULES = [
 export const SIGNAL_RULE_IDS: readonly string[] = SIGNAL_RULES.map(({ ruleId }) => ruleId);
 
 /**
- * Rules that read the facts row. They are listed apart from `SIGNAL_RULES` because
- * they fire on `PUT /api/facts`, not on a submission: `SIGNAL_RULE_IDS` is the
- * assessment-and-diary contract the parity test pins, and a fact rule cannot be raised
- * by a questionnaire that never sees the facts.
+ * Правила, которые читают строку фактов. Они перечислены отдельно от `SIGNAL_RULES`, потому что
+ * срабатывают на `PUT /api/facts`, а не на отправке: `SIGNAL_RULE_IDS` это контракт опросников
+ * и дневника, который закрепляет тест чётности, а правило фактов не может быть поднято
+ * опросником, который фактов не видит.
  */
 export const FACT_SIGNAL_RULES = [
   { kind: "contraindication", ruleId: "aviandr-contraindications" },
 ] as const;
 
 /**
- * Rules that read the dose marks of a prescription. Listed apart for the same reason:
- * they fire on `POST /api/doses`, and the card they raise names the drug, the dose and
- * the missed times, which no questionnaire carries. The list is what the parity test
- * reads; the card itself is built by `signalsForAdherence` below, not by the route (#45).
+ * Правила, которые читают отметки приёма в назначении. Перечислены отдельно по той же причине:
+ * они срабатывают на `POST /api/doses`, а карточка, которую они поднимают, называет препарат,
+ * дозу и пропущенные времена, чего не несёт ни один опросник. Этот список читает тест чётности;
+ * саму карточку строит `signalsForAdherence` ниже, а не маршрут (#45).
  */
 export const ADHERENCE_SIGNAL_RULES = [
   { kind: "missed_doses", ruleId: "adherence-three-missed-doses" },
@@ -60,9 +60,9 @@ export const ADHERENCE_SIGNAL_RULES = [
 type SignalRule = { kind: string; ruleId: string };
 
 /**
- * Every rule the engine can raise. A rule file outside this list has no path to the
- * doctor, and the parity test says so by name — the mention of a rule id anywhere in
- * the source, comment or constant, is not a path (issue #45).
+ * Каждое правило, которое движок может поднять. У файла правила вне этого списка нет пути
+ * к врачу, и тест чётности говорит об этом по имени: упоминание идентификатора правила
+ * где угодно в исходнике, в комментарии или в константе, путём не является (issue #45).
  */
 export const ALL_SIGNAL_RULE_IDS: readonly string[] = [
   ...SIGNAL_RULE_IDS,
@@ -71,8 +71,8 @@ export const ALL_SIGNAL_RULE_IDS: readonly string[] = [
 ];
 
 /**
- * Facts in, signals out. This module supplies only what the registry cannot know how
- * to read; every threshold and every word shown to the doctor comes from the rule file.
+ * Факты на входе, сигналы на выходе. Этот модуль даёт только то, о чём реестр не знает,
+ * как читать; каждый порог и каждое слово, показанное врачу, берутся из файла правила.
  */
 function signalsFromRules(rules: readonly SignalRule[], facts: RuleFacts): SignalDraft[] {
   return rules.flatMap(({ kind, ruleId }) => {
@@ -97,13 +97,12 @@ const NO_FACTS: Omit<RuleFacts, "assessment" | "diary"> = {
 };
 
 /**
- * Rules read one submission plus what came before it and return the signals it
- * deserves. They never decide anything for the doctor: a signal is a question to
- * look at, not an instruction.
+ * Правила читают одну отправку и то, что было до неё, и возвращают сигналы, которых она
+ * заслуживает. Они никогда ничего не решают за врача: сигнал это вопрос, на который надо
+ * посмотреть, а не указание.
  *
- * The previous submission arrives as a value that names its scale and version, not
- * as a bare number: a comparison between two scales cannot be expressed here at all
- * (decisions.md §4).
+ * Предыдущая отправка приходит значением, которое называет свою шкалу и версию, а не
+ * голым числом: сравнение двух шкал здесь невозможно выразить вообще (decisions.md §4).
  */
 export function signalsForAssessment(input: {
   instrument: Instrument;
@@ -129,9 +128,9 @@ export function signalsForAssessment(input: {
 }
 
 /**
- * The total-score signal belongs to the instrument, not to a rule file: the threshold
- * is the instrument's alert band and the label is the band the score actually falls
- * into (content/instruments/*.json). No number of ours is written here.
+ * Сигнал по общей сумме принадлежит инструменту, а не файлу правила: порог это тревожная
+ * полоса инструмента, а подпись это полоса, в которую сумма действительно попадает
+ * (content/instruments/*.json). Ни одного нашего числа здесь не написано.
  */
 function bandSignalForAssessment(input: {
   instrument: Instrument;
@@ -149,8 +148,8 @@ function bandSignalForAssessment(input: {
   if (input.instrument.alert?.totalSignal === false) return null;
   if (!alertBand || input.total < alertBand.min) return null;
 
-  // The label must come from the band the score actually falls into, otherwise a 24
-  // reads as "moderately severe".
+  // Подпись обязана приходить из полосы, в которую сумма действительно попадает, иначе 24
+  // читается как «умеренно тяжёлая степень».
   const actualBand = input.instrument.bands.find(
     (band) => input.total >= band.min && input.total <= band.max,
   );
@@ -176,14 +175,15 @@ export function signalsForDiary(input: { value: number; previousValue: number | 
 }
 
 /**
- * Patient facts in, signals out. Called by `PUT /api/facts`, which is the only moment
- * a fact appears: a contraindication stored and never raised is a rule the doctor
- * never reads (issue #37). The playground calls this same function, so «the facts
- * produce a signal» is one statement in the product and in the playground (issue #42).
+ * Факты пациента на входе, сигналы на выходе. Вызывается из `PUT /api/facts`, а это
+ * единственный момент, когда факт появляется: противопоказание, сохранённое и никогда
+ * не поднятое, это правило, которого врач не прочитает (issue #37). Площадка вызывает
+ * ту же функцию, поэтому «факты дают сигнал» это одно утверждение и в продукте, и на
+ * площадке (issue #42).
  *
- * An unanswered fact is `null`, and "no" is an answer: neither matches a condition, so
- * neither raises anything. A signal already raised is not withdrawn here — closing it
- * takes the doctor's outcome (decisions.md Q17).
+ * Факт без ответа это `null`, и «нет» тоже ответ: ни то, ни другое не совпадает с условием,
+ * поэтому ничего не поднимается. Уже поднятый сигнал здесь не снимается: его закрытие
+ * требует исхода от врача (decisions.md Q17).
  */
 export function signalsForFacts(patientFacts: PatientFacts): SignalDraft[] {
   return signalsFromRules(FACT_SIGNAL_RULES, {
@@ -207,14 +207,15 @@ function formatSlot(scheduledAt: string): string {
 }
 
 /**
- * The adherence card: the run of missed intakes, oldest first. Threshold, severity,
- * title and the general wording come from `content/rules/adherence-three-missed-doses.json`
- * through the registry; this function adds only what a rule template cannot know —
- * the drug, the dose, the times that were missed and the patient's own reasons.
+ * Карточка приверженности: серия пропущенных приёмов, начиная с самого раннего. Порог,
+ * тяжесть, название и общая формулировка приходят из
+ * `content/rules/adherence-three-missed-doses.json` через реестр; эта функция добавляет
+ * только то, чего шаблон правила знать не может: препарат, дозу, пропущенные времена
+ * и причины самого пациента.
  *
- * The card is built here rather than in the route: a card assembled on the route would
- * need the route to name the rule, and «this rule reaches the doctor» would again rest
- * on a mention in the source text (issue #45).
+ * Карточка строится здесь, а не на маршруте: карточке, собранной на маршруте, пришлось бы
+ * называть правило маршрутом, и «это правило доходит до врача» снова держалось бы на
+ * упоминании в тексте исходника (issue #45).
  */
 export function signalsForAdherence(input: {
   /** Missed intakes in a row up to now, oldest first. */

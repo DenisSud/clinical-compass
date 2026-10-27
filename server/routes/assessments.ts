@@ -100,9 +100,9 @@ function toDoctorAssessment(
 }
 
 /**
- * Derives and stores the signals for one submission. Conflict-safe, so the retry
- * path calls it too: otherwise a first attempt that died before writing the signals
- * would leave a stored questionnaire with a critical answer and no signal.
+ * Выводит и сохраняет сигналы для одной отправки. Устойчиво к повторам, поэтому путь
+ * повторной попытки вызывает его тоже: иначе первая попытка, умершая до записи сигналов,
+ * оставила бы сохранённый опросник с критическим ответом и без сигнала.
  */
 async function deriveAssessmentSignals(
   app: FastifyInstance,
@@ -291,9 +291,9 @@ function toInstrumentView(instrument: Instrument) {
 
 export const assessmentRoutes: FastifyPluginAsync = async (app) => {
   /**
-   * What this patient may fill in, in the order the status file lists. A patient
-   * with no questionnaires sees an empty list, not every questionnaire in the
-   * registry: the doctor decides the set, not the patient (issue #68).
+   * Что этот пациент может заполнять, в том порядке, в котором перечисляет файл статуса.
+   * Пациент без опросников видит пустой список, а не все опросники реестра: набор
+   * определяет врач, а не пациент (issue #68).
    */
   app.get("/instruments", { preHandler: requireRole("patient") }, async (request) => {
     const patientId = requireAuth(request).userId;

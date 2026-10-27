@@ -15,25 +15,25 @@ function file(replacements: { id: string; [key: string]: unknown }[] = []): Reco
   };
 }
 
-describe("the status file", () => {
-  it("describes exactly the two stages the product has", () => {
+describe("файл статусов", () => {
+  it("описывает ровно те два этапа, которые есть в продукте", () => {
     expect([...statuses().keys()].sort()).toEqual(["screening", "treatment"]);
   });
 
-  it("keeps a source on each status: our thresholds are ours until the material arrives", () => {
+  it("держит источник у каждого статуса: наши пороги наши, пока не пришёл материал", () => {
     for (const status of statuses().values()) {
       expect(status.source.ref.length).toBeGreaterThan(5);
       expect(status.source.status).toBe("placeholder");
     }
   });
 
-  it("rejects a status with no instruments", () => {
+  it("отклоняет статус без инструментов", () => {
     expect(() =>
       parseStatusesFile(file([{ id: "screening", label: "Скрининг", instruments: [], source }])),
     ).toThrow(/instruments/);
   });
 
-  it("rejects the same instrument twice in one status", () => {
+  it("отклоняет один и тот же инструмент дважды в одном статусе", () => {
     expect(() =>
       parseStatusesFile(
         file([
@@ -51,7 +51,7 @@ describe("the status file", () => {
     ).toThrow(/указан дважды/);
   });
 
-  it("rejects a status without a source", () => {
+  it("отклоняет статус без источника", () => {
     expect(() =>
       parseStatusesFile(file([{ id: "screening", label: "Скрининг", instruments: [{ id: "phq-9", repeatAfterHours: 1 }] }])),
     ).toThrow(/source/);
@@ -67,13 +67,13 @@ describe("the status file", () => {
     ).toThrow(/схему/);
   });
 
-  it("rejects a status the code does not know", () => {
+  it("отклоняет статус, которого не знает код", () => {
     expect(() =>
       parseStatusesFile(file([{ id: "remission", label: "Ремиссия", instruments: [{ id: "phq-9", repeatAfterHours: 1 }], source }])),
     ).toThrow(/схему/);
   });
 
-  it("rejects a file that forgot a status the code declares", () => {
+  it("отклоняет файл, в котором забыт статус, объявленный кодом", () => {
     expect(() =>
       parseStatusesFile({
         statuses: [{ id: "screening", label: "Скрининг", instruments: [{ id: "phq-9", repeatAfterHours: 1 }], source }],
@@ -82,12 +82,12 @@ describe("the status file", () => {
   });
 });
 
-describe("the stage follows the doctor's specialty", () => {
-  it("gives a therapist screening: the entry point of the case", () => {
+describe("этап следует за специальностью врача", () => {
+  it("даёт терапевту скрининг: входную точку кейса", () => {
     expect(statusForSpecialty("therapist")).toBe("screening");
   });
 
-  it("gives a psychiatrist treatment", () => {
+  it("даёт психиатру терапию", () => {
     expect(statusForSpecialty("psychiatrist")).toBe("treatment");
   });
 });

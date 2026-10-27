@@ -24,8 +24,8 @@ const bandSchema = z.object({
 });
 
 /**
- * The description of an instrument is data, not code. Adding the next
- * questionnaire means adding a file here, not a route.
+ * Описание инструмента это данные, а не код. Следующий опросник добавляется файлом здесь,
+ * а не маршрутом.
  */
 export const instrumentSchema = z.object({
   id: z.string().min(1),
@@ -47,8 +47,8 @@ export const instrumentSchema = z.object({
   items: z.array(itemSchema).min(1),
   bands: z.array(bandSchema).min(1),
   /**
-   * How soon the instrument may be asked again unless the status says otherwise.
-   * Zero means any time: шкалу с риском нельзя запирать на неделю из-за ответа
+   * Как скоро инструмент можно спросить снова, если статус не говорит иначе.
+   * Ноль значит «в любой момент»: шкалу с риском нельзя запирать на неделю из-за ответа
    * в понедельник (DESIGN.md §2.1).
    */
   repeatAfterHours: z.number().int().nonnegative().default(168),
@@ -57,9 +57,9 @@ export const instrumentSchema = z.object({
     .object({
       bandId: z.string().min(1),
       /**
-       * Whether the band also earns a total-score signal. False where the band is
-       * not a severity: у UKU общей суммы нет, складывать разные явления в одно
-       * число запрещено (SPEC S10), и карточка по «сумме» была бы выдумкой.
+       * Даёт ли полоса ещё и сигнал по общей сумме. False там, где полоса не является
+       * тяжестью: у UKU общей суммы нет, складывать разные явления в одно число запрещено
+       * (SPEC S10), и карточка по «сумме» была бы выдумкой.
        */
       totalSignal: z.boolean().default(true),
     })

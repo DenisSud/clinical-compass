@@ -19,10 +19,9 @@ const KIND: Record<PlanItem["kind"], string> = {
 const KINDS: PlanItem["kind"][] = ["medication", "therapy", "observation", "referral"];
 
 /**
- * A draft is invisible to the patient, a confirmed item is the plan itself and an
- * archived one is history. The word carries that difference, so it is spelled out on
- * every row (#53) — a state that only shows as a missing button is a state a doctor
- * has to reconstruct.
+ * Черновик пациент не видит, подтверждённый пункт это и есть план, а архивный уже история.
+ * Слово несёт эту разницу, поэтому оно выписано на каждой строке (#53): состояние, которое
+ * видно только по отсутствующей кнопке, врачу приходится восстанавливать самому.
  */
 const STATUS: Record<PlanItem["status"], string> = {
   draft: "черновик",
@@ -80,10 +79,10 @@ export function PlanPanel({
   }
 
   /*
-   * There is no way back from the archive (§ the route has confirm and archive, nothing
-   * else), so the press asks first — the same .confirm the unbind and the code rotation
-   * use. The question closes only when the server answered: a failed archive keeps it
-   * open with the reason next to it, so the doctor can retry where he stands.
+   * Из архива нет пути назад (у маршрута есть подтверждение и архив, больше ничего), поэтому
+   * нажатие сначала спрашивает: тот же .confirm, что у отвязки и смены кода. Вопрос
+   * закрывается только когда сервер ответил: неудачный архив оставляет его открытым с причиной
+   * рядом, чтобы врач мог повторить на месте.
    */
   async function archive(itemId: string) {
     const done = await act(itemId, `archive:${itemId}`, () => archivePlanItem(itemId));
@@ -140,10 +139,10 @@ export function PlanPanel({
           {items.data.map((item) => (
             <li key={item.id} className={`plan-item plan-item--${item.status}`}>
               {/*
-               * Kind, title and state on one line, the explanation under them (_10,
-               * system §2.16). The kind stays a word: colour on this screen belongs to
-               * severity, and a coloured capsule for «Направление» would compete with the
-               * critical signal card one tab away (§2.3, §3.1).
+               * Вид, название и состояние на одной строке, пояснение под ними (_10,
+               * system §2.16). Вид остаётся словом: цвет на этом экране принадлежит тяжести,
+               * а цветная капсула для «Направление» соревновалась бы с карточкой критического
+               * сигнала на соседней вкладке (§2.3, §3.1).
                */}
               <div className="plan-item__head">
                 <span className="plan-item__kind">{KIND[item.kind]}</span>
@@ -204,11 +203,11 @@ export function PlanPanel({
       )}
 
       {/*
-       * One field per line with its own label, the way the export draws the form (_10):
-       * the two fields name different things — what is prescribed and how it is taken —
-       * and a placeholder cannot say that after the first character is typed. The
-       * export's placeholder examples («Сертралин 50 мг») are made-up prescriptions and
-       * are not carried over (migration §2.4).
+       * Одно поле на строку со своей подписью, как рисует форму экспорт (_10):
+       * два поля называют разное, что назначено и как это принимают,
+       * и заполнитель не может сказать этого после первого набранного символа. Примеры
+       * заполнителей из экспорта («Сертралин 50 мг») это выдуманные назначения, их
+       * не переносим (migration §2.4).
        */}
       {!canEdit && (
         <p className="hint">

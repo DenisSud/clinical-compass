@@ -383,8 +383,8 @@ describe("сохранённое противопоказание доходит
     const { signals } = (await listSignals(app, doctorCookie)).json();
     const details = (signals as { detail: string }[]).map((signal) => signal.detail);
 
-    // A card that names both is what the doctor needs; the earlier pregnancy-only card
-    // may stay open, it is the doctor's to close.
+    // Врачу нужна карточка, где названы оба: прежняя карточка только про беременность
+    // может остаться открытой, закрывать её врачу.
     expect(details.some((detail) => detail.includes("45") && detail.includes("беременность"))).toBe(
       true,
     );

@@ -28,15 +28,14 @@ export function instrument(id: string): Instrument | undefined {
 }
 
 /**
- * The patient's set comes from their status, not from a list in code: which
- * questionnaires a patient sees is a clinical decision the doctor makes with one
- * marker, and the mapping is a data file (content/instrument-statuses.json).
+ * Набор пациента берётся из его статуса, а не из списка в коде: какие опросники видит
+ * пациент, врач решает клинически одним маркером, а соответствие это файл данных
+ * (content/instrument-statuses.json).
  *
- * A status that names an instrument with no file fails here, by name, instead of
- * rendering a shorter list than the doctor prescribed. Every patient route resolves
- * its instrument through here, so a doctor's scale (audience "doctor") must not pass:
- * a status that assigns it is a broken file, not a questionnaire the patient may see
- * (SPEC S10).
+ * Статус, который называет инструмент без файла, падает здесь по имени, вместо того чтобы
+ * нарисовать более короткий список, чем назначил врач. Каждый пациентский маршрут получает
+ * инструмент здесь, поэтому шкала врача (audience «doctor») проходить не должна: статус,
+ * который её назначает, это сломанный файл, а не опросник, который пациент может видеть (SPEC S10).
  */
 export function patientInstruments(status: string): Instrument[] {
   return instrumentsForStatus(status).map(({ id }) => {
@@ -50,13 +49,13 @@ export function patientInstruments(status: string): Instrument[] {
 }
 
 /**
- * How soon the instrument opens again in this status. The assignment wins over the
- * instrument's own interval, so the status file can shorten or drop the wait without
- * touching the scale's file.
+ * Как скоро инструмент откроется снова в этом статусе. Назначение главнее собственного
+ * интервала инструмента, поэтому файл статуса может сократить ожидание или убрать его,
+ * не трогая файл шкалы.
  *
- * Null means the status does not assign it. The submission route never sees null —
- * it resolves the instrument through the status first — but the history listing does,
- * and it falls back to the instrument's own interval instead of failing.
+ * Null означает, что статус его не назначает. Маршрут отправки null не видит: он сначала
+ * получает инструмент через статус, а список истории видит и откатывается к собственному
+ * интервалу инструмента вместо отказа.
  */
 export function repeatAfterHours(status: string, instrumentId: string): number | null {
   const entry = instrumentsForStatus(status).find((candidate) => candidate.id === instrumentId);
@@ -77,9 +76,9 @@ export function doctorInstruments(): Instrument[] {
 }
 
 /**
- * Called at startup: a status file that names a missing instrument, or a doctor's scale,
- * must not wait for a patient. Проверка — тот же расчёт набора, которым пользуется
- * маршрут пациента, поэтому сборка падает на том же месте, где упал бы запрос.
+ * Вызывается при старте: файл статуса, который называет отсутствующий инструмент, или шкала
+ * врача, не должны ждать пациента. Проверка это тот же расчёт набора, которым пользуется
+ * маршрут пациента, поэтому сборка падает там же, где упал бы запрос.
  */
 export function assertStatusInstrumentsExist(): void {
   for (const status of statuses().keys()) patientInstruments(status);
