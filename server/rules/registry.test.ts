@@ -259,7 +259,7 @@ describe("выполнение одного правила", () => {
   });
 });
 
-describe("GET /api/rules", () => {
+describe("правила через API", () => {
   it("даёт врачу каждое правило с его источником", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);

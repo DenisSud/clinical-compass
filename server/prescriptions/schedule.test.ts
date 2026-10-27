@@ -8,7 +8,7 @@ function slot(scheduledAt: string, state: DoseSlotState) {
   return { scheduledAt, state };
 }
 
-describe("plannedSlots", () => {
+describe("слоты плана", () => {
   it("упорядочивает приёмы по запланированному времени, а не в порядке ввода врача", () => {
     expect(plannedSlots(twiceDaily, "2026-10-20", "2026-10-21")).toEqual([
       "2026-10-20T08:00",
@@ -38,7 +38,7 @@ describe("plannedSlots", () => {
   });
 });
 
-describe("slotState", () => {
+describe("состояние слота", () => {
   const now = "2026-10-21T12:00";
 
   it("читает наступившее время без отметки как отсутствие сведений, а не как пропущенный приём", () => {
@@ -121,7 +121,7 @@ describe("три пропущенных приёма подряд", () => {
   });
 });
 
-describe("lateMinutes", () => {
+describe("опоздание в минутах", () => {
   it("измеряет разницу между запланированным и фактическим временем", () => {
     const takenAt = new Date("2026-10-20T10:30:00").toISOString();
     expect(lateMinutes("2026-10-20T08:00", takenAt)).toBe(150);
