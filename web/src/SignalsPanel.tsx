@@ -126,7 +126,7 @@ export function SignalRule({
   const rule = describeRule(signal);
   if (!rule) return null;
 
-  // A placeholder already names itself as ours; a confirmed rule names its kind after «источник:».
+  // Заглушка уже называет себя нашей; подтверждённое правило называет вид после «источник:».
   const sourceLabel = rule.placeholder ? rule.origin : `источник: ${rule.origin}`;
 
   return (

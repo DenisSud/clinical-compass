@@ -3,7 +3,7 @@ import type { Message } from "../../shared/contracts";
 import { ApiRequestError } from "./api";
 import { Button, Empty } from "./ui";
 
-/** Whose screen the thread is on: it decides which side is «Вы» and which is the counterpart. */
+/** Чей это экран: от него зависит, кто «Вы», а кто собеседник. */
 export type MessageViewer = "patient" | "doctor";
 
 /*
@@ -17,7 +17,7 @@ function authorLabel(viewer: MessageViewer, authorRole: Message["authorRole"]): 
   return viewer === "doctor" ? "Пациент" : "Врач";
 }
 
-/* «25 октября, 09:12» — a comma, as in the export; ru-RU joins day and time with «в». */
+/* «25 октября, 09:12» — с запятой, как в выгрузке; ru-RU соединяет день и время через «в». */
 function formatStamp(iso: string): string {
   const date = new Date(iso);
   const day = date.toLocaleDateString("ru-RU", { day: "numeric", month: "long" });

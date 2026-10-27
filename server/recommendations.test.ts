@@ -64,7 +64,7 @@ describe("рекомендации с корпусом", () => {
     expect(result.cards[0]?.source?.url).toBe("https://lk.regmed.ru/x");
   });
 
-  it("falls back to the indications in the ОХЛП when there is no guideline", () => {
+  it("опирается на показания ОХЛП, когда клинической рекомендации нет", () => {
     const result = recommendations(context, [smpc()]);
 
     expect(result.cards[0]?.basis).toBe("Депрессивные эпизоды.");
@@ -118,7 +118,7 @@ describe("рекомендации с корпусом", () => {
 });
 
 describe("маршрут рекомендаций", () => {
-  it("builds a card from the shipped ОХЛП and names what is still missing", async () => {
+  it("строит карточку по сохранённому ОХЛП и называет, чего не хватает", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
     const patientCookie = await signUpPatient(app);

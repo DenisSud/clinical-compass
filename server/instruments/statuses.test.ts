@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { parseStatusesFile, statusForSpecialty, statuses } from "./statuses.js";
 
-const source = { kind: "ours", ref: "sources-needed.md#1.1", status: "placeholder" };
+const source = { kind: "ours", ref: "sources-needed.md#11-правила-выбора-шкал", status: "placeholder" };
 
 const base = [
   { id: "screening", label: "Скрининг", instruments: [{ id: "phq-9", repeatAfterHours: 336 }], source },
@@ -57,7 +57,7 @@ describe("файл статусов", () => {
     ).toThrow(/source/);
   });
 
-  it("rejects a third stage: «ухудшение» — сигнал, а не этап", () => {
+  it("отклоняет третий этап: «ухудшение» — сигнал, а не этап", () => {
     expect(() =>
       parseStatusesFile(
         file([

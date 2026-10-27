@@ -72,9 +72,11 @@ export const patientRoutes: FastifyPluginAsync = async (app) => {
       if (!patient) return notFound(reply, "Пациент не найден");
       if (patient.doctorId !== requireAuth(request).userId) return forbidden(reply, NOT_YOURS);
 
+      // Этап следует из специальности ведущего врача (S3, Q49): без врача этап терапии
+      // остался бы у пациента, которого никто не ведёт, и он видел бы HADS и UKU.
       await app.conn.db
         .update(patients)
-        .set({ doctorId: null, boundAt: null })
+        .set({ doctorId: null, boundAt: null, status: "screening" })
         .where(eq(patients.id, patient.id));
 
       return reply.code(204).send();

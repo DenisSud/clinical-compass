@@ -105,7 +105,7 @@ describe("регистрация и вход врача", () => {
     await app.close();
   });
 
-  it("читает неизвестную специальность как терапевта, а не выдумывает третью", async () => {
+  it("отказывает в неизвестной специальности, а не выдумывает терапевта", async () => {
     const app = await newApp();
 
     const response = await app.inject({
@@ -114,8 +114,24 @@ describe("регистрация и вход врача", () => {
       payload: { ...DOCTOR, specialty: "surgeon" },
     });
 
-    expect(response.statusCode).toBe(201);
-    expect(response.json().profile.specialty).toBe("therapist");
+    // Терапевт вместо «хирурга» — это чужое клиническое решение: этап пациента (S3).
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "invalid_request" });
+    await app.close();
+  });
+
+  it("требует специальность при регистрации врача", async () => {
+    const app = await newApp();
+    const { specialty: _specialty, ...withoutSpecialty } = DOCTOR;
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/doctor/signup",
+      payload: withoutSpecialty,
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json()).toMatchObject({ code: "invalid_request" });
     await app.close();
   });
 });

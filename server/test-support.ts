@@ -4,10 +4,15 @@ import { buildApp } from "./app.js";
 
 export type App = Awaited<ReturnType<typeof buildApp>>;
 
-export const DOCTOR = { email: "doctor@example.com", password: "correct horse battery" };
+export const DOCTOR = {
+  email: "doctor@example.com",
+  password: "correct horse battery",
+  specialty: "therapist" as const,
+};
 export const PATIENT = { email: "patient@example.com", password: "another good password" };
 
 /** Специальность — поле врача (SPEC S2): от неё зависит этап его пациентов, а не от теста. */
+/** Специальность называет сам тест; умолчание — терапевт, как в старых сценариях. */
 export type DoctorAccount = { email: string; password: string; specialty?: "therapist" | "psychiatrist" };
 
 export function newApp(): Promise<App> {
@@ -64,7 +69,7 @@ export async function signUpDoctor(app: App, credentials: DoctorAccount = DOCTOR
   const response = await app.inject({
     method: "POST",
     url: "/api/auth/doctor/signup",
-    payload: credentials,
+    payload: { specialty: "therapist", ...credentials },
   });
   expect(response.statusCode).toBe(201);
   return cookieOf(response);

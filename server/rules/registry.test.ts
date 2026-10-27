@@ -113,7 +113,7 @@ describe("файлы правил", () => {
       output: { title: "Самочувствие {value}", detail: "Падение на {drop}." },
       source: {
         kind: "ours",
-        ref: "docs/research/ai-decision-logic/sources-needed.md#1.3",
+        ref: "docs/research/ai-decision-logic/sources-needed.md#13-что-значит-хорошо--нормально--плохо",
         status: "placeholder",
       },
     };

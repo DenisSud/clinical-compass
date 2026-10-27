@@ -47,6 +47,32 @@ describe("отвязка пациента врачом", () => {
     await app.close();
   });
 
+  it("возвращает пациента на скрининг: без ведущего врача этапа терапии нет", async () => {
+    const app = await newApp();
+    const psychiatristCookie = await signUpDoctor(app, {
+      email: "psychiatrist@example.com",
+      password: "correct horse battery",
+      specialty: "psychiatrist",
+    });
+    const patientCookie = await signUpPatient(app);
+    await bindPatient(app, psychiatristCookie, patientCookie);
+    const patientId = await patientIdOf(app, patientCookie);
+
+    const before = await app.inject({ method: "GET", url: "/api/instruments", headers: { cookie: patientCookie } });
+    expect(before.json().instruments.map((entry: { id: string }) => entry.id)).toContain("uku");
+
+    await app.inject({
+      method: "POST",
+      url: `/api/patients/${patientId}/unbind`,
+      headers: { cookie: psychiatristCookie },
+    });
+
+    const after = await app.inject({ method: "GET", url: "/api/instruments", headers: { cookie: patientCookie } });
+    // Набор снова скрининговый: терапевтические шкалы никто не назначал (S3).
+    expect(after.json().instruments.map((entry: { id: string }) => entry.id)).toEqual(["phq-9"]);
+    await app.close();
+  });
+
   it("сохраняет аккаунт пациента, чтобы он мог привязаться снова", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);

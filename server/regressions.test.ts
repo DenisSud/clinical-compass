@@ -62,7 +62,7 @@ describe("формулировка сигнала следует за инстр
     await app.close();
   });
 
-  it("names the questionnaire, so «14 из 21» cannot be read as PHQ-9", async () => {
+  it("называет шкалу, чтобы «14 из 21» нельзя было прочитать как PHQ-9", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app, { specialty: "psychiatrist" });
 
@@ -85,7 +85,7 @@ describe("формулировка сигнала следует за инстр
     await app.close();
   });
 
-  it("says «выраженные» only when the severe band is reached", async () => {
+  it("говорит «выраженные» только в тяжёлой полосе", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
     await submitPhq9(app, patientCookie, 3); //24 из 27

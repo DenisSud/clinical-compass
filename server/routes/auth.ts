@@ -3,9 +3,8 @@ import { eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import {
   credentialsSchema,
-  doctorSpecialtySchema,
+  doctorSignupSchema,
   type Credentials,
-  type DoctorSpecialty,
   type MeResponse,
 } from "../../shared/contracts.js";
 import { hashPassword, verifyPassword } from "../auth/password.js";
@@ -25,22 +24,23 @@ function isUniqueViolation(error: unknown): boolean {
 
 const BAD_CREDENTIALS = "Проверьте email и пароль";
 
+const DOCTOR_SIGNUP_FAILED = "Проверьте email, пароль и специальность: «терапевт» или «психиатр»";
+
 /**
- * Специальность выбирается при регистрации врача и потом задаёт этап его пациентов.
- * Отдельного переключателя этапа нет (Q49). Старое тело без поля читается как
- * «терапевт»: так регистрировались до решения, и скрининг безопаснее терапии.
+ * Регистрация врача вместе со специальностью: она задаёт этап его пациентов, и
+ * отдельного переключателя этапа нет (Q49). Неизвестная или пропущенная специальность —
+ * отказ, а не тихо выбранный терапевт: это клиническое решение, принятое за врача.
  */
-function readSpecialty(body: unknown): DoctorSpecialty {
-  const value = (body as { specialty?: unknown } | null)?.specialty;
-  const parsed = doctorSpecialtySchema.safeParse(value);
-  return parsed.success ? parsed.data : "therapist";
+function readDoctorSignup(body: unknown) {
+  const parsed = doctorSignupSchema.safeParse(body);
+  return parsed.success ? parsed.data : null;
 }
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post("/auth/doctor/signup", async (request, reply) => {
-    const credentials = readCredentials(request.body);
-    if (!credentials) return fail(reply, 400, "invalid_request", BAD_CREDENTIALS);
-    const specialty = readSpecialty(request.body);
+    const signup = readDoctorSignup(request.body);
+    if (!signup) return fail(reply, 400, "invalid_request", DOCTOR_SIGNUP_FAILED);
+    const { specialty, ...credentials } = signup;
 
     try {
       const [doctor] = await app.conn.db
