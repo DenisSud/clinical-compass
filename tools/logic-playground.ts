@@ -22,6 +22,7 @@ import { factAnswerText, factState } from "../shared/facts.js";
 import type { PreviousAssessment, RuleCondition, RuleFacts } from "../shared/rules.js";
 import { criticalItems, score } from "../server/instruments/engine.js";
 import { instrument as findInstrument, patientInstruments } from "../server/instruments/loader.js";
+import { patientStatus, statusForSpecialty, statusLabel } from "../server/instruments/statuses.js";
 import type { Instrument } from "../server/instruments/schema.js";
 import { evaluateRule, findRule, listRules, requireRule } from "../server/rules/registry.js";
 import {
@@ -63,7 +64,25 @@ type State = {
   doseUnit: string;
   startsOn: string;
   endsOn: string | null;
+  /**
+   * Специальность ведущего врача. Этап пациента и набор шкал следуют из неё (SPEC S3),
+   * поэтому переключателя этапа в площадке нет — есть только смена врача.
+   */
+  specialty: Specialty;
 };
+
+/** Специальность врача — поле врача, а не роль (SPEC S2). */
+type Specialty = "therapist" | "psychiatrist";
+
+const SPECIALTY_LABEL: Record<Specialty, string> = {
+  therapist: "терапевт",
+  psychiatrist: "психиатр",
+};
+
+/** Этап пациента — из специальности врача: у терапевта скрининг, у психиатра терапия (Q49). */
+function stage(): string {
+  return statusForSpecialty(state.specialty);
+}
 
 const TODAY = new Date().toLocaleDateString("sv-SE");
 const NOW = new Date().toLocaleString("sv-SE").replace(" ", "T").slice(0, 16);
@@ -85,10 +104,23 @@ function emptyState(): State {
     doseUnit: "мг",
     startsOn: shiftDay(TODAY, -2),
     endsOn: null,
+    specialty: "therapist",
   };
 }
 
 let state = emptyState();
+
+/** Набор шкал текущего этапа — площадка берёт его тем же загрузчиком, что и маршрут пациента. */
+function patientSet(): string {
+  return patientInstruments(stage())
+    .map((item) => item.id)
+    .join(", ");
+}
+
+/** Этап словами врача: он читает «Терапия», а не файл статусов. */
+function stageText(): string {
+  return `«${statusLabel(stage())}»`;
+}
 
 /** Пустое поле — это «не спрашивали», а не «нет»: правило на нём не срабатывает. */
 function factsForRules(): PatientFacts {
@@ -373,7 +405,7 @@ function signalsTable(): void {
 }
 
 function dump(): void {
-  head("СОСТОЯНИЕ");
+  head(`СОСТОЯНИЕ · ${SPECIALTY_LABEL[state.specialty]}, этап ${stageText()}, шкалы: ${patientSet()}`);
   factsTable();
   console.log();
   rulesTable();
@@ -417,7 +449,15 @@ function scheduleRows() {
 }
 
 function adherenceForRules(): { consecutiveMissedDoses: number } | null {
-  if (state.schedule) return { consecutiveMissedDoses: trailingSkips(scheduleRows()).length };
+  if (state.schedule) {
+    const rows = scheduleRows();
+    const elapsed = rows.filter((row) => row.state !== "scheduled");
+    // Как и маршрут: назначение ещё не началось или последний приём не отмечен — это
+    // не «ноль пропусков», а отсутствие данных. Площадка отказывает так же (S31).
+    if (elapsed.length === 0) return null;
+    if (elapsed[elapsed.length - 1]?.state === "no_data") return null;
+    return { consecutiveMissedDoses: trailingSkips(rows).length };
+  }
   if (state.manualSkips !== null) return { consecutiveMissedDoses: state.manualSkips };
   return null;
 }
@@ -509,10 +549,20 @@ const SCENARIOS: Record<string, Scenario> = {
     ],
   },
   "5": {
-    title: "ASQ: один утвердительный ответ — один сигнал, а не два",
+    title: "UKU: 48 пунктов и ни одной общей суммы",
     steps: [
-      { say: "ASQ: первый вопрос — «да», остальные «нет»", run: () => applyAssessment("asq", { q1: 1 }, 0) },
-      { say: "Смотрим: критический сигнал есть, суммы-сигнала нет", run: () => dump() },
+      {
+        say: "Пациент у психиатра: этап «Терапия», в наборе HADS и UKU",
+        run: () => {
+          switchSpecialty("psychiatrist");
+          console.log(`Специальность психиатр, этап ${stageText()}. Шкалы: ${patientSet()}`);
+        },
+      },
+      { say: "UKU: все пункты по 1 — явления отмечены", run: () => applyAssessment("uku", {}, 1) },
+      {
+        say: "Смотрим: диапазон «Общей суммы нет» и ни одной карточки по сумме",
+        run: () => dump(),
+      },
     ],
   },
   "6": {
@@ -530,7 +580,83 @@ const SCENARIOS: Record<string, Scenario> = {
       },
     ],
   },
+  "7": {
+    title: "Специальность врача задаёт этап и набор шкал",
+    steps: [
+      {
+        say: "Пациент у терапевта: этап «Скрининг», в наборе один PHQ-9",
+        run: () => {
+          console.log(
+            `Специальность ${SPECIALTY_LABEL[state.specialty]}, этап ${stageText()}. Шкалы: ${patientSet()}`,
+          );
+        },
+      },
+      {
+        say: "Передача психиатру: этап и набор меняются вместе с ведущим врачом, а не кнопкой",
+        run: () => {
+          switchSpecialty("psychiatrist");
+          console.log(
+            `Специальность ${SPECIALTY_LABEL[state.specialty]}, этап ${stageText()}. Шкалы: ${patientSet()}`,
+          );
+        },
+      },
+      {
+        say: "Назначаем приём дважды в день и смотрим расписание",
+        run: () => {
+          const today = new Date().toLocaleDateString("sv-SE");
+          state.schedule = { startsOn: shiftDay(today, -2), endsOn: null, timesOfDay: ["08:00", "20:00"] };
+          state.startsOn = shiftDay(today, -2);
+          state.endsOn = null;
+          state.marks = {};
+          pillbox();
+        },
+      },
+      {
+        say: "Пациент заполнил HADS-тревогу: сумма выросла с 2 до 21, приёмов не было",
+        run: () => {
+          applyAssessment("hads-anxiety", {}, 3);
+          state.previousTotal = 2;
+          markLastSkips(3, "не было препарата");
+        },
+      },
+      {
+        say: "Смотрим: ухудшение и пропуски поднимают две разные карточки",
+        run: () => dump(),
+      },
+      {
+        say: "Отмечаем приём: цепочка пропусков рвётся, карточка приверженности уходит",
+        run: () => {
+          const today = new Date().toLocaleDateString("sv-SE");
+          state.marks[`${today}T08:00`] = "taken";
+          pillbox();
+          dump();
+        },
+      },
+    ],
+  },
 };
+
+/**
+ * Смена ведущего врача так, как её делает привязка: этап и набор шкал выводятся из
+ * специальности, отдельного переключателя этапа нет (SPEC S3, Q49). Прошлые ответы при
+ * смене не переписываются: в площадке их и нет, кроме суммы «прошлый».
+ */
+function switchSpecialty(next: Specialty): void {
+  state.specialty = next;
+  state.assessment = null;
+  state.previousTotal = null;
+}
+
+/** «терапевт» или «психиатр» из команды: этап площадка не принимает, его выводит продукт. */
+function specialtyFrom(raw: string): Specialty | null {
+  const aliases: Record<string, Specialty> = {
+    терапевт: "therapist",
+    therapist: "therapist",
+    психиатр: "psychiatrist",
+    psychiatrist: "psychiatrist",
+  };
+  return aliases[raw] ?? null;
+}
 
 async function runScenario(key: string): Promise<void> {
   const scenario = SCENARIOS[key];
@@ -553,18 +679,19 @@ async function runScenario(key: string): Promise<void> {
 const HELP = `
 Команды:
   правила                      все правила с источником и состоянием
+  статус [терапевт|психиатр]   специальность врача, выведенный из неё этап и набор шкал
   факты                        что мы знаем о пациенте
   факт <поле>=<значение>       эпилепсия=yes, mao=stopped_under_2_weeks, egfr=45,
                                childPugh=B, беременность=pregnant, галактоза=no,
                                факт эпилепсия=null — снова «не спрашивали»
-  шкала <id> [все=N] [q9=1]    phq-9, gad-7, asq; без «все» нужны все пункты
+  шкала <id> [все=N] [q9=1]    phq-9, hads-anxiety, hads-depression, uku
   прошлый <балл> [от <шкала> [версия X]]  прошлая сумма, шкала и версия
   дневник <1-10> [было <1-10>] самочувствие сегодня
   пропуски <n> <причина>       отметить последние n наступивших приёмов пропуском
   отметка [-1 | 25.10] 08:00=пропуск(уехал)  отметка на время и день: пропуск
                                (причина обязательна), принял, нет; будущее — отказ
   таблетница 08:00,20:00 [с -5 по -1]  назначение; окно курса в днях от сегодня
-  сценарий [1-6]               сценарии выше, с объяснением шагов
+  сценарий [1-7]               сценарии выше, с объяснением шагов
   сброс / выход
 
 После каждой команды печатается всё состояние: факты, каждое правило (сработало
@@ -619,6 +746,28 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
     case "выход":
     case "exit":
       return ask().then(() => undefined);
+    case "статус": {
+      const next = rest[0];
+      const current = patientStatus(stage());
+      if (next === undefined) {
+        console.log(
+          `Специальность врача: ${SPECIALTY_LABEL[state.specialty]}, этап ${stageText()}. Шкалы: ${patientSet()}`,
+        );
+        console.log(`Источник набора: ${current.source.ref} (${current.source.status})`);
+        return;
+      }
+      const specialty = specialtyFrom(next);
+      if (specialty === null) {
+        console.log(`Нет специальности «${next}». Есть: терапевт, психиатр`);
+        return;
+      }
+      switchSpecialty(specialty);
+      console.log(
+        `Специальность ${SPECIALTY_LABEL[specialty]}, этап ${stageText()}. Шкалы: ${patientSet()}`,
+      );
+      dump();
+      return;
+    }
     case "правила":
       head("ПРАВИЛА");
       rulesTable();
@@ -636,12 +785,18 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
     case "шкала": {
       const [id, ...pairs] = rest;
       if (!id) {
-        console.log(`Шкалы пациента: ${patientInstruments().map((i) => i.id).join(", ")}`);
+        console.log(`Шкалы пациента: ${patientSet()}`);
         return;
       }
       const instrument = findInstrument(id);
       if (!instrument) {
-        console.log(`Нет шкалы ${id}. Есть: ${patientInstruments().map((i) => i.id).join(", ")}`);
+        console.log(`Нет шкалы ${id}. Есть: ${patientSet()}`);
+        return;
+      }
+      // Маршрут пациента отвечает 404 на шкалу не из набора этапа; площадка отказывает
+      // так же, иначе показывала бы опросник, которого пациент не увидит.
+      if (!patientInstruments(stage()).some((item) => item.id === id)) {
+        console.log(`Шкала ${id} недоступна на этапе ${stageText()}. В наборе: ${patientSet()}`);
         return;
       }
       const preset: Record<string, number> = {};

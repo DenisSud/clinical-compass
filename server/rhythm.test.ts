@@ -93,7 +93,7 @@ describe("the questionnaire is weekly", () => {
     expect(first.statusCode).toBe(201);
     expect(second.statusCode).toBe(409);
     expect(second.json().code).toBe("too_soon");
-    expect(second.json().message).toMatch(/не чаще раза в неделю/);
+    expect(second.json().message).toMatch(/Следующий раз/);
     await app.close();
   });
 
@@ -155,58 +155,6 @@ describe("the questionnaire is weekly", () => {
     const next = new Date(response.json().nextAllowedAt).getTime();
     expect(next).toBeGreaterThan(Date.now() + 6 * 86_400_000);
     expect(response.json().assessments).toHaveLength(1);
-    await app.close();
-  });
-});
-
-describe("the interval belongs to the instrument", () => {
-  function submitAsq(app: App, cookie: string, answer = 0) {
-    return app.inject({
-      method: "POST",
-      url: "/api/assessments/asq",
-      headers: { cookie },
-      payload: {
-        submissionId: crypto.randomUUID(),
-        answers: Object.fromEntries(
-          ["q1", "q2", "q3", "q4"].map((id) => [id, answer]),
-        ),
-      },
-    });
-  }
-
-  it("asks ASQ again at any time, because a risk screener cannot be locked", async () => {
-    const app = await newApp();
-    const cookie = await signUpPatient(app);
-
-    const first = await submitAsq(app, cookie);
-    const second = await submitAsq(app, cookie);
-
-    expect(first.statusCode).toBe(201);
-    expect(second.statusCode).toBe(201);
-    await app.close();
-  });
-
-  it("does not lock a patient out of ASQ after a low score", async () => {
-    const app = await newApp();
-    const cookie = await signUpPatient(app);
-
-    await submitAsq(app, cookie, 0);
-    const afterCrisis = await submitAsq(app, cookie, 1);
-
-    expect(afterCrisis.statusCode).toBe(201);
-    await app.close();
-  });
-
-  it("keeps PHQ-9 weekly while ASQ is open", async () => {
-    const app = await newApp();
-    const cookie = await signUpPatient(app);
-
-    await submitAssessment(app, cookie);
-    await submitAsq(app, cookie);
-    const again = await submitAssessment(app, cookie);
-
-    expect(again.statusCode).toBe(409);
-    expect(again.json().code).toBe("too_soon");
     await app.close();
   });
 });

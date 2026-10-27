@@ -4,6 +4,7 @@ import type {
   Message,
   PatientAssessment,
   PatientFactsView,
+  PatientInstrumentView,
   PatientProfile,
   PlanItem,
 } from "../../shared/contracts";
@@ -13,6 +14,7 @@ import {
   fetchMyAssessments,
   fetchMyDiary,
   fetchMyFacts,
+  fetchMyInstruments,
   fetchMyMessages,
   fetchMyPlan,
   sendMessage,
@@ -21,7 +23,7 @@ import { DiaryForm } from "./DiaryForm";
 import { FactsForm } from "./FactsForm";
 import { TodayPlan } from "./TodayPlan";
 import { MessageThread } from "./MessageThread";
-import { Phq9Form } from "./Phq9Form";
+import { InstrumentForm } from "./InstrumentForm";
 import { Button, Card, Empty, LoadError, Tabs, loading, track, type Load } from "./ui";
 
 type PatientTab = "today" | "diary" | "questionnaire" | "facts" | "plan" | "doctor";
@@ -66,11 +68,17 @@ export function PatientHome({
   const [plan, setPlan] = useState<Load<PlanItem[]>>(loading());
   const [messages, setMessages] = useState<Load<Message[]>>(loading());
   const [facts, setFacts] = useState<Load<PatientFactsView>>(loading());
-  const [openForm, setOpenForm] = useState<"phq9" | null>(null);
+  const [instruments, setInstruments] = useState<Load<PatientInstrumentView[]>>(loading());
+  /** Какой опросник открыт прямо сейчас; null — список. */
+  const [openInstrumentId, setOpenInstrumentId] = useState<string | null>(null);
   const [answersSaved, setAnswersSaved] = useState(false);
 
   const reloadAssessments = useCallback(() => {
     track(setAssessments, fetchMyAssessments());
+  }, []);
+
+  const reloadInstruments = useCallback(() => {
+    track(setInstruments, fetchMyInstruments().then((response) => response.instruments));
   }, []);
 
   const reloadDiary = useCallback(() => {
@@ -91,11 +99,12 @@ export function PatientHome({
 
   useEffect(() => {
     reloadAssessments();
+    reloadInstruments();
     reloadDiary();
     reloadPlan();
     reloadMessages();
     reloadFacts();
-  }, [reloadAssessments, reloadDiary, reloadPlan, reloadMessages, reloadFacts]);
+  }, [reloadAssessments, reloadInstruments, reloadDiary, reloadPlan, reloadMessages, reloadFacts]);
 
   async function bind(event: React.FormEvent) {
     event.preventDefault();
@@ -115,10 +124,6 @@ export function PatientHome({
 
   const today = new Date().toLocaleDateString("sv-SE");
   const todayEntry = entries.status === "ready" ? entries.data.find((entry) => entry.entryDate === today) : undefined;
-  const weeklyWait =
-    assessments.status === "ready" &&
-    assessments.data.nextAllowedAt !== null &&
-    new Date(assessments.data.nextAllowedAt).getTime() > Date.now();
 
   /*
    * Вход в «Мои данные» с «Сегодня» (#48): без счётчика, без значка на вкладке и без
@@ -251,15 +256,15 @@ export function PatientHome({
       )}
 
       {tab === "questionnaire" && (
-        <Card title="Опросник PHQ-9">
-          <p className="muted">Девять вопросов о том, как вы себя чувствовали последние две недели.</p>
+        <Card title="Опросники">
+          <p className="muted">
+            Врач выбрал, что вам сейчас нужно пройти. Ответы видит только ваш врач.
+          </p>
 
-          {assessments.status === "loading" && (
-            <p className="notice">Проверяем, можно ли пройти опросник…</p>
-          )}
-          {assessments.status === "failed" && (
-            <LoadError onRetry={reloadAssessments}>
-              Не удалось загрузить опросник. Это не значит, что вы его не проходили — повторите попытку.
+          {instruments.status === "loading" && <p className="notice">Загрузка опросников…</p>}
+          {instruments.status === "failed" && (
+            <LoadError onRetry={reloadInstruments}>
+              Не удалось загрузить опросники. Это не значит, что вам ничего не назначено.
             </LoadError>
           )}
 
@@ -270,43 +275,55 @@ export function PatientHome({
             </p>
           )}
 
-          {openForm === "phq9" ? (
-            <Phq9Form
+          {instruments.status === "ready" && instruments.data.length === 0 && (
+            <Empty>Врач ещё не назначил вам опросники.</Empty>
+          )}
+
+          {instruments.status === "ready" && instruments.data.length > 0 && (
+            <ul className="instrument-list">
+              {instruments.data.map((instrument) => (
+                <li key={instrument.id} className="instrument-list__row">
+                  <span className="instrument-list__title">{instrument.title}</span>
+                  {instrument.nextAttemptAt === null ? (
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        setAnswersSaved(false);
+                        setOpenInstrumentId(instrument.id);
+                      }}
+                    >
+                      Пройти
+                    </Button>
+                  ) : (
+                    <span className="instrument-list__wait">
+                      Следующий раз —{" "}
+                      {new Date(instrument.nextAttemptAt).toLocaleDateString("ru-RU", {
+                        day: "numeric",
+                        month: "long",
+                      })}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {openInstrumentId !== null && (
+            <InstrumentForm
+              key={openInstrumentId}
+              instrumentId={openInstrumentId}
               onSaved={() => {
-                setOpenForm(null);
+                setOpenInstrumentId(null);
                 setAnswersSaved(true);
                 reloadAssessments();
+                reloadInstruments();
               }}
             />
-          ) : (
-            assessments.status === "ready" &&
-            (weeklyWait ? (
-              <p className="muted">
-                Опросник проходят раз в неделю. Следующий раз —{" "}
-                <strong>
-                  {new Date(assessments.data.nextAllowedAt!).toLocaleDateString("ru-RU", {
-                    day: "numeric",
-                    month: "long",
-                  })}
-                </strong>
-                .
-              </p>
-            ) : (
-              <Button
-                variant="primary"
-                onClick={() => {
-                  setAnswersSaved(false);
-                  setOpenForm("phq9");
-                }}
-              >
-                Пройти опросник
-              </Button>
-            ))
           )}
 
           <h3 className="section-title section-title--spaced">Прошлые ответы</h3>
           {assessments.status === "ready" && assessments.data.assessments.length === 0 && (
-            <Empty>Вы ещё не проходили опросник.</Empty>
+            <Empty>Вы ещё не проходили опросники.</Empty>
           )}
           {assessments.status === "ready" && assessments.data.assessments.length > 0 && (
             <ul className="past-answers">

@@ -11,7 +11,7 @@ import {
   type Prescription,
   type PrescriptionView,
 } from "../../shared/contracts.js";
-import { requireAuth, requireRole } from "../auth/guard.js";
+import { requireAuth, requirePsychiatrist, requireRole } from "../auth/guard.js";
 import { doseEvents, prescriptions } from "../db/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { corpus } from "../knowledge/corpus.js";
@@ -325,9 +325,11 @@ export const prescriptionRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  // Назначает только психиатр (SPEC S7, Q50): у терапевта нет ни формы, ни подтверждения.
+  // Чтение выше не закрыто — план психиатра терапевт видит, если пациент ещё за ним.
   app.post<{ Params: { id: string } }>(
     "/patients/:id/prescriptions",
-    { preHandler: requireRole("doctor") },
+    { preHandler: [requireRole("doctor"), requirePsychiatrist()] },
     async (request, reply) => {
       const lookup = await loadPatientForDoctor(app, requireAuth(request).userId, request.params.id);
       if (!lookup.ok) {
@@ -371,7 +373,7 @@ export const prescriptionRoutes: FastifyPluginAsync = async (app) => {
 
   app.post<{ Params: { id: string } }>(
     "/prescriptions/:id/confirm",
-    { preHandler: requireRole("doctor") },
+    { preHandler: [requireRole("doctor"), requirePsychiatrist()] },
     async (request, reply) => {
       const found = await loadOwnPrescription(app, requireAuth(request).userId, request.params.id);
       if (!found.ok) return found.reply(reply);
@@ -395,7 +397,7 @@ export const prescriptionRoutes: FastifyPluginAsync = async (app) => {
 
   app.post<{ Params: { id: string } }>(
     "/prescriptions/:id/archive",
-    { preHandler: requireRole("doctor") },
+    { preHandler: [requireRole("doctor"), requirePsychiatrist()] },
     async (request, reply) => {
       const found = await loadOwnPrescription(app, requireAuth(request).userId, request.params.id);
       if (!found.ok) return found.reply(reply);

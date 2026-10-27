@@ -108,9 +108,9 @@ export function evaluateRule(rule: Rule, facts: RuleFacts): RuleMatch | null {
 
   return {
     ruleId: rule.id,
-    title: render(rule.output.title, values),
+    title: renderTemplate(rule.output.title, values),
     severity: rule.severity,
-    detail: render(rule.output.detail, values),
+    detail: renderTemplate(rule.output.detail, values),
     source: rule.source,
   };
 }
@@ -161,9 +161,9 @@ function matchCondition(
         return null;
       }
 
-      // Сравнивать можно только ту же шкалу и ту же версию. Сумма ASQ — число
-      // утвердительных ответов, сумма PHQ-9 — тяжесть депрессии; разница между ними
-      // ничего не говорит о пациенте, и "не рекомендовано" здесь мало (decisions.md §4).
+      // Сравнивать можно только ту же шкалу и ту же версию. Сумма HADS-Т — тревога,
+      // сумма HADS-Д — депрессия; разница между ними ничего не говорит о пациенте, и
+      // "не рекомендовано" здесь мало (decisions.md §4).
       const previous = assessment.previous;
       if (previous === null) return null;
       if (previous.instrumentId !== assessment.instrumentId) return null;
@@ -202,8 +202,11 @@ function matchCondition(
 
     case "adherence.consecutiveMissedDoses": {
       const adherence = facts.adherence;
-      if (adherence === null || adherence.consecutiveMissedDoses < condition.atLeast) return null;
-      return { missedDoses: String(adherence.consecutiveMissedDoses) };
+      if (adherence === null) return null;
+
+      const missed = adherence.consecutiveMissedDoses;
+      if (missed < condition.atLeast) return null;
+      return { missedDoses: String(missed) };
     }
 
     case "patientFact.epilepsyOrOrganicBrainDisease":
@@ -246,7 +249,7 @@ function matchPatientFact(
   }
 }
 
-function render(template: string, values: Record<string, string>): string {
+export function renderTemplate(template: string, values: Record<string, string>): string {
   return template.replace(PLACEHOLDER, (_match, name: string) => {
     const value = values[name];
     if (value === undefined) throw new InvalidRule(`в шаблоне нет значения для {${name}}`);
@@ -261,18 +264,35 @@ function render(template: string, values: Record<string, string>): string {
  * which on a route is a 500 instead of a card (issue #47).
  */
 function assertPlaceholders(rule: Rule): void {
-  const available = rule.when
-    .map((condition) => new Set(FACT_VALUES[condition.fact]))
-    .reduce((common, names) => new Set([...common].filter((name) => names.has(name))));
-  const facts = rule.when.map((condition) => condition.fact).join(", ");
+  assertTemplateNames(`правило ${rule.id}`, [rule.output.title, rule.output.detail], rule.when, "every");
+}
 
-  for (const template of [rule.output.title, rule.output.detail]) {
+/**
+ * Which template names the conditions can fill. `every` is the rules' rule: checks are
+ * joined by "or", so any one of them may be the only match. `any` is the questions':
+ * all checks must hold at once, and the values are merged, so a name produced by one
+ * check is there when the answer is built.
+ */
+export function assertTemplateNames(
+  label: string,
+  templates: readonly string[],
+  conditions: readonly RuleCondition[],
+  mode: "every" | "any",
+): void {
+  const sets = conditions.map((condition) => new Set(FACT_VALUES[condition.fact]));
+  const available =
+    mode === "every"
+      ? sets.reduce((common, names) => new Set([...common].filter((name) => names.has(name))))
+      : new Set(sets.flatMap((names) => [...names]));
+  const facts = conditions.map((condition) => condition.fact).join(", ");
+
+  for (const template of templates) {
     for (const match of template.matchAll(PLACEHOLDER)) {
       const name = match[1]!;
       if (!available.has(name)) {
         throw new InvalidRule(
-          `правило ${rule.id}: в шаблоне {${name}} есть не у каждого условия (${facts}) — ` +
-            `значение даёт только часть из них`,
+          `${label}: в шаблоне {${name}} нет значения (условия: ${facts}) — ` +
+            `ни одно из них не даёт этот факт`,
         );
       }
     }

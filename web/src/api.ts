@@ -11,7 +11,9 @@ import type {
   WatchItem,
   Signal,
   DoctorAssessment,
+  InstrumentChoice,
   InstrumentView,
+  PatientInstrumentView,
   PatientAssessment,
   HealthResponse,
   BindingCodeResponse,
@@ -58,10 +60,14 @@ export async function fetchMe(): Promise<MeResponse | null> {
   return (await response.json()) as MeResponse;
 }
 
-export function signUp(role: Role, credentials: Credentials): Promise<MeResponse> {
+export function signUp(
+  role: Role,
+  credentials: Credentials,
+  specialty?: "therapist" | "psychiatrist",
+): Promise<MeResponse> {
   return request<MeResponse>(`/api/auth/${role}/signup`, {
     method: "POST",
-    body: JSON.stringify(credentials),
+    body: JSON.stringify(specialty ? { ...credentials, specialty } : credentials),
   });
 }
 
@@ -121,6 +127,11 @@ export function unbindPatient(id: string): Promise<void> {
 
 export function fetchHealth(): Promise<HealthResponse> {
   return request<HealthResponse>("/api/health");
+}
+
+/** Что назначено этому пациенту и когда это можно пройти. Набор решает статус (#68). */
+export function fetchMyInstruments(): Promise<{ instruments: PatientInstrumentView[] }> {
+  return request<{ instruments: PatientInstrumentView[] }>("/api/instruments");
 }
 
 export function fetchInstrument(id: string): Promise<{ instrument: InstrumentView }> {
@@ -254,6 +265,13 @@ export function submitCheckin(input: {
 
 export function fetchPatientCheckins(patientId: string, days = 14): Promise<DoctorAdherence> {
   return request<DoctorAdherence>(`/api/patients/${patientId}/checkins?days=${days}`);
+}
+
+/** Шкалы, которые пациент проходит сейчас: их можно выбрать в правиле «сумма выше порога». */
+export function fetchPatientInstruments(
+  patientId: string,
+): Promise<{ instruments: InstrumentChoice[] }> {
+  return request<{ instruments: InstrumentChoice[] }>(`/api/patients/${patientId}/instruments`);
 }
 
 export function fetchWatchItems(patientId: string): Promise<{ items: WatchItem[] }> {

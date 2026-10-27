@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+import { bindPatient, newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
 
 function answers(value: number, overrides: Record<string, number> = {}) {
   return {
@@ -117,21 +117,32 @@ describe("what raises a signal", () => {
 
   it("does not compare one questionnaire with another", async () => {
     const app = await newApp();
-    const { doctorCookie, patientCookie } = await boundPair(app);
+    const { patientCookie } = await boundPair(app);
 
-    // ASQ: один утвердительный ответ, сумма 1. PHQ-9 следом: сумма 6.
+    // PHQ-9 на входе: шесть баллов. В терапии следом HADS-тревога: один балл.
     // Числа рядом, но шкалы разные — сравнение выдало бы «ухудшение на 5»
     // у пациента, состояние которого не изменилось.
-    const asq = await app.inject({
-      method: "POST",
-      url: "/api/assessments/asq",
-      headers: { cookie: patientCookie },
-      payload: { submissionId: crypto.randomUUID(), answers: { q1: 1, q2: 0, q3: 0, q4: 0 } },
-    });
-    expect(asq.statusCode).toBe(201);
     await submit(app, patientCookie, 0, { q1: 3, q2: 3 });
+    const psychiatristCookie = await signUpDoctor(app, {
+      email: "psychiatrist@example.com",
+      password: "correct horse battery",
+      specialty: "psychiatrist",
+    });
+    await bindPatient(app, patientCookie, psychiatristCookie);
+    const hads = await app.inject({
+      method: "POST",
+      url: "/api/assessments/hads-anxiety",
+      headers: { cookie: patientCookie },
+      payload: {
+        submissionId: crypto.randomUUID(),
+        answers: { a1: 1, a2: 0, a3: 0, a4: 0, a5: 0, a6: 0, a7: 0 },
+      },
+    });
+    expect(hads.statusCode).toBe(201);
 
-    const kinds = (await listSignals(app, doctorCookie)).json().signals.map((s: { kind: string }) => s.kind);
+    const kinds = (await listSignals(app, psychiatristCookie))
+      .json()
+      .signals.map((s: { kind: string }) => s.kind);
     expect(kinds).not.toContain("worsening");
     await app.close();
   });
@@ -291,35 +302,39 @@ describe("the signal lifecycle", () => {
   });
 });
 
-describe("ASQ does not multiply one answer into two findings", () => {
-  async function submitAsq(app: App, cookie: string, value: number) {
-    return app.inject({
+describe("UKU has no total, so its band raises no card", () => {
+  it("stores the answers and adds no total-score signal", async () => {
+    const app = await newApp();
+    const { patientCookie } = await boundPair(app);
+    const psychiatristCookie = await signUpDoctor(app, {
+      email: "psychiatrist@example.com",
+      password: "correct horse battery",
+      specialty: "psychiatrist",
+    });
+    await bindPatient(app, patientCookie, psychiatristCookie);
+
+    const submitted = await app.inject({
       method: "POST",
-      url: "/api/assessments/asq",
-      headers: { cookie },
+      url: "/api/assessments/uku",
+      headers: { cookie: patientCookie },
       payload: {
         submissionId: crypto.randomUUID(),
-        answers: Object.fromEntries(["q1", "q2", "q3", "q4"].map((id) => [id, value])),
+        answers: Object.fromEntries(
+          Array.from({ length: 48 }, (_, index) => [`u${String(index + 1).padStart(2, "0")}`, 1]),
+        ),
       },
     });
-  }
-
-  it("raises the critical signal and not a total-score signal on top of it", async () => {
-    const app = await newApp();
-    const { doctorCookie, patientCookie } = await boundPair(app);
-
-    await submitAsq(app, patientCookie, 1);
+    expect(submitted.statusCode).toBe(201);
 
     const signals = await app.inject({
       method: "GET",
       url: "/api/signals",
-      headers: { cookie: doctorCookie },
+      headers: { cookie: psychiatristCookie },
     });
     const kinds = (signals.json().signals as Array<{ kind: string }>).map((signal) => signal.kind);
 
-    // «Есть утвердительный ответ: 1 из 4» as a second card would read as a second
-    // finding, and the number is a count, not a severity.
-    expect(kinds).toContain("critical_item");
+    // Общей суммы у шкалы нет (Q52): «сумма 48» была бы числом из разных явлений,
+    // а такое число запрещено складывать (SPEC S10).
     expect(kinds).not.toContain("severe_total");
     await app.close();
   });

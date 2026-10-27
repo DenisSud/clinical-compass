@@ -5,6 +5,13 @@ export const doctors = sqliteTable("doctors", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   name: text("name"),
+  /**
+   * Специальность врача задаёт этап пациента: у терапевта скрининг, у психиатра
+   * терапия (Q49). Это поле врача, а не вторая роль.
+   */
+  specialty: text("specialty", { enum: ["therapist", "psychiatrist"] })
+    .notNull()
+    .default("therapist"),
   bindingCode: text("binding_code").unique(),
   bindingCodeExpiresAt: text("binding_code_expires_at"),
   createdAt: text("created_at").notNull(),
@@ -19,6 +26,14 @@ export const patients = sqliteTable(
     name: text("name"),
     doctorId: text("doctor_id").references(() => doctors.id, { onDelete: "set null" }),
     boundAt: text("bound_at"),
+    /**
+     * Этап пациента, а не оценка тяжести. Выводится из специальности ведущего врача
+     * при привязке (SPEC S3, Q49) и выбирает набор опросников из
+     * content/instrument-statuses.json. Пациенту не показывается.
+     */
+    status: text("status", { enum: ["screening", "treatment"] })
+      .notNull()
+      .default("screening"),
     createdAt: text("created_at").notNull(),
   },
   (table) => [index("idx_patients_doctor_id").on(table.doctorId)],

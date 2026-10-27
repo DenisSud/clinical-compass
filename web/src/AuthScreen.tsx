@@ -87,6 +87,8 @@ export function AuthScreen({
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  /** Выбор врача при регистрации: от него зависит этап его пациентов (Q49). */
+  const [specialty, setSpecialty] = useState<"therapist" | "psychiatrist">("therapist");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [serverUp, setServerUp] = useState<boolean | null>(null);
@@ -108,7 +110,7 @@ export function AuthScreen({
     setError(null);
     try {
       const credentials = { email, password };
-      if (mode === "signup") await signUp(role, credentials);
+      if (mode === "signup") await signUp(role, credentials, role === "doctor" ? specialty : undefined);
       else await signIn(role, credentials);
       onAuthenticated();
     } catch (cause) {
@@ -151,6 +153,19 @@ export function AuthScreen({
               onChange={(event) => setPassword(event.target.value)}
             />
           </label>
+
+          {role === "doctor" && mode === "signup" && (
+            <label className="auth-field">
+              <span>Специальность</span>
+              <select
+                value={specialty}
+                onChange={(event) => setSpecialty(event.target.value as "therapist" | "psychiatrist")}
+              >
+                <option value="therapist">Терапевт</option>
+                <option value="psychiatrist">Психиатр</option>
+              </select>
+            </label>
+          )}
 
           {error && (
             <p className="auth-error" role="alert">

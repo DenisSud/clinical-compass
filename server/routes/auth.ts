@@ -1,7 +1,13 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
-import { credentialsSchema, type Credentials, type MeResponse } from "../../shared/contracts.js";
+import {
+  credentialsSchema,
+  doctorSpecialtySchema,
+  type Credentials,
+  type DoctorSpecialty,
+  type MeResponse,
+} from "../../shared/contracts.js";
 import { hashPassword, verifyPassword } from "../auth/password.js";
 import { clearSessionCookie, endSession, startSession } from "../auth/session.js";
 import { doctors, patients } from "../db/schema.js";
@@ -19,10 +25,22 @@ function isUniqueViolation(error: unknown): boolean {
 
 const BAD_CREDENTIALS = "Проверьте email и пароль";
 
+/**
+ * Специальность выбирается при регистрации врача и потом задаёт этап его пациентов.
+ * Отдельного переключателя этапа нет (Q49). Старое тело без поля читается как
+ * «терапевт»: так регистрировались до решения, и скрининг безопаснее терапии.
+ */
+function readSpecialty(body: unknown): DoctorSpecialty {
+  const value = (body as { specialty?: unknown } | null)?.specialty;
+  const parsed = doctorSpecialtySchema.safeParse(value);
+  return parsed.success ? parsed.data : "therapist";
+}
+
 export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post("/auth/doctor/signup", async (request, reply) => {
     const credentials = readCredentials(request.body);
     if (!credentials) return fail(reply, 400, "invalid_request", BAD_CREDENTIALS);
+    const specialty = readSpecialty(request.body);
 
     try {
       const [doctor] = await app.conn.db
@@ -31,6 +49,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
           id: randomUUID(),
           email: credentials.email,
           passwordHash: await hashPassword(credentials.password),
+          specialty,
           createdAt: new Date().toISOString(),
         })
         .returning();

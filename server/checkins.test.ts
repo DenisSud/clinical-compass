@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+/** Назначает и ведёт план психиатр (SPEC S7, Q50): у терапевта этих маршрутов нет. */
+const PSYCHIATRIST = {
+  email: "psychiatrist@example.com",
+  password: "correct horse battery",
+  specialty: "psychiatrist" as const,
+};
 
 async function boundPair(app: App) {
-  const doctorCookie = await signUpDoctor(app);
+  const doctorCookie = await signUpDoctor(app, PSYCHIATRIST);
   const patientCookie = await signUpPatient(app);
   const code = await app.inject({
     method: "GET",

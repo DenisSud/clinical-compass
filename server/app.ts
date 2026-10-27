@@ -23,6 +23,7 @@ import { bindingCodeRoutes } from "./routes/binding-code.js";
 import { loginRoutes } from "./routes/login.js";
 import { meRoutes } from "./routes/me.js";
 import { patientRoutes } from "./routes/patients.js";
+import { assertStatusInstrumentsExist } from "./instruments/loader.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -37,6 +38,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
 
   app.decorate("conn", createDb(options.dbPath ?? process.env.SQLITE_DB ?? "var/app.db"));
   await app.register(fastifyCookie);
+
+  // Файл статусов, называющий несуществующую шкалу, валит сборку, а не первый запрос
+  // пациента: пустой список опросников выглядит как «врач ничего не назначил».
+  assertStatusInstrumentsExist();
 
   // An empty body announced as JSON is not a server fault: a bodyless action
   // (pause a rule, take a signal) sends no body at all. Without this parser

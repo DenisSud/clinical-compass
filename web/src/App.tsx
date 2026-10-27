@@ -76,7 +76,7 @@ export function App() {
     <div className="app">
       <TopBar email={me.profile.email} onSignOut={handleSignOut} />
       {me.role === "doctor" ? (
-        <DoctorHome />
+        <DoctorHome doctor={me.profile} />
       ) : (
         <PatientHome profile={me.profile} onChanged={refresh} />
       )}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+import { bindPatient, newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
 
 function answers(value: number, overrides: Record<string, number> = {}) {
   const filled = Object.fromEntries(
@@ -17,21 +17,21 @@ function submit(app: App, cookie: string, payload: unknown, instrumentId = "phq-
   });
 }
 
-async function boundPair(app: App) {
-  const doctorCookie = await signUpDoctor(app);
-  const patientCookie = await signUpPatient(app);
+const PSYCHIATRIST = {
+  email: "psychiatrist@example.com",
+  password: "correct horse battery",
+  specialty: "psychiatrist" as const,
+};
 
-  const code = await app.inject({
-    method: "GET",
-    url: "/api/binding-code",
-    headers: { cookie: doctorCookie },
-  });
-  await app.inject({
-    method: "POST",
-    url: "/api/bind",
-    headers: { cookie: patientCookie },
-    payload: { code: code.json().code },
-  });
+/**
+ * Пара «врач — пациент». Этап приходит с врачом: у терапевта скрининг, у психиатра
+ * терапия (SPEC S3, Q49), поэтому отдельного переключателя этапа здесь нет.
+ */
+async function boundPair(app: App, specialty: "therapist" | "psychiatrist" = "therapist") {
+  const doctorCookie =
+    specialty === "psychiatrist" ? await signUpDoctor(app, PSYCHIATRIST) : await signUpDoctor(app);
+  const patientCookie = await signUpPatient(app);
+  await bindPatient(app, patientCookie, doctorCookie);
 
   const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie: patientCookie } });
   return { doctorCookie, patientCookie, patientId: me.json().profile.id as string };
@@ -195,20 +195,34 @@ describe("reading assessments", () => {
   });
 });
 
-/** GAD-7 has seven items and ASQ four; both number them q1… and answer on one scale. */
-function items(count: number, value: number, overrides: Record<string, number> = {}) {
+/** HADS-тревога нумерует пункты a1…a7, UKU — u01…u48; у каждого пункта свои варианты. */
+function hadsAnswers(value: number, overrides: Record<string, number> = {}) {
   return {
-    ...Object.fromEntries(Array.from({ length: count }, (_, index) => [`q${index + 1}`, value])),
+    ...Object.fromEntries(Array.from({ length: 7 }, (_, index) => [`a${index + 1}`, value])),
     ...overrides,
   };
 }
 
-describe("the patient's set past PHQ-9", () => {
-  it("takes a GAD-7 submission and keeps the score away from the patient", async () => {
-    const app = await newApp();
-    const cookie = await signUpPatient(app);
+function ukuAnswers(value: number, overrides: Record<string, number> = {}) {
+  return {
+    ...Object.fromEntries(
+      Array.from({ length: 48 }, (_, index) => [`u${String(index + 1).padStart(2, "0")}`, value]),
+    ),
+    ...overrides,
+  };
+}
 
-    const response = await submit(app, cookie, { submissionId: "g-1", answers: items(7, 2) }, "gad-7");
+describe("the psychiatrist's set", () => {
+  it("takes a HADS submission and keeps the score away from the patient", async () => {
+    const app = await newApp();
+    const { patientCookie } = await boundPair(app, "psychiatrist");
+
+    const response = await submit(
+      app,
+      patientCookie,
+      { submissionId: "h-1", answers: hadsAnswers(2) },
+      "hads-anxiety",
+    );
 
     expect(response.statusCode).toBe(201);
     expect(response.json().assessment.answers).toHaveLength(7);
@@ -217,32 +231,14 @@ describe("the patient's set past PHQ-9", () => {
     await app.close();
   });
 
-  it("shows the doctor the GAD-7 total and its band", async () => {
+  it("shows the doctor the HADS total and its band", async () => {
     const app = await newApp();
-    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
-    await submit(app, patientCookie, { submissionId: "g-1", answers: items(7, 2) }, "gad-7");
-
-    const response = await app.inject({
-      method: "GET",
-      url: `/api/patients/${patientId}/assessments`,
-      headers: { cookie: doctorCookie },
-    });
-
-    const [assessment] = response.json().assessments;
-    expect(assessment.instrumentId).toBe("gad-7");
-    expect(assessment.total).toBe(14);
-    expect(assessment.band.label).toBe("Умеренные проявления");
-    await app.close();
-  });
-
-  it("takes an ASQ submission and marks the positive question for the doctor", async () => {
-    const app = await newApp();
-    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
-    const submitted = await submit(
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app, "psychiatrist");
+    await submit(
       app,
       patientCookie,
-      { submissionId: "a-1", answers: items(4, 0, { q3: 1 }) },
-      "asq",
+      { submissionId: "h-1", answers: hadsAnswers(2) },
+      "hads-anxiety",
     );
 
     const response = await app.inject({
@@ -251,23 +247,61 @@ describe("the patient's set past PHQ-9", () => {
       headers: { cookie: doctorCookie },
     });
 
-    expect(submitted.statusCode).toBe(201);
-    expect(response.json().assessments[0].criticalItems).toEqual(["q3"]);
+    const [assessment] = response.json().assessments;
+    expect(assessment.instrumentId).toBe("hads-anxiety");
+    expect(assessment.total).toBe(14);
+    expect(assessment.band.label).toBe("Клинически выраженная");
     await app.close();
   });
 
-  it("keeps the PHQ-9 critical item raising a signal with three instruments in play", async () => {
+  it("takes a UKU submission of all 48 items and flags no critical item", async () => {
     const app = await newApp();
-    const { doctorCookie, patientCookie } = await boundPair(app);
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app, "psychiatrist");
 
-    await submit(app, patientCookie, { submissionId: "a-1", answers: items(4, 0) }, "asq");
-    await submit(app, patientCookie, { submissionId: "g-1", answers: items(7, 0) }, "gad-7");
+    const submitted = await submit(
+      app,
+      patientCookie,
+      { submissionId: "u-1", answers: ukuAnswers(0, { u12: 3 }) },
+      "uku",
+    );
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/assessments`,
+      headers: { cookie: doctorCookie },
+    });
+
+    expect(submitted.statusCode).toBe(201);
+    expect(submitted.json().assessment.answers).toHaveLength(48);
+    expect(response.json().assessments[0].criticalItems).toEqual([]);
+    await app.close();
+  });
+
+  it("keeps the PHQ-9 critical item raising a signal with the psychiatrist's set in play", async () => {
+    const app = await newApp();
+    const { patientCookie } = await boundPair(app);
+
+    // PHQ-9 — скрининг. История терапии начинается после передачи психиатру: этап
+    // меняется вместе с ведущим врачом, а не кнопкой (Q49).
     await submit(app, patientCookie, { submissionId: "p-1", answers: answers(0, { q9: 1 }) });
+    const psychiatristCookie = await signUpDoctor(app, PSYCHIATRIST);
+    await bindPatient(app, patientCookie, psychiatristCookie);
+    await submit(
+      app,
+      patientCookie,
+      { submissionId: "u-1", answers: ukuAnswers(0) },
+      "uku",
+    );
+    await submit(
+      app,
+      patientCookie,
+      { submissionId: "h-1", answers: hadsAnswers(0) },
+      "hads-anxiety",
+    );
 
     const signals = await app.inject({
       method: "GET",
       url: "/api/signals",
-      headers: { cookie: doctorCookie },
+      headers: { cookie: psychiatristCookie },
     });
     const critical = signals
       .json()
@@ -278,11 +312,16 @@ describe("the patient's set past PHQ-9", () => {
     await app.close();
   });
 
-  it("still refuses HADS, which is no longer in the set", async () => {
+  it("refuses HADS to a patient who is still on screening", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
-    const response = await submit(app, cookie, { submissionId: "h-1", answers: items(7, 0) }, "hads");
+    const response = await submit(
+      app,
+      cookie,
+      { submissionId: "h-1", answers: hadsAnswers(0) },
+      "hads-anxiety",
+    );
 
     expect(response.statusCode).toBe(404);
     await app.close();

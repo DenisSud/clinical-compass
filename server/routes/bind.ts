@@ -3,6 +3,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { z } from "zod";
 import { requireAuth, requireRole } from "../auth/guard.js";
 import { doctors, patients } from "../db/schema.js";
+import { statusForSpecialty } from "../instruments/statuses.js";
 import { fail } from "../http/errors.js";
 
 const bindRequestSchema = z.object({ code: z.string().trim().min(1).max(20) });
@@ -26,9 +27,12 @@ export const bindRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const boundAt = new Date().toISOString();
+    // Этап пациента следует из специальности врача, а не из отдельной кнопки (Q49):
+    // у психиатра пациент сразу в терапии, у терапевта в скрининге.
+    const status = statusForSpecialty(doctor.specialty);
     await app.conn.db
       .update(patients)
-      .set({ doctorId: doctor.id, boundAt })
+      .set({ doctorId: doctor.id, boundAt, status })
       .where(eq(patients.id, requireAuth(request).userId));
 
     return { doctorId: doctor.id, boundAt };

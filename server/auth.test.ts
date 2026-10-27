@@ -73,6 +73,51 @@ describe("doctor signup and signin", () => {
     expect(me.json()).toMatchObject({ role: "doctor", profile: { email: DOCTOR.email } });
     await app.close();
   });
+
+  it("reads the specialty into the doctor's profile: therapist by default", async () => {
+    const app = await newApp();
+
+    const cookie = await signUpDoctor(app);
+    const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie } });
+
+    // Скрининг — точка входа: старое тело без поля читается как терапевт (Q49).
+    expect(me.json().profile.specialty).toBe("therapist");
+    await app.close();
+  });
+
+  it("keeps the specialty the doctor chose at signup", async () => {
+    const app = await newApp();
+
+    const cookie = await signUpDoctor(app, {
+      email: "psychiatrist@example.com",
+      password: "correct horse battery",
+      specialty: "psychiatrist",
+    });
+    const signin = await app.inject({
+      method: "POST",
+      url: "/api/auth/doctor/signin",
+      payload: { email: "psychiatrist@example.com", password: "correct horse battery" },
+    });
+    const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie } });
+
+    expect(me.json().profile.specialty).toBe("psychiatrist");
+    expect(signin.json().profile.specialty).toBe("psychiatrist");
+    await app.close();
+  });
+
+  it("reads an unknown specialty as therapist instead of inventing a third one", async () => {
+    const app = await newApp();
+
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/auth/doctor/signup",
+      payload: { ...DOCTOR, specialty: "surgeon" },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json().profile.specialty).toBe("therapist");
+    await app.close();
+  });
 });
 
 describe("session", () => {

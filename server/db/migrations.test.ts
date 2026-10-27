@@ -25,10 +25,50 @@ function egfrOf(sqlite: Database.Database): unknown {
   ).egfr;
 }
 
-describe("миграция 0013: СКФ перестаёт быть целой", () => {
+describe("миграция 0015: этап пациента и специальность врача", () => {
+  const MIGRATION = "0015_stage_and_specialty.sql";
+
   it("файл на месте и идёт последним", () => {
+    expect(files.at(-1)).toBe(MIGRATION);
+  });
+
+  it("даёт существующему пациенту скрининг, а врачу — терапию по умолчанию", () => {
+    const sqlite = new Database(":memory:");
+    for (const file of files) {
+      if (file === MIGRATION) continue;
+      apply(sqlite, file);
+    }
+    sqlite
+      .prepare("INSERT INTO doctors (id, email, password_hash, created_at) VALUES ('d1', 'd@b.c', 'x', '2026-10-27')")
+      .run();
+    sqlite
+      .prepare("INSERT INTO patients (id, email, password_hash, created_at) VALUES ('p1', 'a@b.c', 'x', '2026-10-27')")
+      .run();
+
+    apply(sqlite, MIGRATION);
+
+    const status = sqlite.prepare("SELECT status FROM patients WHERE id = 'p1'").get() as { status: string };
+    const specialty = sqlite.prepare("SELECT specialty FROM doctors WHERE id = 'd1'").get() as {
+      specialty: string;
+    };
+    // Умолчание — скрининг и терапевт: это точка входа, психиатра выбирают явно (Q49).
+    expect(status.status).toBe("screening");
+    expect(specialty.specialty).toBe("therapist");
+
+    // Третьего этапа и третьей специальности не существует (Q49, S2): база это тоже знает.
+    expect(() =>
+      sqlite.prepare("UPDATE patients SET status = 'worsening' WHERE id = 'p1'").run(),
+    ).toThrow(/CHECK/);
+    expect(() =>
+      sqlite.prepare("UPDATE doctors SET specialty = 'surgeon' WHERE id = 'd1'").run(),
+    ).toThrow(/CHECK/);
+    sqlite.close();
+  });
+});
+
+describe("миграция 0013: СКФ перестаёт быть целой", () => {
+  it("файл на месте", () => {
     expect(files).toContain(EGFR_MIGRATION);
-    expect(files.at(-1)).toBe(EGFR_MIGRATION);
   });
 
   it("сохраняет старые значения и принимает 59.6", () => {

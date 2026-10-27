@@ -26,10 +26,19 @@ export const roleSchema = z.enum(["doctor", "patient"]);
 
 export type Role = z.infer<typeof roleSchema>;
 
+/**
+ * Специальность врача — поле врача, а не вторая роль (SPEC S2). Она задаёт этап его
+ * пациентов: терапевт — скрининг, психиатр — терапия (S3, Q49).
+ */
+export const doctorSpecialtySchema = z.enum(["therapist", "psychiatrist"]);
+
+export type DoctorSpecialty = z.infer<typeof doctorSpecialtySchema>;
+
 export const doctorProfileSchema = z.object({
   id: z.string(),
   email: z.string(),
   name: z.string().nullable(),
+  specialty: doctorSpecialtySchema,
   bindingCode: z.string().nullable(),
   bindingCodeExpiresAt: z.string().nullable(),
 });
@@ -58,10 +67,17 @@ export const patientSummarySchema = z.object({
   email: z.string(),
   name: z.string().nullable(),
   boundAt: z.string().nullable(),
+  /**
+   * Этап пациента. Следует из специальности ведущего врача (SPEC S3, Q49) и выбирает
+   * набор опросников (content/instrument-statuses.json); пациенту не показывается.
+   */
+  status: z.string(),
+  statusLabel: z.string(),
 });
 
 export type PatientSummary = z.infer<typeof patientSummarySchema>;
 
+/** Что врач может поставить. Значения — из файла статусов, но список закрыт и проверяется здесь. */
 export const patientListResponseSchema = z.object({
   patients: z.array(patientSummarySchema),
 });
@@ -145,16 +161,39 @@ export const diaryEntrySchema = z.object({
 export type DiaryEntry = z.infer<typeof diaryEntrySchema>;
 
 /** The questionnaire as the patient receives it: no bands, no critical flags. */
+/** Вариант ответа: у HADS и UKU он свой у каждого пункта, у PHQ-9 общий на шкалу. */
+const answerOptionViewSchema = z.object({ value: z.number(), label: z.string() });
+
 export const instrumentViewSchema = z.object({
   id: z.string(),
   title: z.string(),
   intro: z.string(),
-  options: z.array(z.object({ value: z.number(), label: z.string() })),
-  items: z.array(z.object({ id: z.string(), text: z.string() })),
+  options: z.array(answerOptionViewSchema),
+  items: z.array(
+    z.object({
+      id: z.string(),
+      text: z.string(),
+      options: z.array(answerOptionViewSchema).optional(),
+    }),
+  ),
   sourceNote: z.string(),
 });
 
 export type InstrumentView = z.infer<typeof instrumentViewSchema>;
+
+/** Порядок — из файла статуса: пациент видит назначенное, а не весь реестр. */
+/** В списке у шкалы есть дата, когда её можно пройти: у формы её нет, там нечего ждать. */
+export const patientInstrumentViewSchema = instrumentViewSchema.extend({
+  nextAttemptAt: z.string().nullable(),
+});
+
+export type PatientInstrumentView = z.infer<typeof patientInstrumentViewSchema>;
+
+export const instrumentListResponseSchema = z.object({
+  instruments: z.array(patientInstrumentViewSchema),
+});
+
+export type InstrumentListResponse = z.infer<typeof instrumentListResponseSchema>;
 
 /**
  * Where a rule came from. `status` is the honesty marker: a placeholder says the
@@ -554,15 +593,38 @@ export type WatchItem = {
   pausedAt: string | null;
 };
 
-/** Plain-language description of a rule, so the doctor does not have to read JSON. */
-export function describeWatch(item: Pick<WatchItem, "kind" | "params">): string {
+/** Что можно выбрать в правиле «сумма выше порога»: шкалы из набора пациента. */
+export const instrumentChoiceSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+});
+
+export type InstrumentChoice = z.infer<typeof instrumentChoiceSchema>;
+
+export const instrumentChoicesResponseSchema = z.object({
+  instruments: z.array(instrumentChoiceSchema),
+});
+
+/**
+ * Plain-language description of a rule, so the doctor does not have to read JSON.
+ * `titles` — названия шкал: без них «сумма опросника 14 и выше» не говорит, какой
+ * именно шкалы, а у пациента их несколько.
+ */
+export function describeWatch(
+  item: Pick<WatchItem, "kind" | "params">,
+  titles: Record<string, string> = {},
+): string {
   switch (item.kind) {
     case "diary_below":
       return `самочувствие ${String(item.params.threshold)} или ниже`;
     case "diary_drop":
       return `падение самочувствия на ${String(item.params.points)} и больше`;
-    case "score_threshold":
-      return `сумма опросника ${String(item.params.threshold)} и выше`;
+    case "score_threshold": {
+      const title = titles[String(item.params.instrumentId)];
+      return title
+        ? `сумма «${title}» ${String(item.params.threshold)} и выше`
+        : `сумма опросника ${String(item.params.threshold)} и выше`;
+    }
     case "missed_doses":
       return `${String(item.params.days)} пропуска приёма подряд`;
     case "message_keyword":

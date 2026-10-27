@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+import { bindPatient, newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+/** Назначает и ведёт план психиатр (SPEC S7, Q50): у терапевта этих маршрутов нет. */
+const PSYCHIATRIST = {
+  email: "psychiatrist@example.com",
+  password: "correct horse battery",
+  specialty: "psychiatrist" as const,
+};
 
 async function boundPair(app: App) {
-  const doctorCookie = await signUpDoctor(app);
+  const doctorCookie = await signUpDoctor(app, PSYCHIATRIST);
   const patientCookie = await signUpPatient(app);
   const code = await app.inject({
     method: "GET",
@@ -128,6 +134,44 @@ describe("the plan", () => {
 
     expect(confirm.statusCode).toBe(403);
     expect(list.statusCode).toBe(403);
+    await app.close();
+  });
+
+  it("lets a therapist read the plan but not create, confirm or archive", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    const created = await createItem(app, doctorCookie, patientId);
+    const itemId = created.json().item.id as string;
+
+    // Передача терапевту: план психиатра остаётся, менять его терапевт не может (Q50).
+    const therapistCookie = await signUpDoctor(app, {
+      email: "therapist@example.com",
+      password: "correct horse battery",
+    });
+    await bindPatient(app, patientCookie, therapistCookie);
+
+    const read = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/plan`,
+      headers: { cookie: therapistCookie },
+    });
+    const write = await createItem(app, therapistCookie, patientId);
+    const confirm = await app.inject({
+      method: "POST",
+      url: `/api/plan/${itemId}/confirm`,
+      headers: { cookie: therapistCookie },
+    });
+    const archive = await app.inject({
+      method: "POST",
+      url: `/api/plan/${itemId}/archive`,
+      headers: { cookie: therapistCookie },
+    });
+
+    expect(read.statusCode).toBe(200);
+    expect(read.json().items).toHaveLength(1);
+    expect(write.statusCode).toBe(403);
+    expect(confirm.statusCode).toBe(403);
+    expect(archive.statusCode).toBe(403);
     await app.close();
   });
 

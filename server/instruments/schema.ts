@@ -9,6 +9,11 @@ const itemSchema = z.object({
   id: z.string().min(1),
   text: z.string().min(1),
   critical: z.boolean().default(false),
+  /**
+   * Свои варианты ответа у пункта: в HADS и UKU формулировки разные в каждом пункте, и
+   * общей шкалы «0–3» у них нет. У PHQ-9 варианты общие, поэтому ему хватает поля ниже.
+   */
+  options: z.array(optionSchema).min(2).optional(),
 });
 
 const bandSchema = z.object({
@@ -25,6 +30,12 @@ const bandSchema = z.object({
 export const instrumentSchema = z.object({
   id: z.string().min(1),
   version: z.string().min(1),
+  /**
+   * Кто заполняет шкалу. HDRS-17 заполняет врач после приёма, и пациент её не видит
+   * (SPEC S9/S10), поэтому аудитория — свойство файла шкалы, а не список id в коде.
+   * По умолчанию шкала пациентская: новая шкала без поля ведёт себя как PHQ-9/HADS/UKU.
+   */
+  audience: z.enum(["patient", "doctor"]).default("patient"),
   title: z.string().min(1),
   /**
    * Как шкалу называть на карточке врача: полное имя для карточки слишком длинное,
@@ -32,13 +43,13 @@ export const instrumentSchema = z.object({
    */
   shortTitle: z.string().min(1).optional(),
   intro: z.string().min(1),
-  options: z.array(optionSchema).min(2),
+  options: z.array(optionSchema).min(2).optional(),
   items: z.array(itemSchema).min(1),
   bands: z.array(bandSchema).min(1),
   /**
-   * How soon the instrument may be asked again. Zero means any time: a risk
-   * screener must not be locked for a week because the patient answered «нет»
-   * on Monday and is in crisis on Wednesday (DESIGN.md §2.1).
+   * How soon the instrument may be asked again unless the status says otherwise.
+   * Zero means any time: шкалу с риском нельзя запирать на неделю из-за ответа
+   * в понедельник (DESIGN.md §2.1).
    */
   repeatAfterHours: z.number().int().nonnegative().default(168),
   /** Which band is worth a signal. Clinical policy about this instrument, so it lives in the data. */
@@ -47,9 +58,8 @@ export const instrumentSchema = z.object({
       bandId: z.string().min(1),
       /**
        * Whether the band also earns a total-score signal. False where the band is
-       * not a severity: ASQ counts affirmative answers, and those are already
-       * carried by the critical-item rule. Two cards for one answer read as two
-       * findings.
+       * not a severity: у UKU общей суммы нет, складывать разные явления в одно
+       * число запрещено (SPEC S10), и карточка по «сумме» была бы выдумкой.
        */
       totalSignal: z.boolean().default(true),
     })
@@ -61,6 +71,16 @@ export const instrumentSchema = z.object({
     note: z.string().default(""),
   }),
 });
+
+/** Варианты ответа пункта: свои, если заданы, иначе общие для шкалы. */
+export function optionsOf(
+  instrument: Pick<z.infer<typeof instrumentSchema>, "options">,
+  item: Pick<z.infer<typeof itemSchema>, "options" | "id">,
+): z.infer<typeof optionSchema>[] {
+  const options = item.options ?? instrument.options;
+  if (!options) throw new Error(`у пункта ${item.id} нет вариантов ответа`);
+  return options;
+}
 
 export type Instrument = z.infer<typeof instrumentSchema>;
 export type InstrumentItem = z.infer<typeof itemSchema>;

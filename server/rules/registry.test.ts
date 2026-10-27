@@ -159,12 +159,12 @@ describe("executing one rule", () => {
   it("refuses to compare two different scales", () => {
     const rule = ruleById("worsening");
 
-    // ASQ — число утвердительных ответов, PHQ-9 — тяжесть депрессии. Рост между ними —
-    // сравнение двух вопросов, а не динамика пациента (decisions.md §4).
+    // HADS-Т — тревога, HADS-Д — депрессия. Рост между ними — сравнение двух
+    // вопросов, а не динамика пациента (decisions.md §4).
     expect(
       evaluateRule(rule, {
         ...NO_FACTS,
-        assessment: scaleFacts({ total: 6, previous: { instrumentId: "asq", total: 1 } }),
+        assessment: scaleFacts({ total: 6, previous: { instrumentId: "hads-anxiety", total: 1 } }),
       }),
     ).toBeNull();
     expect(
@@ -172,7 +172,7 @@ describe("executing one rule", () => {
         ...NO_FACTS,
         assessment: {
           ...scaleFacts({ total: 3, previous: { instrumentId: "phq-9", total: 1 } }),
-          instrumentId: "asq",
+          instrumentId: "hads-depression",
         },
       }),
     ).toBeNull();

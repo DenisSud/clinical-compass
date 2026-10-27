@@ -92,7 +92,16 @@ function PatientSignals({ patientId }: { patientId: string }) {
   );
 }
 
-export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary; onUnbound: () => void }) {
+export function PatientDetail({
+  patient,
+  canEditPlan,
+  onUnbound,
+}: {
+  patient: PatientSummary;
+  /** Психиатр правит план, терапевт его только видит (SPEC S7, Q50). */
+  canEditPlan: boolean;
+  onUnbound: () => void;
+}) {
   const [tab, setTab] = useState<PatientTab>("overview");
   const [assessments, setAssessments] = useState<Load<DoctorAssessment[]>>(loading());
   const [entries, setEntries] = useState<Load<DiaryEntry[]>>(loading());
@@ -102,7 +111,6 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
   >(loading());
   const [unbindStep, setUnbindStep] = useState<"idle" | "confirm" | "busy">("idle");
   const [unbindError, setUnbindError] = useState<string | null>(null);
-
   const loadAssessments = useCallback(() => {
     track(setAssessments, fetchPatientAssessments(patient.id).then((response) => response.assessments));
   }, [patient.id]);
@@ -148,6 +156,9 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
         {patient.boundAt && (
           <p className="patient-card__meta">Привязан(а) с {formatDate(patient.boundAt)}</p>
         )}
+
+        {/* Название этапа приходит из файла этапов, а не переводится здесь второй раз. */}
+        <p className="patient-card__meta">Этап: {patient.statusLabel.toLowerCase()}</p>
       </div>
 
       <Tabs<PatientTab>
@@ -232,7 +243,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
         <div className="stack">
           <div>
             <h3 className="section-title">Правила наблюдения</h3>
-            <WatchPanel patientId={patient.id} />
+            <WatchPanel key={status} patientId={patient.id} />
           </div>
           {/*
             * Факты стоят вплотную над сигналами: карточка сигнала называет факт
@@ -251,7 +262,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
         </div>
       )}
 
-      {tab === "plan" && <PlanPanel patientId={patient.id} />}
+      {tab === "plan" && <PlanPanel patientId={patient.id} canEdit={canEditPlan} />}
 
       {tab === "messages" && (
         <>
@@ -282,7 +293,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
       {tab === "data" && (
         <div className="stack">
           <div>
-            <h3 className="section-title">Опросник PHQ-9</h3>
+            <h3 className="section-title">Опросники</h3>
             {assessments.status === "loading" && <p className="notice">Загрузка ответов…</p>}
             {assessments.status === "failed" && (
               <LoadError onRetry={loadAssessments}>
@@ -296,6 +307,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
               <table className="assessment-table">
                 <thead>
                   <tr>
+                    <th scope="col">Опросник</th>
                     <th scope="col">Дата</th>
                     <th scope="col">Сумма</th>
                     <th scope="col">Диапазон</th>
@@ -304,6 +316,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
                 <tbody>
                   {assessments.data.map((assessment) => (
                     <tr key={assessment.id}>
+                      <td>{assessment.instrumentTitle}</td>
                       <td>{formatDate(assessment.submittedAt)}</td>
                       <td>
                         {assessment.total}

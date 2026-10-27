@@ -1,7 +1,7 @@
 import type { PatientFacts } from "../../shared/contracts.js";
 import type { PreviousAssessment, RuleFacts, RuleSeverity } from "../../shared/rules.js";
 import { criticalItems } from "../instruments/engine.js";
-import type { Instrument } from "../instruments/schema.js";
+import { optionsOf, type Instrument } from "../instruments/schema.js";
 import { evaluateRule, requireRule } from "./registry.js";
 
 export type Severity = RuleSeverity;
@@ -137,9 +137,11 @@ function bandSignalForAssessment(input: {
   instrument: Instrument;
   total: number;
 }): SignalDraft | null {
-  const topScore =
-    input.instrument.items.length *
-    Math.max(...input.instrument.options.map((option) => option.value));
+  // Максимум шкалы — сумма максимумов пунктов: у HADS варианты разные в каждом пункте.
+  const topScore = input.instrument.items.reduce((sum, item) => {
+    const options = optionsOf(input.instrument, item);
+    return sum + Math.max(...options.map((option) => option.value));
+  }, 0);
   const alertBand =
     input.instrument.bands.find((band) => band.id === input.instrument.alert?.bandId) ??
     [...input.instrument.bands].sort((left, right) => right.min - left.min)[0];

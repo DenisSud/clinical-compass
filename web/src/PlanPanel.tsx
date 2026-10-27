@@ -30,7 +30,16 @@ const STATUS: Record<PlanItem["status"], string> = {
   archived: "в архиве",
 };
 
-export function PlanPanel({ patientId, onChanged }: { patientId: string; onChanged?: () => void }) {
+export function PlanPanel({
+  patientId,
+  canEdit,
+  onChanged,
+}: {
+  patientId: string;
+  /** Терапевт план читает, но не создаёт и не меняет: это дело психиатра (SPEC S7, Q50). */
+  canEdit: boolean;
+  onChanged?: () => void;
+}) {
   const [items, setItems] = useState<Load<PlanItem[]>>(loading());
   const [kind, setKind] = useState<PlanItem["kind"]>("medication");
   const [title, setTitle] = useState("");
@@ -119,7 +128,11 @@ export function PlanPanel({ patientId, onChanged }: { patientId: string; onChang
       )}
 
       {items.status === "ready" && items.data.length === 0 && (
-        <Empty>Плана пока нет. Черновик ниже пациент не увидит до подтверждения.</Empty>
+        <Empty>
+          {canEdit
+            ? "Плана пока нет. Черновик ниже пациент не увидит до подтверждения."
+            : "Плана пока нет. Назначает и меняет его психиатр."}
+        </Empty>
       )}
 
       {items.status === "ready" && items.data.length > 0 && (
@@ -140,7 +153,7 @@ export function PlanPanel({ patientId, onChanged }: { patientId: string; onChang
               {item.details && <p className="plan-item__details">{item.details}</p>}
 
               {/* An archived item is history: it keeps its text and its state, no actions. */}
-              {item.status !== "archived" && archiving !== item.id && (
+              {canEdit && item.status !== "archived" && archiving !== item.id && (
                 <div className="plan-item__actions">
                   {item.status === "draft" && (
                     <Button
@@ -197,58 +210,67 @@ export function PlanPanel({ patientId, onChanged }: { patientId: string; onChang
        * export's placeholder examples («Сертралин 50 мг») are made-up prescriptions and
        * are not carried over (migration §2.4).
        */}
-      <form onSubmit={add} className="plan-form">
-        <fieldset className="plan-form__kinds">
-          <legend className="plan-form__label">Вид плана</legend>
-          {KINDS.map((value) => (
-            <label key={value} className="choice">
-              <input
-                type="radio"
-                name="plan-kind"
-                value={value}
-                checked={kind === value}
-                onChange={() => setKind(value)}
-              />
-              {KIND[value]}
+      {!canEdit && (
+        <p className="hint">
+          План лечения ведёт психиатр. Вы видите его, но не меняете — это правило ролей, а не
+          настройка.
+        </p>
+      )}
+
+      {canEdit && (
+        <form onSubmit={add} className="plan-form">
+          <fieldset className="plan-form__kinds">
+            <legend className="plan-form__label">Вид плана</legend>
+            {KINDS.map((value) => (
+              <label key={value} className="choice">
+                <input
+                  type="radio"
+                  name="plan-kind"
+                  value={value}
+                  checked={kind === value}
+                  onChange={() => setKind(value)}
+                />
+                {KIND[value]}
+              </label>
+            ))}
+          </fieldset>
+
+          <div className="plan-form__field">
+            <label className="plan-form__label" htmlFor="plan-title">
+              Что назначаем
             </label>
-          ))}
-        </fieldset>
+            <input
+              id="plan-title"
+              type="text"
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+            />
+          </div>
 
-        <div className="plan-form__field">
-          <label className="plan-form__label" htmlFor="plan-title">
-            Что назначаем
-          </label>
-          <input
-            id="plan-title"
-            type="text"
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-          />
-        </div>
+          <div className="plan-form__field">
+            <label className="plan-form__label" htmlFor="plan-details">
+              Как принимать, как часто (необязательно)
+            </label>
+            <input
+              id="plan-details"
+              type="text"
+              value={details}
+              onChange={(event) => setDetails(event.target.value)}
+            />
+          </div>
 
-        <div className="plan-form__field">
-          <label className="plan-form__label" htmlFor="plan-details">
-            Как принимать, как часто (необязательно)
-          </label>
-          <input
-            id="plan-details"
-            type="text"
-            value={details}
-            onChange={(event) => setDetails(event.target.value)}
-          />
-        </div>
+          {formError && (
+            <p className="notice notice--error" role="alert">
+              {formError}
+            </p>
+          )}
 
-        {formError && (
-          <p className="notice notice--error" role="alert">
-            {formError}
-          </p>
-        )}
-
-        <Button type="submit" variant="primary" disabled={blocked}>
-          {busy === "create" ? "Сохраняем…" : "Добавить в черновик"}
-        </Button>
-        <p className="hint">Пациент увидит пункт только после подтверждения.</p>
-      </form>
+          <Button type="submit" variant="primary" disabled={blocked}>
+            {busy === "create" ? "Сохраняем…" : "Добавить в черновик"}
+          </Button>
+          <p className="hint">Пациент увидит пункт только после подтверждения.</p>
+        </form>
+      )}
     </div>
   );
 }

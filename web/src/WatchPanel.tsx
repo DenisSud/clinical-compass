@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { describeWatch, type WatchItem, type WatchKind } from "../../shared/contracts";
-import { createWatchItem, fetchWatchItems, setWatchStatus } from "./api";
+import { describeWatch, type InstrumentChoice, type WatchItem, type WatchKind } from "../../shared/contracts";
+import { createWatchItem, fetchPatientInstruments, fetchWatchItems, setWatchStatus } from "./api";
 import { Button, LoadError, loading, track, type Load } from "./ui";
 
 const KIND_LABEL: Record<WatchKind, string> = {
@@ -34,6 +34,9 @@ export function WatchPanel({ patientId }: { patientId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toggleBusy, setToggleBusy] = useState<string | null>(null);
+  /** Набор пациента: правило на шкалу вне набора не сработает ни разу (#68). */
+  const [instruments, setInstruments] = useState<InstrumentChoice[]>([]);
+  const [instrumentId, setInstrumentId] = useState("");
   const [toggleError, setToggleError] = useState<string | null>(null);
 
   const reload = useCallback(() => {
@@ -41,6 +44,17 @@ export function WatchPanel({ patientId }: { patientId: string }) {
   }, [patientId]);
 
   useEffect(reload, [reload]);
+
+  useEffect(() => {
+    fetchPatientInstruments(patientId)
+      .then((response) => {
+        setInstruments(response.instruments);
+        setInstrumentId((current) => current || response.instruments[0]?.id || "");
+      })
+      .catch(() => setInstruments([]));
+  }, [patientId]);
+
+  const titles = Object.fromEntries(instruments.map((item) => [item.id, item.title]));
 
   async function toggle(item: WatchItem) {
     setToggleBusy(item.id);
@@ -65,7 +79,7 @@ export function WatchPanel({ patientId }: { patientId: string }) {
         kind === "message_keyword"
           ? { kind, title, severity, terms: terms.split(",").map((term) => term.trim()).filter(Boolean) }
           : kind === "score_threshold"
-            ? { kind, title, severity, instrumentId: "phq-9", threshold: number }
+            ? { kind, title, severity, instrumentId, threshold: number }
             : kind === "missed_doses"
               ? { kind, title, severity, days: number }
               : kind === "diary_drop"
@@ -119,7 +133,7 @@ export function WatchPanel({ patientId }: { patientId: string }) {
                  * the one loud accent away from the critical signal card below (§2.3, §3.1).
                  */}
                 <p className="watch-item__detail">
-                  {describeWatch(item)} · {SEVERITY_LABEL[item.severity]}
+                  {describeWatch(item, titles)} · {SEVERITY_LABEL[item.severity]}
                 </p>
               </div>
               <Button
@@ -163,6 +177,19 @@ export function WatchPanel({ patientId }: { patientId: string }) {
             onChange={(event) => setTitle(event.target.value)}
             placeholder="Название для врача, например «Риск самоповреждения»"
           />
+
+          {kind === "score_threshold" && (
+            <label className="watch-form__label">
+              Опросник
+              <select value={instrumentId} onChange={(event) => setInstrumentId(event.target.value)}>
+                {instruments.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           {kind === "message_keyword" ? (
             <input

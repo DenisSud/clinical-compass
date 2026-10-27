@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { WatchItem } from "../shared/contracts.js";
 import { signalsForWatchItems } from "./rules/watch.js";
-import { newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+import { bindPatient, newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
 
 const watch = (overrides: Partial<WatchItem> = {}): WatchItem => ({
   id: "w1",
@@ -195,6 +195,89 @@ describe("watch routes", () => {
     expect(signals.json().signals).toHaveLength(1);
     expect(signals.json().signals[0].title).toBe("Риск самоповреждения");
     expect(signals.json().signals[0].severity).toBe("critical");
+    await app.close();
+  });
+
+  it("gives the doctor the scales the patient actually has, to choose a threshold rule on", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientId } = await boundPair(app);
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/instruments`,
+      headers: { cookie: doctorCookie },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json().instruments.map((item: { id: string }) => item.id)).toEqual(["phq-9"]);
+    await app.close();
+  });
+
+  it("refuses a threshold rule on a scale that does not exist", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientId } = await boundPair(app);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/patients/${patientId}/watch`,
+      headers: { cookie: doctorCookie },
+      payload: {
+        kind: "score_threshold",
+        title: "Порог по шкале, которой нет",
+        severity: "high",
+        instrumentId: "hads",
+        threshold: 10,
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    await app.close();
+  });
+
+  it("raises a threshold rule on the HADS the patient actually fills in", async () => {
+    const app = await newApp();
+    const { patientCookie, patientId } = await boundPair(app);
+    // HADS живёт в терапии: набор шкал приходит вместе с психиатром (SPEC S3, Q49).
+    const psychiatristCookie = await signUpDoctor(app, {
+      email: "psychiatrist@example.com",
+      password: "correct horse battery",
+      specialty: "psychiatrist",
+    });
+    await bindPatient(app, patientCookie, psychiatristCookie);
+
+    await app.inject({
+      method: "POST",
+      url: `/api/patients/${patientId}/watch`,
+      headers: { cookie: psychiatristCookie },
+      payload: {
+        kind: "score_threshold",
+        title: "Тревога выросла",
+        severity: "high",
+        instrumentId: "hads-anxiety",
+        threshold: 11,
+      },
+    });
+
+    await app.inject({
+      method: "POST",
+      url: "/api/assessments/hads-anxiety",
+      headers: { cookie: patientCookie },
+      payload: {
+        submissionId: "hads-threshold",
+        answers: { a1: 3, a2: 3, a3: 3, a4: 3, a5: 3, a6: 3, a7: 3 },
+      },
+    });
+
+    const signals = await app.inject({
+      method: "GET",
+      url: "/api/signals",
+      headers: { cookie: psychiatristCookie },
+    });
+    const raised = (signals.json().signals as Array<{ title: string; ruleId: string | null }>).filter(
+      (signal) => signal.title === "Тревога выросла",
+    );
+
+    expect(raised).toHaveLength(1);
     await app.close();
   });
 

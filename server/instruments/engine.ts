@@ -1,4 +1,4 @@
-import type { Instrument, InstrumentBand } from "./schema.js";
+import { optionsOf, type Instrument, type InstrumentBand } from "./schema.js";
 
 export class InvalidAnswers extends Error {}
 
@@ -9,11 +9,10 @@ export type Score = { total: number; band: InstrumentBand };
  * falls outside every band is a broken instrument, not a zero.
  */
 export function score(instrument: Instrument, answers: Record<string, number>): Score {
-  const allowed = new Set(instrument.options.map((option) => option.value));
-
   for (const item of instrument.items) {
     const value = answers[item.id];
     if (value === undefined) throw new InvalidAnswers(`пункт ${item.id} без ответа`);
+    const allowed = new Set(optionsOf(instrument, item).map((option) => option.value));
     if (!allowed.has(value)) throw new InvalidAnswers(`пункт ${item.id}: недопустимое значение`);
   }
 

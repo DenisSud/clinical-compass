@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { shiftDay, wallClockDay, wallClockMinute } from "./prescriptions/schedule.js";
-import { newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+import { bindPatient, newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+/** Назначает и ведёт план психиатр (SPEC S7, Q50): у терапевта этих маршрутов нет. */
+const PSYCHIATRIST = {
+  email: "psychiatrist@example.com",
+  password: "correct horse battery",
+  specialty: "psychiatrist" as const,
+};
 
 function today(): string {
   return wallClockDay(new Date());
@@ -24,7 +30,7 @@ function minuteAt(minutesOffset: number): { scheduledAt: string; day: string; ti
 }
 
 async function boundPair(app: App) {
-  const doctorCookie = await signUpDoctor(app);
+  const doctorCookie = await signUpDoctor(app, PSYCHIATRIST);
   const patientCookie = await signUpPatient(app);
   const code = await app.inject({
     method: "GET",
@@ -159,6 +165,68 @@ describe("writing a prescription", () => {
 
     expect(response.statusCode).toBe(400);
     expect(response.json().code).toBe("unknown_drug");
+    await app.close();
+  });
+});
+
+describe("who may prescribe", () => {
+  it("refuses a therapist to write a prescription and writes nothing", async () => {
+    const app = await newApp();
+    const therapistCookie = await signUpDoctor(app, {
+      email: "therapist@example.com",
+      password: "correct horse battery",
+    });
+    const patientCookie = await signUpPatient(app);
+    await bindPatient(app, patientCookie, therapistCookie);
+    const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie: patientCookie } });
+    const patientId = me.json().profile.id as string;
+
+    const response = await prescribe(app, therapistCookie, patientId);
+    const list = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/prescriptions`,
+      headers: { cookie: therapistCookie },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json().message).toMatch(/психиатр/);
+    expect(list.statusCode).toBe(200);
+    expect(list.json().prescriptions).toEqual([]);
+    await app.close();
+  });
+
+  it("lets a therapist read what the psychiatrist prescribed, but not confirm or archive it", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    const draft = await prescribe(app, doctorCookie, patientId);
+
+    // Передача терапевту: пациент меняет ведущего врача, назначения остаются.
+    const therapistCookie = await signUpDoctor(app, {
+      email: "therapist@example.com",
+      password: "correct horse battery",
+    });
+    await bindPatient(app, patientCookie, therapistCookie);
+
+    const read = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/prescriptions`,
+      headers: { cookie: therapistCookie },
+    });
+    const confirm = await app.inject({
+      method: "POST",
+      url: `/api/prescriptions/${draft.json().prescription.id}/confirm`,
+      headers: { cookie: therapistCookie },
+    });
+    const archive = await app.inject({
+      method: "POST",
+      url: `/api/prescriptions/${draft.json().prescription.id}/archive`,
+      headers: { cookie: therapistCookie },
+    });
+
+    expect(read.statusCode).toBe(200);
+    expect(read.json().prescriptions).toHaveLength(1);
+    expect(confirm.statusCode).toBe(403);
+    expect(archive.statusCode).toBe(403);
     await app.close();
   });
 });
