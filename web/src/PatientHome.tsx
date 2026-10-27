@@ -323,7 +323,7 @@ export function PatientHome({
 
           <h3 className="section-title section-title--spaced">Прошлые ответы</h3>
           {assessments.status === "ready" && assessments.data.assessments.length === 0 && (
-            <Empty>Вы ещё не проходили опросник.</Empty>
+            <Empty>Вы ещё не проходили опросники.</Empty>
           )}
           {assessments.status === "ready" && assessments.data.assessments.length > 0 && (
             <ul className="past-answers">

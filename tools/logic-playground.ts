@@ -480,7 +480,15 @@ function scheduleRows() {
 }
 
 function adherenceForRules(): { consecutiveMissedDoses: number } | null {
-  if (state.schedule) return { consecutiveMissedDoses: trailingSkips(scheduleRows()).length };
+  if (state.schedule) {
+    const rows = scheduleRows();
+    const elapsed = rows.filter((row) => row.state !== "scheduled");
+    // Как и маршрут: назначение ещё не началось или последний приём не отмечен — это
+    // не «ноль пропусков», а отсутствие данных. Площадка отказывает так же (S31).
+    if (elapsed.length === 0) return null;
+    if (elapsed[elapsed.length - 1]?.state === "no_data") return null;
+    return { consecutiveMissedDoses: trailingSkips(rows).length };
+  }
   if (state.manualSkips !== null) return { consecutiveMissedDoses: state.manualSkips };
   return null;
 }

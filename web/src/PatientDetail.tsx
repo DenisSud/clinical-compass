@@ -286,7 +286,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
         <div className="stack">
           <div>
             <h3 className="section-title">Правила наблюдения</h3>
-            <WatchPanel patientId={patient.id} />
+            <WatchPanel key={status} patientId={patient.id} />
           </div>
           {/*
             * Факты стоят вплотную над сигналами: карточка сигнала называет факт

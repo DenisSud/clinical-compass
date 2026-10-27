@@ -11,6 +11,7 @@ import { requireAuth, requireRole } from "../auth/guard.js";
 import { patientFacts } from "../db/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
+import { factsSourceId } from "../decisions/facts.js";
 import { runDecisionQuestions } from "../decisions/service.js";
 import { toFacts } from "../patient-facts.js";
 import { createHash } from "node:crypto";
@@ -166,15 +167,10 @@ export const factsRoutes: FastifyPluginAsync = async (app) => {
      * постоянным id закрытая врачом карточка больше не поднялась бы никогда, а тот же
      * ответ, сохранённый дважды, не должен давать вторую (тот же довод, что ниже у правил).
      */
-    const factsFingerprint = createHash("sha1")
-      .update(JSON.stringify(toFacts(row)))
-      .digest("hex")
-      .slice(0, 12);
-
     await runDecisionQuestions(app, {
       patientId,
       sourceType: "facts",
-      sourceId: `${patientId}:${factsFingerprint}`,
+      sourceId: factsSourceId(patientId, toFacts(row)),
     });
 
     /*

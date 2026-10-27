@@ -235,6 +235,41 @@ describe("questions on an event", () => {
     await app.close();
   });
 
+  it("does not zero the adherence of a started prescription because another one has not begun", async () => {
+    const app = await newApp();
+    const cookie = await signUpPatient(app);
+    const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie } });
+    const patientId = me.json().profile.id as string;
+
+    await seedWorsening(app, patientId);
+    await seedAdherence(app, patientId, 0);
+    await app.conn.db.insert(prescriptions).values({
+      id: randomUUID(),
+      patientId,
+      drugId: null,
+      drugName: "Авиандр",
+      doseValue: 20,
+      doseUnit: "мг",
+      timesPerDay: 1,
+      timesOfDay: JSON.stringify(["09:00"]),
+      startsOn: shiftDay(wallClockDay(new Date()), 1),
+      endsOn: null,
+      status: "active",
+      createdAt: new Date().toISOString(),
+      confirmedAt: new Date().toISOString(),
+      confirmedBy: null,
+      archivedAt: null,
+    });
+
+    await runDecisionQuestions(app, { patientId, sourceType: "assessment", sourceId: "now" });
+
+    // Стартовавшее назначение даёт «пропусков нет», неначавшееся его не обнуляет.
+    const raised = await decisionSignals(app, patientId, ANY_DECISION_KIND);
+    expect(raised).toHaveLength(1);
+    expect(raised[0]?.kind).toBe("decision:worsening-without-missed-doses");
+    await app.close();
+  });
+
   it("keeps one open card when another event recomputes the same answer", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);

@@ -456,11 +456,10 @@
 }
 
 .instrument-list__row {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto;
   align-items: center;
-  justify-content: space-between;
   gap: var(--space-3);
-  flex-wrap: wrap;
   padding: var(--space-3) 0;
   border-top: var(--border-width) solid var(--border-hairline);
 }

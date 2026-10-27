@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { RuleFacts } from "../../shared/rules.js";
@@ -164,9 +165,10 @@ async function adherenceFacts(
     // Последний состоявшийся приём без отметки — не «ноль пропусков», а «неизвестно»:
     // иначе вопрос «пропусков не было» получал бы «да» на пустом месте (S30, Q36).
     const elapsed = slots.filter((slot) => slot.state !== "scheduled");
-    // Ни одного наступившего приёма (назначение начинается завтра) — это не «ноль
-    // пропусков», а отсутствие данных: отвечать «приёмов не пропускал» не на чем.
-    if (elapsed.length === 0) return null;
+    // Ни одного наступившего приёма (назначение начинается завтра) — у этого назначения
+    // пропусков быть не может, но и утверждать про него нечего: пропускаем его, а не
+    // обнуляем приверженность остальных назначений пациента.
+    if (elapsed.length === 0) continue;
     if (elapsed[elapsed.length - 1]?.state === "no_data") return null;
 
     const missed = trailingSkips(slots).length;
@@ -187,4 +189,13 @@ async function patientFactsFor(
     .limit(1);
 
   return row ? toFacts(row) : null;
+}
+
+/**
+ * Идентификатор источника для карточки вопроса, поднятой фактами: отпечаток ответов, а не
+ * пациент. С постоянным id закрытая врачом карточка не поднялась бы на изменённых данных, а
+ * с отпечатком тот же ответ остаётся тем же событием (как у правил в маршруте фактов).
+ */
+export function factsSourceId(patientId: string, facts: unknown): string {
+  return `${patientId}:${createHash("sha1").update(JSON.stringify(facts)).digest("hex").slice(0, 12)}`;
 }
