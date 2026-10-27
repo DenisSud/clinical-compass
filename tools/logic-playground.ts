@@ -221,11 +221,19 @@ function factsTable(): void {
   if (state.assessment) {
     const scored = score(state.assessment.instrument, state.assessment.answers);
     const critical = criticalItems(state.assessment.instrument, state.assessment.answers);
+    // У шкалы без общей суммы (UKU) числа нет ни сейчас, ни в прошлой отправке:
+    // площадка не показывает сумму, которую продукт не считает (SPEC S10).
+    const noTotal = state.assessment.instrument.scoring === "items";
+    const previous =
+      noTotal || state.previousTotal === null
+        ? ""
+        : `, прошлая сумма ${state.previousTotal} (шкала ${state.previousInstrumentId ?? state.assessment.instrument.id}, версия ${state.previousVersion ?? findInstrument(state.previousInstrumentId ?? state.assessment.instrument.id)?.version ?? "—"})`;
     console.log(
-      `\nОтветы: «${state.assessment.instrument.title}» — сумма ${scored.total}, диапазон «${scored.band.label}»` +
-        (state.previousTotal !== null
-          ? `, прошлая сумма ${state.previousTotal} (шкала ${state.previousInstrumentId ?? state.assessment.instrument.id}, версия ${state.previousVersion ?? findInstrument(state.previousInstrumentId ?? state.assessment.instrument.id)?.version ?? "—"})`
-          : ""),
+      `\nОтветы: «${state.assessment.instrument.title}» — ` +
+        (noTotal
+          ? `общей суммы нет, диапазон «${scored.band.label}»`
+          : `сумма ${scored.total}, диапазон «${scored.band.label}»`) +
+        previous,
     );
     if (critical.length > 0) console.log(`  отмечены пункты: ${critical.join(", ")}`);
   }
@@ -322,6 +330,14 @@ function rulesTable(): void {
         : `подтверждено: ${rule.source.kind}`;
     console.log(`\n  ${match ? "●" : "○"} ${rule.id}  [${rule.severity}]  (${status})`);
     console.log(`    ${rule.title}`);
+
+    // Правило о сумме у шкалы без суммы не запускается — так же, как в движке сигналов.
+    // Иначе площадка показала бы рост суммы UKU, которого продукт не считает (SPEC S10).
+    const readsTotal = rule.when.some((condition) => condition.fact.startsWith("assessment.total"));
+    if (state.assessment?.instrument.scoring === "items" && readsTotal) {
+      console.log("    не запускается: у шкалы нет общей суммы");
+      continue;
+    }
 
     if (match) {
       console.log(`    СРАБОТАЛО: ${match.title}`);

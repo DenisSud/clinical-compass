@@ -276,6 +276,30 @@ describe("набор психиатра", () => {
     await app.close();
   });
 
+  it("не показывает врачу сумму UKU: общей суммы у шкалы нет", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app, "psychiatrist");
+    await submit(
+      app,
+      patientCookie,
+      { submissionId: "u-1", answers: ukuAnswers(0, { u12: 3 }) },
+      "uku",
+    );
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/assessments`,
+      headers: { cookie: doctorCookie },
+    });
+
+    const [assessment] = response.json().assessments;
+    expect(assessment.instrumentId).toBe("uku");
+    // Числа нет, а не ноль: ноль читался бы как ответ по шкале (SPEC S10).
+    expect(assessment.total).toBeNull();
+    expect(assessment.band.label).toBe("Общей суммы нет");
+    await app.close();
+  });
+
   it("при наборе психиатра критический пункт PHQ-9 всё равно поднимает сигнал", async () => {
     const app = await newApp();
     const { patientCookie } = await boundPair(app);

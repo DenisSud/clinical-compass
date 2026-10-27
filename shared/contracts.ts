@@ -34,6 +34,16 @@ export const doctorSpecialtySchema = z.enum(["therapist", "psychiatrist"]);
 
 export type DoctorSpecialty = z.infer<typeof doctorSpecialtySchema>;
 
+/**
+ * Тело регистрации врача. Специальность обязательна: от неё зависит этап его пациентов
+ * (S3), и молча выбранный терапевт это клиническое решение, принятое за врача.
+ */
+export const doctorSignupSchema = credentialsSchema.extend({
+  specialty: doctorSpecialtySchema,
+});
+
+export type DoctorSignup = z.infer<typeof doctorSignupSchema>;
+
 export const doctorProfileSchema = z.object({
   id: z.string(),
   email: z.string(),
@@ -146,7 +156,11 @@ export const doctorAssessmentSchema = z.object({
   instrumentId: z.string(),
   instrumentTitle: z.string(),
   submittedAt: z.string(),
-  total: z.number(),
+  /**
+   * Общая сумма; null у шкалы без суммы (UKU). Числа там нет, а не ноль:
+   * врач читает «—», а не пустую строку, которую можно принять за ответ.
+   */
+  total: z.number().nullable(),
   band: z.object({ id: z.string(), label: z.string() }),
   criticalItems: z.array(z.string()),
   /** True, когда сохранённое описание инструмента больше недоступно. */

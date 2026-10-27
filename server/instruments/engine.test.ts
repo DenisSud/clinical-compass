@@ -156,13 +156,32 @@ describe("UKU", () => {
   });
 
   it("не имеет суммы: полоса говорит об этом вместо названия тяжести", () => {
-    // Общей суммы у шкалы нет (Q52): единственный диапазон — отказ от суммы, а карточку
-    // по сумме отключает alert.totalSignal в файле шкалы.
+    // Общей суммы у шкалы нет (Q52): единственный диапазон — отказ от суммы, а сигнал
+    // по сумме отключает поле scoring в файле шкалы.
     expect(score(uku!, answersOf(uku!, 3)).band.label).toBe("Общей суммы нет");
-    expect(uku?.alert?.totalSignal).toBe(false);
+    expect(uku?.scoring).toBe("items");
   });
 
-  it("raises no critical item: у шкалы нет пункта о суициде", () => {
+  it("называет окно наблюдения в тех пунктах, где его задаёт источник", () => {
+    const textOf = (id: string) => uku!.items.find((item) => item.id === id)?.text ?? "";
+
+    // Источник задаёт своё окно не всем пунктам; выдумывать общее нельзя.
+    expect(textOf("u07")).toContain("последние три ночи");
+    expect(textOf("u08")).toContain("последние три ночи");
+    expect(textOf("u09")).toContain("последние три ночи");
+    expect(textOf("u22")).toContain("за прошедшие три дня");
+    expect(textOf("u34")).toContain("за прошедший месяц");
+    expect(textOf("u35")).toContain("за прошедший месяц");
+
+    // Вводная фраза больше не обещает один срок на все пункты.
+    expect(uku?.intro).not.toContain("последние три месяца");
+    const others = uku!.items.filter((item) => !["u07", "u08", "u09", "u22", "u34", "u35"].includes(item.id));
+    for (const item of others) {
+      expect(item.text).not.toMatch(/последние три ночи|прошедшие три дня|прошедший месяц/);
+    }
+  });
+
+  it("не имеет критического пункта: шкала не спрашивает о суициде", () => {
     expect(criticalItems(uku!, answersOf(uku!, 3))).toEqual([]);
   });
 
@@ -203,5 +222,52 @@ describe("HDRS-17", () => {
   it("отказывает в значении, которого у пункта нет", () => {
     // h04 оценивается от 0 до 2: четвёрки у него нет, даже если у других пунктов есть.
     expect(() => score(hdrs!, answersOf(hdrs!, 0, { h04: 4 }))).toThrow(InvalidAnswers);
+  });
+
+  it("держит полные названия пунктов и никакого ключа вместо текста", () => {
+    for (const item of hdrs!.items) {
+      // Самое короткое название в источнике — «Критика»; обрезанное короче и кончается служебным словом.
+      expect(item.text.length).toBeGreaterThanOrEqual(7);
+      expect(item.text).not.toMatch(/Ключ|интерпретация/);
+      for (const option of item.options ?? []) {
+        expect(option.label).not.toMatch(/Ключ|интерпретация/);
+      }
+    }
+
+    // Пять названий обрывались на первой строке бланка; скобка источника теперь на месте.
+    expect(hdrs!.items[3]?.text).toBe("Бессонница: ранняя (трудности при засыпании)");
+    expect(hdrs!.items[5]?.text).toBe("Бессонница поздняя: ранние утренние часы");
+    expect(hdrs!.items[6]?.text).toBe("Работоспособность и активность");
+    expect(hdrs!.items[11]?.text).toBe("Соматические симптомы, желудочно-кишечные");
+    expect(hdrs!.items[12]?.text).toBe("Общие соматические симптомы");
+    // Название пункта 9 пришло из источника в капслоке и с пояснением в скобках.
+    expect(hdrs!.items[8]?.text).toBe("Возбуждение (во время беседы)");
+  });
+
+  it("ставит границы полос на 7/8, 13/14, 18/19 и 22/23, а последнюю кончает максимумом", () => {
+    // Сумму набираем по пунктам: у h01 четыре ступени, и одной пятёрки у него не бывает.
+    const answersFor = (total: number) => {
+      let left = total;
+      return Object.fromEntries(
+        hdrs!.items.map((item) => {
+          const top = Math.max(...optionsOf(hdrs!, item).map((option) => option.value));
+          const value = Math.min(top, left);
+          left -= value;
+          return [item.id, value];
+        }),
+      );
+    };
+    const bandOf = (total: number) => score(hdrs!, answersFor(total)).band.id;
+
+    expect(bandOf(7)).toBe("normal");
+    expect(bandOf(8)).toBe("mild");
+    expect(bandOf(13)).toBe("mild");
+    expect(bandOf(14)).toBe("moderate");
+    expect(bandOf(18)).toBe("moderate");
+    expect(bandOf(19)).toBe("severe");
+    expect(bandOf(22)).toBe("severe");
+    // От 23 и выше — крайне тяжёлая; 52 это максимум шкалы, и он внутри полосы, а не за ней.
+    expect(hdrs!.bands.find((band) => band.id === "very-severe")?.min).toBe(23);
+    expect(hdrs!.bands.find((band) => band.id === "very-severe")?.max).toBe(52);
   });
 });

@@ -234,6 +234,34 @@ describe("маршруты наблюдения", () => {
     await app.close();
   });
 
+  it("отказывает в пороге по шкале без общей суммы и называет шкалу", async () => {
+    const app = await newApp();
+    const { patientCookie, patientId } = await boundPair(app);
+    const psychiatristCookie = await signUpDoctor(app, {
+      email: "psychiatrist@example.com",
+      password: "correct horse battery",
+      specialty: "psychiatrist",
+    });
+    await bindPatient(app, patientCookie, psychiatristCookie);
+
+    const response = await app.inject({
+      method: "POST",
+      url: `/api/patients/${patientId}/watch`,
+      headers: { cookie: psychiatristCookie },
+      payload: {
+        kind: "score_threshold",
+        title: "Порог по сумме UKU",
+        severity: "high",
+        instrumentId: "uku",
+        threshold: 10,
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json().message).toContain("UKU");
+    await app.close();
+  });
+
   it("поднимает правило порога по HADS, которую пациент действительно заполняет", async () => {
     const app = await newApp();
     const { patientCookie, patientId } = await boundPair(app);

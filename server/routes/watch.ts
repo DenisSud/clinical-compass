@@ -55,8 +55,19 @@ export const watchRoutes: FastifyPluginAsync = async (app) => {
 
       // Правило на несуществующую шкалу не сработает никогда: лучше отказать на создании,
       // чем оставить врача с правилом, которое молчит (issue #68).
-      if (parsed.data.kind === "score_threshold" && !instrument(parsed.data.instrumentId)) {
-        return fail(reply, 400, "invalid_request", "Нет такой шкалы");
+      if (parsed.data.kind === "score_threshold") {
+        const scale = instrument(parsed.data.instrumentId);
+        if (!scale) return fail(reply, 400, "invalid_request", "Нет такой шкалы");
+
+        // У шкалы без общей суммы порога нет: правило сравнивало бы выдуманное число.
+        if (scale.scoring === "items") {
+          return fail(
+            reply,
+            400,
+            "invalid_request",
+            `У шкалы «${scale.shortTitle ?? scale.title}» нет общей суммы`,
+          );
+        }
       }
 
       const [row] = await app.conn.db

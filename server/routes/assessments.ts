@@ -93,7 +93,8 @@ function toDoctorAssessment(
     instrumentId: row.instrumentId,
     instrumentTitle: instrument.title,
     submittedAt: row.submittedAt,
-    total: row.totalScore,
+    // У шкалы без общей суммы (UKU) суммы нет вовсе, а не ноль: ноль читался бы как ответ.
+    total: instrument.scoring === "items" ? null : row.totalScore,
     band: { id: row.bandId, label: row.bandLabel },
     criticalItems: criticalItems(instrument, JSON.parse(row.answers) as Record<string, number>),
   };

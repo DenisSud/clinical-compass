@@ -71,6 +71,15 @@ export const ALL_SIGNAL_RULE_IDS: readonly string[] = [
 ];
 
 /**
+ * Читает ли правило общую сумму шкалы. У шкалы со `scoring: "items"` суммы нет,
+ * и правило, написанное про сумму или её рост, не должно получать выдуманное число.
+ * Список фактов берётся из файла правила, а не из списка идентификаторов в коде.
+ */
+function readsTotal(ruleId: string): boolean {
+  return requireRule(ruleId).when.some((condition) => condition.fact.startsWith("assessment.total"));
+}
+
+/**
  * Факты на входе, сигналы на выходе. Этот модуль даёт только то, о чём реестр не знает,
  * как читать; каждый порог и каждое слово, показанное врачу, берутся из файла правила.
  */
@@ -110,7 +119,14 @@ export function signalsForAssessment(input: {
   total: number;
   previous: PreviousAssessment | null;
 }): SignalDraft[] {
-  const signals = signalsFromRules(SIGNAL_RULES, {
+  // У шкалы без общей суммы правило «стало хуже по сумме» читало бы число,
+  // которого нет, поэтому оно не запускается вовсе (SPEC S10).
+  const rules =
+    input.instrument.scoring === "items"
+      ? SIGNAL_RULES.filter(({ ruleId }) => !readsTotal(ruleId))
+      : SIGNAL_RULES;
+
+  const signals = signalsFromRules(rules, {
     ...NO_FACTS,
     assessment: {
       instrumentId: input.instrument.id,
@@ -145,7 +161,7 @@ function bandSignalForAssessment(input: {
     input.instrument.bands.find((band) => band.id === input.instrument.alert?.bandId) ??
     [...input.instrument.bands].sort((left, right) => right.min - left.min)[0];
 
-  if (input.instrument.alert?.totalSignal === false) return null;
+  if (input.instrument.scoring === "items") return null;
   if (!alertBand || input.total < alertBand.min) return null;
 
   // Подпись обязана приходить из полосы, в которую сумма действительно попадает, иначе 24

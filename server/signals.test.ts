@@ -1,4 +1,6 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
+import { assessments } from "./db/schema.js";
 import { bindPatient, newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
 
 function answers(value: number, overrides: Record<string, number> = {}) {
@@ -336,6 +338,61 @@ describe("у UKU нет суммы, поэтому её полоса не под
     // Общей суммы у шкалы нет (Q52): «сумма 48» была бы числом из разных явлений,
     // а такое число запрещено складывать (SPEC S10).
     expect(kinds).not.toContain("severe_total");
+    await app.close();
+  });
+
+  it("не поднимает ухудшение между двумя отправками с разными пунктами", async () => {
+    const app = await newApp();
+    const { patientCookie } = await boundPair(app);
+    const psychiatristCookie = await signUpDoctor(app, {
+      email: "psychiatrist@example.com",
+      password: "correct horse battery",
+      specialty: "psychiatrist",
+    });
+    await bindPatient(app, patientCookie, psychiatristCookie);
+    const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie: patientCookie } });
+    const patientId = me.json().profile.id as string;
+
+    // Прошлая отправка неделей раньше: все пункты по нулю.
+    const submittedAt = new Date(Date.now() - 8 * 24 * 60 * 60 * 1000).toISOString();
+    const previousAnswers = Object.fromEntries(
+      Array.from({ length: 48 }, (_, index) => [`u${String(index + 1).padStart(2, "0")}`, 0]),
+    );
+    await app.conn.db.insert(assessments).values({
+      id: randomUUID(),
+      patientId,
+      instrumentId: "uku",
+      instrumentVersion: "1.0.0",
+      answers: JSON.stringify(previousAnswers),
+      totalScore: 0,
+      bandId: "no-total",
+      bandLabel: "Общей суммы нет",
+      submissionId: randomUUID(),
+      submittedAt,
+      createdAt: submittedAt,
+    });
+
+    // Сегодня те же пункты, но отмечены другие явления. Сумма выросла бы на 12 —
+    // число из разных явлений, у UKU его нет (Q52, SPEC S10).
+    const response = await app.inject({
+      method: "POST",
+      url: "/api/assessments/uku",
+      headers: { cookie: patientCookie },
+      payload: {
+        submissionId: randomUUID(),
+        answers: { ...previousAnswers, u07: 3, u09: 3, u22: 3, u34: 3 },
+      },
+    });
+    expect(response.statusCode).toBe(201);
+
+    const signals = await app.inject({
+      method: "GET",
+      url: "/api/signals",
+      headers: { cookie: psychiatristCookie },
+    });
+    const kinds = (signals.json().signals as Array<{ kind: string }>).map((signal) => signal.kind);
+
+    expect(kinds).not.toContain("worsening");
     await app.close();
   });
 });

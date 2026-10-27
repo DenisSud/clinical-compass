@@ -249,7 +249,7 @@ export function PatientDetail({
         <div className="stack">
           <div>
             <h3 className="section-title">Правила наблюдения</h3>
-            <WatchPanel key={status} patientId={patient.id} />
+            <WatchPanel key={patient.status} patientId={patient.id} />
           </div>
           {/*
             * Факты стоят вплотную над сигналами: карточка сигнала называет факт
@@ -331,7 +331,8 @@ export function PatientDetail({
                       <td>{assessment.instrumentTitle}</td>
                       <td>{formatDate(assessment.submittedAt)}</td>
                       <td>
-                        {assessment.total}
+                        {/* Шкала без общей суммы показывает прочерк, а не число (SPEC S10). */}
+                        {assessment.total === null ? "—" : assessment.total}
                         {assessment.criticalItems.length > 0 && (
                           <span className="assessment-table__critical">критический пункт</span>
                         )}
