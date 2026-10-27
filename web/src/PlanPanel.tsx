@@ -46,7 +46,7 @@ export function PlanPanel({
   const [busy, setBusy] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [actionError, setActionError] = useState<{ itemId: string; message: string } | null>(null);
-  /** The row asking «в архив?». Asked on a press, never before: see `archive` below. */
+  /** Строка, которая спрашивает «в архив?». Спрашиваем по нажатию, а не заранее: см. `archive` ниже. */
   const [archiving, setArchiving] = useState<string | null>(null);
 
   const reload = useCallback(() => {

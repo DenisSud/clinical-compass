@@ -30,13 +30,13 @@ import { Button, Card, Empty, LoadError, Tabs, loading, track, type Load } from 
 
 type PatientTab = "today" | "diary" | "questionnaire" | "facts" | "plan" | "doctor";
 
-type MyAssessments = { assessments: PatientAssessment[]; nextAllowedAt: string | null };
+type MyAssessments = { assessments: PatientAssessment[] };
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
 }
 
-/* «— с 21 октября» under «Ведущий врач»: the export gives the binding date without a year. */
+/* «— с 21 октября» под «Ведущий врач»: выгрузка даёт дату привязки без года. */
 function formatDayMonth(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }

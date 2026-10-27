@@ -1,4 +1,5 @@
 import type { WatchItem } from "../../shared/contracts.js";
+import { instrument } from "../instruments/loader.js";
 import type { SignalDraft } from "./signals.js";
 
 export type WatchEvent =
@@ -57,6 +58,9 @@ function match(item: WatchItem, event: WatchEvent): string | null {
     case "score_threshold": {
       if (event.type !== "assessment") return null;
       if (event.instrumentId !== String(item.params.instrumentId)) return null;
+      // У шкалы без общей суммы порога нет: сравнивать пришлось бы выдуманное число (SPEC S10).
+      // Строка могла остаться в базе с тех пор, как отказ появился только на создании правила.
+      if (instrument(event.instrumentId)?.scoring === "items") return null;
       const threshold = Number(item.params.threshold);
       if (!(event.total >= threshold)) return null;
       return `Сумма ответов ${event.total} — порог врача: ${threshold}.`;

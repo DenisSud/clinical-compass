@@ -48,8 +48,10 @@ export function WatchPanel({ patientId }: { patientId: string }) {
   useEffect(() => {
     fetchPatientInstruments(patientId)
       .then((response) => {
-        setInstruments(response.instruments);
-        setInstrumentId((current) => current || response.instruments[0]?.id || "");
+        // У шкалы без общей суммы нет порога: правило по ней не сработает ни разу (SPEC S10).
+        const choices = response.instruments.filter((option) => option.scoring !== "items");
+        setInstruments(choices);
+        setInstrumentId((current) => current || choices[0]?.id || "");
       })
       .catch(() => setInstruments([]));
   }, [patientId]);

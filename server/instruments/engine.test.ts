@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { InvalidAnswers, criticalItems, score } from "./engine.js";
-import { instrument } from "./loader.js";
+import { instrument, instruments } from "./loader.js";
 import { optionsOf, type Instrument } from "./schema.js";
 
 const phq9 = instrument("phq-9");
@@ -45,6 +45,18 @@ describe("описания инструментов", () => {
     for (let total = 0; total <= 27; total += 1) {
       const band = phq9?.bands.find((candidate) => total >= candidate.min && total <= candidate.max);
       expect(band, `score ${total} fell outside every band`).toBeDefined();
+    }
+  });
+
+  it("последняя полоса каждой шкалы достаёт до максимума", () => {
+    // Максимум — сумма максимумов пунктов: полоса, кончающаяся раньше, оставила бы
+    // верхние суммы без диапазона, а это 500 в ответе на отправку.
+    for (const source of instruments().values()) {
+      const last = source.bands[source.bands.length - 1];
+      expect(last, `${source.id}: ни одной полосы`).toBeDefined();
+      expect(last!.max, `${source.id}: последняя полоса ниже максимума`).toBeGreaterThanOrEqual(
+        maxScore(source),
+      );
     }
   });
 });
@@ -165,20 +177,39 @@ describe("UKU", () => {
   it("называет окно наблюдения в тех пунктах, где его задаёт источник", () => {
     const textOf = (id: string) => uku!.items.find((item) => item.id === id)?.text ?? "";
 
-    // Источник задаёт своё окно не всем пунктам; выдумывать общее нельзя.
-    expect(textOf("u07")).toContain("последние три ночи");
-    expect(textOf("u08")).toContain("последние три ночи");
-    expect(textOf("u09")).toContain("последние три ночи");
-    expect(textOf("u22")).toContain("за прошедшие три дня");
-    expect(textOf("u34")).toContain("за прошедший месяц");
-    expect(textOf("u35")).toContain("за прошедший месяц");
+    // Источник задаёт своё окно не всем пунктам; выдумывать общее нельзя. Полный список
+    // из источника (17-scale-uku.md): окно стоит в самом тексте пункта.
+    const windows: Record<string, string> = {
+      u07: "последние три ночи",
+      u08: "последние три ночи",
+      u09: "последние три ночи",
+      u11: "три дня, предшествующих обследованию",
+      u22: "за прошедшие три дня",
+      u25: "за последние 3 дня",
+      u34: "за прошедший месяц",
+      u35: "за прошедший месяц",
+      u37: "за прошедшие 3 месяца",
+      u47: "за прошедшие 3 месяца",
+      u48: "за прошедшие 3 месяца",
+    };
+    for (const [id, window] of Object.entries(windows)) {
+      expect(textOf(id), `${id}: окно наблюдения не названо`).toContain(window);
+    }
+
+    // Ни одного лишнего окна: текст с окном есть ровно у перечисленных пунктов.
+    const withWindow = uku!.items
+      .filter((item) => /последние|прошедш|месяц|дня|дней|ночи/.test(item.text))
+      .map((item) => item.id);
+    expect(withWindow.sort()).toEqual(Object.keys(windows).sort());
 
     // Вводная фраза больше не обещает один срок на все пункты.
     expect(uku?.intro).not.toContain("последние три месяца");
-    const others = uku!.items.filter((item) => !["u07", "u08", "u09", "u22", "u34", "u35"].includes(item.id));
-    for (const item of others) {
-      expect(item.text).not.toMatch(/последние три ночи|прошедшие три дня|прошедший месяц/);
-    }
+
+    // У меноррагии (u36) окно живёт в варианте ответа, а не в самом пункте — так в источнике.
+    expect(textOf("u36")).toBe("Нарушения менструального цикла (меноррагия)");
+    expect(optionsOf(uku!, uku!.items.find((item) => item.id === "u36")!)[0]?.label).toContain(
+      "в последние 3 месяца",
+    );
   });
 
   it("не имеет критического пункта: шкала не спрашивает о суициде", () => {

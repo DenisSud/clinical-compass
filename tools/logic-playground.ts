@@ -323,18 +323,22 @@ function rulesTable(): void {
 
   console.log("Правила:");
   for (const rule of listRules()) {
-    const match = evaluateRule(rule, facts);
     const status =
       rule.source.status === "placeholder"
         ? "наше, не подтверждено"
         : `подтверждено: ${rule.source.kind}`;
-    console.log(`\n  ${match ? "●" : "○"} ${rule.id}  [${rule.severity}]  (${status})`);
-    console.log(`    ${rule.title}`);
 
     // Правило о сумме у шкалы без суммы не запускается — так же, как в движке сигналов.
     // Иначе площадка показала бы рост суммы UKU, которого продукт не считает (SPEC S10).
+    // Считаем это до маркера: пропущенное правило — это ○, а не сработавшее ●.
     const readsTotal = rule.when.some((condition) => condition.fact.startsWith("assessment.total"));
-    if (state.assessment?.instrument.scoring === "items" && readsTotal) {
+    const skipped = state.assessment?.instrument.scoring === "items" && readsTotal;
+    const match = skipped ? null : evaluateRule(rule, facts);
+
+    console.log(`\n  ${match ? "●" : "○"} ${rule.id}  [${rule.severity}]  (${status})`);
+    console.log(`    ${rule.title}`);
+
+    if (skipped) {
       console.log("    не запускается: у шкалы нет общей суммы");
       continue;
     }
@@ -629,6 +633,13 @@ const SCENARIOS: Record<string, Scenario> = {
       },
       { say: "UKU: все пункты по 1 — явления отмечены", run: () => applyAssessment("uku", {}, 1) },
       {
+        say: "Прошлый 0 от uku: роста суммы нет, потому что суммы у шкалы нет — маркер правила ○",
+        run: () => {
+          applyPrevious(0, "uku", null);
+          dump();
+        },
+      },
+      {
         say: "Смотрим: диапазон «Общей суммы нет» и ни одной карточки по сумме",
         run: () => dump(),
       },
@@ -725,6 +736,13 @@ function specialtyFrom(raw: string): Specialty | null {
     psychiatrist: "psychiatrist",
   };
   return aliases[raw] ?? null;
+}
+
+/** Прошлая сумма так, как её задаёт команда «прошлый» и шаг сценария. */
+function applyPrevious(total: number, instrumentId: string | null, version: string | null): void {
+  state.previousTotal = total;
+  state.previousInstrumentId = instrumentId ?? state.assessment?.instrument.id ?? null;
+  state.previousVersion = version;
 }
 
 async function runScenario(key: string): Promise<void> {
@@ -910,9 +928,7 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
         console.log("Формат: прошлый <балл> [от <шкала>]");
         return;
       }
-      state.previousTotal = value;
-      state.previousInstrumentId = rest[1] === "от" ? (rest[2] ?? null) : (state.assessment?.instrument.id ?? null);
-      state.previousVersion = rest[3] === "версия" ? (rest[4] ?? null) : null;
+      applyPrevious(value, rest[1] === "от" ? (rest[2] ?? null) : null, rest[3] === "версия" ? (rest[4] ?? null) : null);
       dump();
       return;
     }

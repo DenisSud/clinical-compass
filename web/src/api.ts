@@ -149,11 +149,8 @@ export function submitAssessment(
   });
 }
 
-export function fetchMyAssessments(): Promise<{
-  assessments: PatientAssessment[];
-  nextAllowedAt: string | null;
-}> {
-  return request<{ assessments: PatientAssessment[]; nextAllowedAt: string | null }>("/api/assessments");
+export function fetchMyAssessments(): Promise<{ assessments: PatientAssessment[] }> {
+  return request<{ assessments: PatientAssessment[] }>("/api/assessments");
 }
 
 export function fetchPatientAssessments(id: string): Promise<{ assessments: DoctorAssessment[] }> {

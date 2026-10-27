@@ -3,6 +3,7 @@ import type { FastifyPluginAsync } from "fastify";
 import { requireAuth, requireRole } from "../auth/guard.js";
 import { assessments, planItems } from "../db/schema.js";
 import { forbidden, notFound } from "../http/errors.js";
+import { instrument } from "../instruments/loader.js";
 import { corpus } from "../knowledge/corpus.js";
 import { loadPatientForDoctor } from "../patient-access.js";
 import { recommendations, type RecommendationContext } from "../recommendations/service.js";
@@ -22,18 +23,35 @@ export const recommendationRoutes: FastifyPluginAsync = async (app) => {
       }
 
       const history = await app.conn.db
-        .select({ total: assessments.totalScore, bandId: assessments.bandId, bandLabel: assessments.bandLabel })
+        .select({
+          instrumentId: assessments.instrumentId,
+          instrumentVersion: assessments.instrumentVersion,
+          total: assessments.totalScore,
+          bandId: assessments.bandId,
+          bandLabel: assessments.bandLabel,
+        })
         .from(assessments)
         .where(eq(assessments.patientId, lookup.patient.id))
-        .orderBy(desc(assessments.submittedAt))
-        .limit(2);
+        .orderBy(desc(assessments.submittedAt));
 
       const plan = await app.conn.db
         .select({ title: planItems.title, status: planItems.status })
         .from(planItems)
         .where(eq(planItems.patientId, lookup.patient.id));
 
-      const [latest, previous] = history;
+      // Динамика есть только у шкал с общей суммой: сумма UKU — число из разных явлений,
+      // сравнивать её с чужой шкалой нельзя (SPEC S10, decisions.md §4).
+      const summed = history.filter((row) => instrument(row.instrumentId)?.scoring === "sum");
+      const latest = summed[0];
+      const previous = latest
+        ? summed.find(
+            (row) =>
+              row !== latest &&
+              row.instrumentId === latest.instrumentId &&
+              row.instrumentVersion === latest.instrumentVersion,
+          )
+        : undefined;
+
       const trend: RecommendationContext["trend"] =
         latest && previous
           ? latest.total - previous.total >= WORSENING_DELTA
@@ -51,7 +69,7 @@ export const recommendationRoutes: FastifyPluginAsync = async (app) => {
           trend,
           activePlanTitles: plan.filter((item) => item.status === "active").map((item) => item.title),
           draftPlanTitles: plan.filter((item) => item.status === "draft").map((item) => item.title),
-          hasAssessment: latest !== undefined,
+          hasAssessment: history.length > 0,
         },
         corpus(),
       );

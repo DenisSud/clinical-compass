@@ -649,6 +649,8 @@ export type WatchItem = {
 export const instrumentChoiceSchema = z.object({
   id: z.string(),
   title: z.string(),
+  /** Сумма есть или её нет: у шкалы без суммы правило порога не сработает никогда. */
+  scoring: z.enum(["sum", "items"]),
 });
 
 export type InstrumentChoice = z.infer<typeof instrumentChoiceSchema>;

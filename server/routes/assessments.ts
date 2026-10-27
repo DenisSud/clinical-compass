@@ -401,22 +401,11 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
     // выдачей врачебного ответа, даже без суммы и диапазона.
     const visible = rows.filter((row) => findInstrument(row.instrumentId)?.audience !== "doctor");
 
-    const lastInstrument = visible[0] ? findInstrument(visible[0].instrumentId) : undefined;
-    const status = await statusOf(app, requireAuth(request).userId);
-
     return {
       assessments: visible.map((row) => {
         const instrument = findInstrument(row.instrumentId);
         return instrument ? toPatientAssessment(instrument, row) : degradedPatientAssessment(row);
       }),
-      nextAllowedAt: lastInstrument
-        ? await nextAttemptAt(
-            app,
-            requireAuth(request).userId,
-            lastInstrument,
-            repeatAfterHours(status, lastInstrument.id) ?? lastInstrument.repeatAfterHours,
-          )
-        : null,
     };
   });
 
@@ -462,7 +451,7 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
       }
 
       return instrumentChoicesResponseSchema.parse({
-        instruments: doctorInstruments().map(({ id, title }) => ({ id, title })),
+        instruments: doctorInstruments().map(({ id, title, scoring }) => ({ id, title, scoring })),
       });
     },
   );

@@ -11,7 +11,6 @@ export const DOCTOR = {
 };
 export const PATIENT = { email: "patient@example.com", password: "another good password" };
 
-/** Специальность — поле врача (SPEC S2): от неё зависит этап его пациентов, а не от теста. */
 /** Специальность называет сам тест; умолчание — терапевт, как в старых сценариях. */
 export type DoctorAccount = { email: string; password: string; specialty?: "therapist" | "psychiatrist" };
 

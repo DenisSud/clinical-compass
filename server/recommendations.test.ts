@@ -1,7 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { KnowledgeDocument } from "./knowledge/corpus.js";
 import { recommendations, type RecommendationContext } from "./recommendations/service.js";
-import { newApp, signUpDoctor, signUpPatient } from "./test-support.js";
+import { bindPatient, newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
 
 const context: RecommendationContext = {
   band: { id: "moderate", label: "Умеренные проявления" },
@@ -117,6 +118,43 @@ describe("рекомендации с корпусом", () => {
   });
 });
 
+/** Пациент у психиатра: в наборе HADS и UKU — две шкалы, суммы которых несравнимы. */
+async function psychiatristPair(app: App) {
+  const doctorCookie = await signUpDoctor(app, {
+    email: "psychiatrist@example.com",
+    password: "correct horse battery",
+    specialty: "psychiatrist",
+  });
+  const patientCookie = await signUpPatient(app);
+  await bindPatient(app, patientCookie, doctorCookie);
+  const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie: patientCookie } });
+  return { doctorCookie, patientCookie, patientId: me.json().profile.id as string };
+}
+
+function summedAnswers(id: string, value: number) {
+  const uku = id === "uku";
+  return Object.fromEntries(
+    Array.from({ length: uku ? 48 : 7 }, (_, index) => [
+      uku ? `u${String(index + 1).padStart(2, "0")}` : `a${index + 1}`,
+      value,
+    ]),
+  );
+}
+
+/** Динамика и суммы живут в пробелах карточки: верхний `missing` говорит о корпусе и плане. */
+function cardMissing(body: { cards: Array<{ missing: string[] }> }): string[] {
+  return body.cards.flatMap((card) => card.missing);
+}
+
+async function submit(app: App, cookie: string, instrumentId: string, answers: Record<string, number>) {
+  return app.inject({
+    method: "POST",
+    url: `/api/assessments/${instrumentId}`,
+    headers: { cookie },
+    payload: { submissionId: randomUUID(), answers },
+  });
+}
+
 describe("маршрут рекомендаций", () => {
   it("строит карточку по сохранённому ОХЛП и называет, чего не хватает", async () => {
     const app = await newApp();
@@ -177,6 +215,51 @@ describe("маршрут рекомендаций", () => {
     });
 
     expect(response.statusCode).toBe(403);
+    await app.close();
+  });
+
+  it("берёт динамику по последней шкале с суммой, а не по сумме UKU", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await psychiatristPair(app);
+
+    await submit(app, patientCookie, "hads-anxiety", summedAnswers("hads-anxiety", 0));
+    // UKU заполнена после HADS: 48 — сумма разных явлений, и вычитать её из HADS нельзя (SPEC S10).
+    await submit(app, patientCookie, "uku", summedAnswers("uku", 1));
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/recommendations`,
+      headers: { cookie: doctorCookie },
+    });
+
+    // Динамика видна в том, что карточка говорит врачу о состоянии.
+    expect(response.statusCode).toBe(200);
+    expect(cardMissing(response.json())).not.toContain(
+      "Состояние ухудшается — нужен разбор сигнала до смены терапии",
+    );
+    await app.close();
+  });
+
+  it("называет динамику неизвестной, когда есть только UKU", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await psychiatristPair(app);
+
+    await submit(app, patientCookie, "uku", summedAnswers("uku", 0));
+    // Неделя прошла: иначе вторая отправка — отказ по периоду повтора.
+    app.conn.sqlite
+      .prepare("UPDATE assessments SET submitted_at = ?")
+      .run(new Date(Date.now() - 8 * 86_400_000).toISOString());
+    await submit(app, patientCookie, "uku", summedAnswers("uku", 1));
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/recommendations`,
+      headers: { cookie: doctorCookie },
+    });
+    const missing = cardMissing(response.json());
+
+    expect(missing).toContain("Нет предыдущих измерений — динамику оценить не на чем");
+    expect(missing).not.toContain("Состояние ухудшается — нужен разбор сигнала до смены терапии");
     await app.close();
   });
 });

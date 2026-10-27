@@ -7,7 +7,7 @@ import { requireAuth, requireRole } from "../auth/guard.js";
 import { watchItems } from "../db/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
-import { toWatchItem } from "../watch-service.js";
+import { hasComparableTotal, toWatchItem } from "../watch-service.js";
 
 /** Всё, кроме подписи, уходит в params; подпись живёт в своих колонках. */
 function paramsOf(input: { kind: string } & Record<string, unknown>): Record<string, unknown> {
@@ -33,7 +33,9 @@ export const watchRoutes: FastifyPluginAsync = async (app) => {
         .where(eq(watchItems.patientId, lookup.patient.id))
         .orderBy(asc(watchItems.createdAt));
 
-      return { items: rows.map(toWatchItem) };
+      // Правило порога по шкале без суммы не показывается как активное: оно не сработает
+      // ни разу и только обещало бы врачу наблюдение, которого нет (SPEC S10).
+      return { items: rows.map(toWatchItem).filter(hasComparableTotal) };
     },
   );
 

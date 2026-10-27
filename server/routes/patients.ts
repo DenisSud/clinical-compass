@@ -28,7 +28,11 @@ export const patientRoutes: FastifyPluginAsync = async (app) => {
       if (patient.doctorId !== requireAuth(request).userId) return forbidden(reply, NOT_YOURS);
 
       return instrumentChoicesResponseSchema.parse({
-        instruments: patientInstruments(patient.status).map(({ id, title }) => ({ id, title })),
+        instruments: patientInstruments(patient.status).map(({ id, title, scoring }) => ({
+          id,
+          title,
+          scoring,
+        })),
       });
     },
   );

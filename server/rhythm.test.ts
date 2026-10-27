@@ -114,20 +114,6 @@ describe("опросник недельный", () => {
     await app.close();
   });
 
-  it("не сообщает ожидания, когда неделя прошла", async () => {
-    const app = await newApp();
-    const cookie = await signUpPatient(app);
-    await submitAssessment(app, cookie);
-    app.conn.sqlite
-      .prepare("UPDATE assessments SET submitted_at = ?")
-      .run(new Date(Date.now() - 8 * 86_400_000).toISOString());
-
-    const response = await app.inject({ method: "GET", url: "/api/assessments", headers: { cookie } });
-
-    expect(response.json().nextAllowedAt).toBeNull();
-    await app.close();
-  });
-
   it("открывается снова через семь дней", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
@@ -141,20 +127,16 @@ describe("опросник недельный", () => {
     await app.close();
   });
 
-  it("говорит пациенту, когда откроется следующая попытка", async () => {
+  it("возвращает историю ответов без обещания даты следующей попытки", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
-    expect(
-      (await app.inject({ method: "GET", url: "/api/assessments", headers: { cookie } })).json()
-        .nextAllowedAt,
-    ).toBeNull();
-
     await submitAssessment(app, cookie);
+
     const response = await app.inject({ method: "GET", url: "/api/assessments", headers: { cookie } });
 
-    const next = new Date(response.json().nextAllowedAt).getTime();
-    expect(next).toBeGreaterThan(Date.now() + 6 * 86_400_000);
+    // Дату следующей попытки пациент видит в списке шкал; история её не повторяет.
     expect(response.json().assessments).toHaveLength(1);
+    expect(response.json()).not.toHaveProperty("nextAllowedAt");
     await app.close();
   });
 });

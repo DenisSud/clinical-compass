@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { WatchItem } from "../shared/contracts.js";
+import { watchItems } from "./db/schema.js";
 import { signalsForWatchItems } from "./rules/watch.js";
 import { bindPatient, newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
 
@@ -59,6 +61,16 @@ describe("правила самого врача", () => {
 
     expect(signalsForWatchItems([score], { type: "assessment", instrumentId: "hads", total: 20 })).toEqual([]);
     expect(signalsForWatchItems([score], { type: "assessment", instrumentId: "phq-9", total: 20 })).toHaveLength(1);
+  });
+
+  it("молчит по правилу суммы у шкалы без суммы, но не у соседней шкалы с суммой", () => {
+    // Строка могла остаться в базе до того, как отказ появился на создании правила:
+    // у UKU суммы нет, и порог сравнивал бы число из разных явлений (SPEC S10).
+    const ukuRule = watch({ kind: "score_threshold", params: { instrumentId: "uku", threshold: 10 } });
+    const phqRule = watch({ kind: "score_threshold", params: { instrumentId: "phq-9", threshold: 10 } });
+
+    expect(signalsForWatchItems([ukuRule], { type: "assessment", instrumentId: "uku", total: 48 })).toEqual([]);
+    expect(signalsForWatchItems([phqRule], { type: "assessment", instrumentId: "phq-9", total: 12 })).toHaveLength(1);
   });
 
   it("считает только подряд идущие пропуски", () => {
@@ -306,6 +318,67 @@ describe("маршруты наблюдения", () => {
     );
 
     expect(raised).toHaveLength(1);
+    await app.close();
+  });
+
+  it("не поднимает сигнал и не показывает правило порога по шкале без суммы", async () => {
+    const app = await newApp();
+    const { patientCookie, patientId } = await boundPair(app);
+    const psychiatristCookie = await signUpDoctor(app, {
+      email: "psychiatrist@example.com",
+      password: "correct horse battery",
+      specialty: "psychiatrist",
+    });
+    await bindPatient(app, patientCookie, psychiatristCookie);
+    const doctor = await app.inject({
+      method: "GET",
+      url: "/api/me",
+      headers: { cookie: psychiatristCookie },
+    });
+
+    // Строка осталась в базе с тех пор, как отказ был только на создании правила.
+    await app.conn.db.insert(watchItems).values({
+      id: randomUUID(),
+      patientId,
+      doctorId: doctor.json().profile.id as string,
+      kind: "score_threshold",
+      title: "Порог по сумме UKU",
+      severity: "high",
+      params: JSON.stringify({ instrumentId: "uku", threshold: 10 }),
+      status: "active",
+      createdAt: new Date().toISOString(),
+    });
+
+    const submitted = await app.inject({
+      method: "POST",
+      url: "/api/assessments/uku",
+      headers: { cookie: patientCookie },
+      payload: {
+        submissionId: randomUUID(),
+        answers: Object.fromEntries(
+          Array.from({ length: 48 }, (_, index) => [`u${String(index + 1).padStart(2, "0")}`, 1]),
+        ),
+      },
+    });
+
+    const signals = await app.inject({
+      method: "GET",
+      url: "/api/signals",
+      headers: { cookie: psychiatristCookie },
+    });
+    const watched = (signals.json().signals as Array<{ kind: string }>).filter(
+      (signal) => signal.kind === "watch",
+    );
+    const listed = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/watch`,
+      headers: { cookie: psychiatristCookie },
+    });
+
+    // 48 значит «сумма», а у UKU её нет: правило обещало бы наблюдение, которого нет.
+    expect(submitted.statusCode).toBe(201);
+    expect(watched).toEqual([]);
+    expect(listed.json().items).toEqual([]);
     await app.close();
   });
 
