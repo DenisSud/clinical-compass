@@ -23,12 +23,14 @@ export function toWatchItem(row: Row): WatchItem {
 }
 
 /**
- * Правило суммы у шкалы без общей суммы не сработает никогда: строка могла остаться
- * в базе с тех пор, как отказ появился только на создании правила (#68, SPEC S10).
+ * Правило суммы у шкалы без общей суммы или у шкалы, которой больше нет в наборе, не сработает
+ * никогда: строка могла остаться в базе с тех пор, как отказ появился только на создании
+ * правила (#68, SPEC S10).
  */
 export function hasComparableTotal(item: WatchItem): boolean {
   if (item.kind !== "score_threshold") return true;
-  return instrument(String(item.params.instrumentId))?.scoring !== "items";
+  const scale = instrument(String(item.params.instrumentId));
+  return scale !== undefined && scale.scoring !== "items";
 }
 
 export async function activeWatchItems(app: FastifyInstance, patientId: string): Promise<WatchItem[]> {

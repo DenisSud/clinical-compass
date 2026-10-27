@@ -1106,7 +1106,8 @@
 }
 
 /* Заголовок называет колонку и остаётся тише значений, которые называет: 13 px приглушённо, одна
- * линия под ним.
+ * линия под ним. Заголовок не переносится: «Сумма» рвалась посередине слова на две строки, и
+ * колонка читалась как два признака (DESIGN.md §2.3).
  */
 .assessment-table th {
   padding: 0 var(--space-3) var(--space-1) 0;
@@ -1114,6 +1115,7 @@
   font-size: var(--text-small);
   font-weight: var(--fw-regular);
   color: var(--text-muted);
+  white-space: nowrap;
 }
 
 .assessment-table td {

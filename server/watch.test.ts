@@ -382,6 +382,72 @@ describe("маршруты наблюдения", () => {
     await app.close();
   });
 
+  it("показывает врачу правило порога по HADS: у этой шкалы сумма есть", async () => {
+    const app = await newApp();
+    const { patientCookie, patientId } = await boundPair(app);
+    const psychiatristCookie = await signUpDoctor(app, {
+      email: "psychiatrist@example.com",
+      password: "correct horse battery",
+      specialty: "psychiatrist",
+    });
+    await bindPatient(app, patientCookie, psychiatristCookie);
+
+    await app.inject({
+      method: "POST",
+      url: `/api/patients/${patientId}/watch`,
+      headers: { cookie: psychiatristCookie },
+      payload: {
+        kind: "score_threshold",
+        title: "Тревога выросла",
+        severity: "high",
+        instrumentId: "hads-anxiety",
+        threshold: 11,
+      },
+    });
+    const listed = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/watch`,
+      headers: { cookie: psychiatristCookie },
+    });
+
+    // Фильтр снимает только правила, которые не сработают; живое правило остаётся в списке.
+    expect(listed.json().items).toHaveLength(1);
+    expect(listed.json().items[0].title).toBe("Тревога выросла");
+    await app.close();
+  });
+
+  it("не показывает правило порога по шкале, которой больше нет в наборе", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientId } = await boundPair(app);
+    const doctor = await app.inject({
+      method: "GET",
+      url: "/api/me",
+      headers: { cookie: doctorCookie },
+    });
+
+    // GAD-7 из набора убрали, а строка правила осталась в базе.
+    await app.conn.db.insert(watchItems).values({
+      id: randomUUID(),
+      patientId,
+      doctorId: doctor.json().profile.id as string,
+      kind: "score_threshold",
+      title: "Порог по GAD-7",
+      severity: "high",
+      params: JSON.stringify({ instrumentId: "gad-7", threshold: 10 }),
+      status: "active",
+      createdAt: new Date().toISOString(),
+    });
+
+    const listed = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/watch`,
+      headers: { cookie: doctorCookie },
+    });
+
+    expect(listed.json().items).toEqual([]);
+    await app.close();
+  });
+
   it("не пускает другого врача", async () => {
     const app = await newApp();
     const { patientId } = await boundPair(app);

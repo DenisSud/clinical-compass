@@ -258,8 +258,32 @@ describe("маршрут рекомендаций", () => {
     });
     const missing = cardMissing(response.json());
 
-    expect(missing).toContain("Нет предыдущих измерений — динамику оценить не на чем");
+    expect(missing).toContain("Нет второй отправки шкалы с общей суммой — динамику оценить не на чем");
     expect(missing).not.toContain("Состояние ухудшается — нужен разбор сигнала до смены терапии");
+    await app.close();
+  });
+
+  it("называет ухудшением две суммы HADS, а не отбрасывает их как несравнимые", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await psychiatristPair(app);
+
+    await submit(app, patientCookie, "hads-anxiety", summedAnswers("hads-anxiety", 0));
+    // Неделя прошла: иначе вторая отправка — отказ по периоду повтора.
+    app.conn.sqlite
+      .prepare("UPDATE assessments SET submitted_at = ?")
+      .run(new Date(Date.now() - 8 * 86_400_000).toISOString());
+    // 7 пунктов по 3 — сумма 21 против 0: рост больше порога в 5 баллов.
+    await submit(app, patientCookie, "hads-anxiety", summedAnswers("hads-anxiety", 3));
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/recommendations`,
+      headers: { cookie: doctorCookie },
+    });
+    const missing = cardMissing(response.json());
+
+    expect(missing).toContain("Состояние ухудшается — нужен разбор сигнала до смены терапии");
+    expect(missing).not.toContain("Нет второй отправки шкалы с общей суммой — динамику оценить не на чем");
     await app.close();
   });
 });
