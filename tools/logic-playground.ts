@@ -21,7 +21,15 @@ import { patientFactsSchema } from "../shared/contracts.js";
 import { factAnswerText, factState } from "../shared/facts.js";
 import type { PreviousAssessment, RuleCondition, RuleFacts } from "../shared/rules.js";
 import { criticalItems, score } from "../server/instruments/engine.js";
+import { answerQuestions } from "../server/decisions/runner.js";
+import { findQuestion, listQuestions } from "../server/decisions/registry.js";
 import { instrument as findInstrument, patientInstruments } from "../server/instruments/loader.js";
+import {
+  PATIENT_STATUS_IDS,
+  instrumentsForStatus,
+  patientStatus,
+  UnknownStatus,
+} from "../server/instruments/statuses.js";
 import type { Instrument } from "../server/instruments/schema.js";
 import { evaluateRule, findRule, listRules, requireRule } from "../server/rules/registry.js";
 import {
@@ -63,6 +71,8 @@ type State = {
   doseUnit: string;
   startsOn: string;
   endsOn: string | null;
+  /** Статус пациента: выбирает набор шкал так же, как это сделает врач в карточке (issue #68). */
+  status: string;
 };
 
 const TODAY = new Date().toLocaleDateString("sv-SE");
@@ -85,10 +95,44 @@ function emptyState(): State {
     doseUnit: "мг",
     startsOn: shiftDay(TODAY, -2),
     endsOn: null,
+    status: "screening",
   };
 }
 
 let state = emptyState();
+
+/** Набор шкал текущего статуса — площадка берёт его тем же загрузчиком, что и маршрут пациента. */
+function patientSet(): string {
+  return patientInstruments(state.status)
+    .map((item) => item.id)
+    .join(", ");
+}
+
+function decisionAnswers() {
+  return answerQuestions(listQuestions(), ruleFacts());
+}
+
+function questionsTable(): void {
+  head(`ВОПРОСЫ К ДАННЫМ · статус ${state.status}`);
+  const answers = decisionAnswers();
+  if (answers.length === 0) {
+    console.log("  ни одного вопроса в content/decisions");
+    return;
+  }
+
+  for (const answer of answers) {
+    const verdict =
+      answer.verdict === "yes"
+        ? "ДА"
+        : answer.verdict === "no"
+          ? "нет"
+          : `отказ: ${answer.missing.join("; ")}`;
+    console.log(`  ${answer.questionId}: ${verdict}`);
+    console.log(`    вопрос: ${answer.question}`);
+    if (answer.verdict === "yes") console.log(`    ответ: ${answer.title} — ${answer.detail}`);
+    console.log(`    источник: ${answer.source.ref} (${answer.source.status})`);
+  }
+}
 
 /** Пустое поле — это «не спрашивали», а не «нет»: правило на нём не срабатывает. */
 function factsForRules(): PatientFacts {
@@ -326,6 +370,19 @@ function signalDrafts(): SignalDraft[] {
 
   // Карточку пропусков собирает движок вместе с препаратом, дозой, временами и
   // причинами; без этого вызова площадка показывала бы меньше карточек, чем врач.
+  // Вопросы к данным отвечают на полном наборе фактов, поэтому площадка зовёт их один раз
+  // в конце: ответ «да» уходит врачу той же карточкой, что и правило (Q44).
+  for (const answer of decisionAnswers()) {
+    if (answer.verdict !== "yes") continue;
+    drafts.push({
+      kind: `decision:${answer.questionId}`,
+      severity: answer.severity!,
+      title: answer.title!,
+      detail: answer.detail!,
+      ruleId: answer.questionId,
+    });
+  }
+
   if (state.schedule) {
     const skipped = scheduleRows()
       .filter((row) => row.state === "skipped")
@@ -359,7 +416,12 @@ function signalsTable(): void {
 
     const rule = draft.ruleId === null ? undefined : findRule(draft.ruleId);
     if (rule === undefined) {
-      console.log("  без правила: сигнал шкалы, а не файл из content/rules");
+      const question = draft.ruleId === null ? undefined : findQuestion(draft.ruleId);
+      if (question === undefined) {
+        console.log("  без правила: сигнал шкалы, а не файл из content/rules");
+        continue;
+      }
+      console.log(`  вопрос «${question.id}» · ${question.source.ref} (${question.source.status})`);
       continue;
     }
 
@@ -373,10 +435,11 @@ function signalsTable(): void {
 }
 
 function dump(): void {
-  head("СОСТОЯНИЕ");
+  head(`СОСТОЯНИЕ · статус ${state.status}, шкалы: ${patientSet()}`);
   factsTable();
   console.log();
   rulesTable();
+  questionsTable();
   signalsTable();
 }
 
@@ -530,7 +593,67 @@ const SCENARIOS: Record<string, Scenario> = {
       },
     ],
   },
+  "7": {
+    title: "Статус выбирает шкалы, вопрос к данным отвечает на событии",
+    steps: [
+      {
+        say: "Пациент только пришёл: скрининг, в наборе PHQ-9 и ASQ",
+        run: () => {
+          console.log(`Статус ${state.status}. Шкалы: ${patientSet()}`);
+        },
+      },
+      {
+        say: "Врач переводит в лечение: набор меняется файлом, а не кодом",
+        run: () => {
+          switchStatus("treatment");
+          console.log(`Статус ${state.status}. Шкалы: ${patientSet()}`);
+        },
+      },
+      {
+        say: "Назначаем приём дважды в день и смотрим расписание",
+        run: () => {
+          const today = new Date().toLocaleDateString("sv-SE");
+          state.schedule = { startsOn: shiftDay(today, -2), endsOn: null, timesOfDay: ["08:00", "20:00"] };
+          state.startsOn = shiftDay(today, -2);
+          state.endsOn = null;
+          state.marks = {};
+          pillbox();
+        },
+      },
+      {
+        say: "Пациент заполнил PHQ-9: сумма выросла с 2 до 21, приёмов не было",
+        run: () => {
+          applyAssessment("phq-9", {}, 3);
+          state.previousTotal = 2;
+          markLastSkips(3, "не было препарата");
+        },
+      },
+      {
+        say: "Одно событие: вопрос «ухудшение и пропуски» отвечает «да», второй — «нет»",
+        run: () => dump(),
+      },
+      {
+        say: "Отмечаем приём: вопрос пересчитывается целиком, цепочка пропусков рвётся",
+        run: () => {
+          const today = new Date().toLocaleDateString("sv-SE");
+          state.marks[`${today}T08:00`] = "taken";
+          questionsTable();
+        },
+      },
+    ],
+  },
 };
+
+/**
+ * Смена статуса так, как её делает маршрут: набор шкал берётся из файла, а не из площадки.
+ * Прошлые ответы при смене не переписываются: в площадке их и нет, кроме суммы «прошлый».
+ */
+function switchStatus(next: string): void {
+  patientStatus(next);
+  state.status = next;
+  state.assessment = null;
+  state.previousTotal = null;
+}
 
 async function runScenario(key: string): Promise<void> {
   const scenario = SCENARIOS[key];
@@ -553,6 +676,8 @@ async function runScenario(key: string): Promise<void> {
 const HELP = `
 Команды:
   правила                      все правила с источником и состоянием
+  статус [id]                  статус пациента и его набор шкал; без id — просто показать
+  вопросы                      вопросы к данным: да, нет или отказ с причиной
   факты                        что мы знаем о пациенте
   факт <поле>=<значение>       эпилепсия=yes, mao=stopped_under_2_weeks, egfr=45,
                                childPugh=B, беременность=pregnant, галактоза=no,
@@ -564,7 +689,7 @@ const HELP = `
   отметка [-1 | 25.10] 08:00=пропуск(уехал)  отметка на время и день: пропуск
                                (причина обязательна), принял, нет; будущее — отказ
   таблетница 08:00,20:00 [с -5 по -1]  назначение; окно курса в днях от сегодня
-  сценарий [1-6]               сценарии выше, с объяснением шагов
+  сценарий [1-7]               сценарии выше, с объяснением шагов
   сброс / выход
 
 После каждой команды печатается всё состояние: факты, каждое правило (сработало
@@ -619,6 +744,30 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
     case "выход":
     case "exit":
       return ask().then(() => undefined);
+    case "статус": {
+      const next = rest[0];
+      if (next === undefined) {
+        const status = patientStatus(state.status);
+        console.log(`Статус ${status.id} («${status.label}»). Шкалы: ${patientSet()}`);
+        console.log(`Источник набора: ${status.source.ref} (${status.source.status})`);
+        return;
+      }
+      try {
+        patientStatus(next);
+      } catch (error) {
+        if (!(error instanceof UnknownStatus)) throw error;
+        console.log(`Нет статуса ${next}. Есть: ${PATIENT_STATUS_IDS.join(", ")}`);
+        return;
+      }
+      switchStatus(next);
+      console.log(`Статус ${next}. Шкалы: ${patientSet()}`);
+      dump();
+      return;
+    }
+    case "вопросы":
+      questionsTable();
+      console.log();
+      return;
     case "правила":
       head("ПРАВИЛА");
       rulesTable();
@@ -636,12 +785,18 @@ function handle(input: string, ask: () => Promise<string>): void | Promise<void>
     case "шкала": {
       const [id, ...pairs] = rest;
       if (!id) {
-        console.log(`Шкалы пациента: ${patientInstruments().map((i) => i.id).join(", ")}`);
+        console.log(`Шкалы пациента: ${patientSet()}`);
         return;
       }
       const instrument = findInstrument(id);
       if (!instrument) {
-        console.log(`Нет шкалы ${id}. Есть: ${patientInstruments().map((i) => i.id).join(", ")}`);
+        console.log(`Нет шкалы ${id}. Есть: ${patientSet()}`);
+        return;
+      }
+      // Маршрут пациента отвечает 404 на шкалу не из статуса; площадка отказывает так же,
+      // иначе показывала бы опросник, которого пациент не увидит.
+      if (!patientInstruments(state.status).some((item) => item.id === id)) {
+        console.log(`Шкала ${id} недоступна в статусе ${state.status}. В наборе: ${patientSet()}`);
         return;
       }
       const preset: Record<string, number> = {};

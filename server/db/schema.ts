@@ -19,6 +19,13 @@ export const patients = sqliteTable(
     name: text("name"),
     doctorId: text("doctor_id").references(() => doctors.id, { onDelete: "set null" }),
     boundAt: text("bound_at"),
+    /**
+     * Рабочая пометка врача, а не оценка тяжести: выбирает набор опросников из
+     * content/instrument-statuses.json (issue #68). Пациенту не показывается.
+     */
+    status: text("status", { enum: ["screening", "treatment", "worsening"] })
+      .notNull()
+      .default("screening"),
     createdAt: text("created_at").notNull(),
   },
   (table) => [index("idx_patients_doctor_id").on(table.doctorId)],

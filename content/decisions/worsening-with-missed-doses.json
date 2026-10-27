@@ -1,0 +1,24 @@
+{
+  "id": "worsening-with-missed-doses",
+  "question": "Ухудшение по шкале совпало с пропусками приёма?",
+  "when": [
+    {
+      "fact": "assessment.totalIncrease",
+      "atLeast": 5
+    },
+    {
+      "fact": "adherence.consecutiveMissedDoses",
+      "atLeast": 3
+    }
+  ],
+  "severity": "high",
+  "output": {
+    "title": "Ухудшение по шкале при пропусках приёма",
+    "detail": "Шкала «{instrument}»: {previousTotal} → {total}. Пропусков приёма подряд — {missedDoses}. Сначала проверьте приверженность: пока приём не восстановлен, вывод о неэффективности схемы преждевремен."
+  },
+  "source": {
+    "kind": "ours",
+    "ref": "docs/research/ai-decision-logic/sources-needed.md#1.7",
+    "status": "placeholder"
+  }
+}

@@ -3,6 +3,7 @@ import { and, desc, eq, lt } from "drizzle-orm";
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
 import {
   assessmentSubmitSchema,
+  instrumentListResponseSchema,
   instrumentViewSchema,
   type DoctorAssessment,
   type PatientAssessment,
@@ -10,7 +11,14 @@ import {
 import { requireAuth, requireRole } from "../auth/guard.js";
 import { assessments } from "../db/schema.js";
 import { InvalidAnswers, criticalItems, score } from "../instruments/engine.js";
-import { instrument as findInstrument, patientInstrument } from "../instruments/loader.js";
+import {
+  instrument as findInstrument,
+  patientInstrument,
+  patientInstruments,
+  repeatAfterHours,
+} from "../instruments/loader.js";
+import { runDecisionQuestions } from "../decisions/service.js";
+import { statusOf } from "../patient-status.js";
 import type { Instrument } from "../instruments/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
@@ -19,9 +27,10 @@ import { raiseWatchSignals } from "../watch-service.js";
 import { saveSignals } from "./signals.js";
 
 /**
- * The interval belongs to the instrument, not to the route: PHQ-9 and GAD-7 are
- * weekly, ASQ is not locked at all (repeatAfterHours: 0). A suicide-risk screener
- * that answers «спросите через неделю» is a safety problem, not a rate limit.
+ * The interval belongs to the assignment, not to the route: the status file says how
+ * often a questionnaire opens for this patient (monthly PHQ-9 in treatment, weekly
+ * when the doctor marks worsening), and ASQ is not locked at all. A suicide-risk
+ * screener that answers «спросите через неделю» is a safety problem, not a rate limit.
  */
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -34,9 +43,10 @@ async function nextAttemptAt(
   app: Parameters<FastifyPluginAsync>[0],
   patientId: string,
   instrument: Instrument,
+  repeatHours: number,
 ): Promise<string | null> {
   const instrumentId = instrument.id;
-  if (instrument.repeatAfterHours === 0) return null;
+  if (repeatHours === 0) return null;
   const [last] = await app.conn.db
     .select({ submittedAt: assessments.submittedAt })
     .from(assessments)
@@ -46,7 +56,7 @@ async function nextAttemptAt(
 
   if (!last) return null;
 
-  const opensAt = new Date(last.submittedAt).getTime() + instrument.repeatAfterHours * HOUR_MS;
+  const opensAt = new Date(last.submittedAt).getTime() + repeatHours * HOUR_MS;
   return opensAt > Date.now() ? new Date(opensAt).toISOString() : null;
 }
 
@@ -131,6 +141,12 @@ async function deriveAssessmentSignals(
     event: { type: "assessment", instrumentId: input.instrument.id, total: input.total },
   });
 
+  await runDecisionQuestions(app, {
+    patientId: input.patientId,
+    sourceType: "assessment",
+    sourceId: input.sourceId,
+  });
+
   await saveSignals(app, {
     patientId: input.patientId,
     sourceType: "assessment",
@@ -180,24 +196,41 @@ function degradedDoctorAssessment(row: typeof assessments.$inferSelect): DoctorA
   };
 }
 
+/** The patient's view: no bands, no critical flags, no score. The status itself never leaves here. */
+function toInstrumentView(instrument: Instrument) {
+  return instrumentViewSchema.parse({
+    id: instrument.id,
+    title: instrument.title,
+    intro: instrument.intro,
+    options: instrument.options,
+    items: instrument.items.map((item) => ({ id: item.id, text: item.text })),
+    sourceNote: instrument.source.note,
+  });
+}
+
 export const assessmentRoutes: FastifyPluginAsync = async (app) => {
+  /**
+   * What this patient may fill in, in the order the status file lists. A patient
+   * with no questionnaires sees an empty list, not every questionnaire in the
+   * registry: the doctor decides the set, not the patient (issue #68).
+   */
+  app.get("/instruments", { preHandler: requireRole("patient") }, async (request) => {
+    const status = await statusOf(app, requireAuth(request).userId);
+
+    return instrumentListResponseSchema.parse({
+      instruments: patientInstruments(status).map(toInstrumentView),
+    });
+  });
+
   app.get<{ Params: { id: string } }>(
     "/instruments/:id",
     { preHandler: requireRole("patient") },
     async (request, reply) => {
-      const instrument = patientInstrument(request.params.id);
+      const status = await statusOf(app, requireAuth(request).userId);
+      const instrument = patientInstrument(status, request.params.id);
       if (!instrument) return notFound(reply, "Опросник не найден");
 
-      return {
-        instrument: instrumentViewSchema.parse({
-          id: instrument.id,
-          title: instrument.title,
-          intro: instrument.intro,
-          options: instrument.options,
-          items: instrument.items.map((item) => ({ id: item.id, text: item.text })),
-          sourceNote: instrument.source.note,
-        }),
-      };
+      return { instrument: toInstrumentView(instrument) };
     },
   );
 
@@ -205,13 +238,14 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
     "/assessments/:id",
     { preHandler: requireRole("patient") },
     async (request, reply) => {
-      const instrument = patientInstrument(request.params.id);
+      const patientId = requireAuth(request).userId;
+      const status = await statusOf(app, patientId);
+      const instrument = patientInstrument(status, request.params.id);
       if (!instrument) return notFound(reply, "Опросник не найден");
 
       const parsed = assessmentSubmitSchema.safeParse(request.body);
       if (!parsed.success) return fail(reply, 400, "invalid_request", "Проверьте ответы");
 
-      const patientId = requireAuth(request).userId;
       const [existing] = await app.conn.db
         .select()
         .from(assessments)
@@ -243,7 +277,12 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
         return reply.code(200).send({ assessment: toPatientAssessment(instrument, existing) });
       }
 
-      const nextAllowedAt = await nextAttemptAt(app, patientId, instrument);
+      const nextAllowedAt = await nextAttemptAt(
+        app,
+        patientId,
+        instrument,
+        repeatAfterHours(status, instrument.id) ?? instrument.repeatAfterHours,
+      );
       if (nextAllowedAt && Date.now() < new Date(nextAllowedAt).getTime()) {
         return fail(
           reply,
@@ -303,6 +342,7 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
       .orderBy(desc(assessments.submittedAt));
 
     const lastInstrument = rows[0] ? findInstrument(rows[0].instrumentId) : undefined;
+    const status = await statusOf(app, requireAuth(request).userId);
 
     return {
       assessments: rows.map((row) => {
@@ -310,7 +350,12 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
         return instrument ? toPatientAssessment(instrument, row) : degradedPatientAssessment(row);
       }),
       nextAllowedAt: lastInstrument
-        ? await nextAttemptAt(app, requireAuth(request).userId, lastInstrument)
+        ? await nextAttemptAt(
+            app,
+            requireAuth(request).userId,
+            lastInstrument,
+            repeatAfterHours(status, lastInstrument.id) ?? lastInstrument.repeatAfterHours,
+          )
         : null,
     };
   });

@@ -1,16 +1,9 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { instrumentSchema, type Instrument } from "./schema.js";
+import { instrumentsForStatus, statuses } from "./statuses.js";
 
 const DIRECTORY = import.meta.dirname;
-
-/**
- * The patient's set. A file in this directory is not enough to make an instrument
- * patient-facing: C-SSRS stays a form the doctor fills in (decisions.md Q29), and HADS
- * is gone altogether (Q30). An id listed here with no file fails at startup, not on
- * the patient's screen.
- */
-const PATIENT_INSTRUMENT_IDS = ["phq-9", "gad-7", "asq"];
 
 let cache: Map<string, Instrument> | null = null;
 
@@ -34,16 +27,49 @@ export function instrument(id: string): Instrument | undefined {
   return instruments().get(id);
 }
 
-/** Everything the patient may fill in, in the set order. */
-export function patientInstruments(): Instrument[] {
-  return PATIENT_INSTRUMENT_IDS.map((id) => {
+/**
+ * The patient's set comes from their status, not from a list in code: which
+ * questionnaires a patient sees is a clinical decision the doctor makes with one
+ * marker, and the mapping is a data file (content/instrument-statuses.json).
+ *
+ * A status that names an instrument with no file fails here, by name, instead of
+ * rendering a shorter list than the doctor prescribed. Doctor-only instruments
+ * still never reach a patient route: they are not listed in any status.
+ */
+export function patientInstruments(status: string): Instrument[] {
+  return instrumentsForStatus(status).map(({ id }) => {
     const found = instruments().get(id);
-    if (!found) throw new Error(`patient instrument ${id} has no file`);
+    if (!found) throw new Error(`статус ${status}: у опросника ${id} нет файла`);
     return found;
   });
 }
 
-/** Never returns a doctor-only instrument: the patient routes resolve through here. */
-export function patientInstrument(id: string): Instrument | undefined {
-  return patientInstruments().find((candidate) => candidate.id === id);
+/**
+ * How soon the instrument opens again in this status. The assignment wins over the
+ * instrument's own interval: the same questionnaire is monthly in treatment and
+ * weekly when the doctor marks the patient as worsening.
+ *
+ * Null means the status does not assign it. The submission route never sees null —
+ * it resolves the instrument through the status first — but the history listing does,
+ * and it falls back to the instrument's own interval instead of failing.
+ */
+export function repeatAfterHours(status: string, instrumentId: string): number | null {
+  const entry = instrumentsForStatus(status).find((candidate) => candidate.id === instrumentId);
+  return entry ? entry.repeatAfterHours : null;
+}
+
+/** Never returns an instrument outside the patient's status: the patient routes resolve through here. */
+export function patientInstrument(status: string, id: string): Instrument | undefined {
+  return patientInstruments(status).find((candidate) => candidate.id === id);
+}
+
+/** Called at startup: a status file that names a missing instrument must not wait for a patient. */
+export function assertStatusInstrumentsExist(): void {
+  for (const status of statuses().values()) {
+    for (const entry of status.instruments) {
+      if (!instruments().has(entry.id)) {
+        throw new Error(`статус ${status.id}: у опросника ${entry.id} нет файла`);
+      }
+    }
+  }
 }

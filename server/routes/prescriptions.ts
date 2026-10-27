@@ -26,6 +26,7 @@ import {
   wallClockDay,
   wallClockMinute,
 } from "../prescriptions/schedule.js";
+import { runDecisionQuestions } from "../decisions/service.js";
 import { signalsForAdherence } from "../rules/signals.js";
 import { saveSignals } from "./signals.js";
 
@@ -279,6 +280,12 @@ export const prescriptionRoutes: FastifyPluginAsync = async (app) => {
       .from(doseEvents)
       .where(eq(doseEvents.prescriptionId, row.id));
     const view = toPrescriptionView(row, marks, now);
+
+    await runDecisionQuestions(app, {
+      patientId,
+      sourceType: "dose",
+      sourceId: saved.id,
+    });
 
     await saveSignals(app, {
       patientId,

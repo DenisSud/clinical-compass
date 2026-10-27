@@ -3,7 +3,18 @@ import type { InstrumentView } from "../../shared/contracts";
 import { ApiRequestError, fetchInstrument, submitAssessment } from "./api";
 import { Button, LoadError } from "./ui";
 
-export function Phq9Form({ onSaved }: { onSaved: () => void }) {
+/**
+ * Форма любого опросника из набора пациента. Описание приходит с сервера: вопросы,
+ * варианты и вступление — данные, а не код. Пока форма была одна, она называлась по
+ * шкале; теперь шкалу выбирает статус пациента, и форма обязана быть общей (issue #68).
+ */
+export function InstrumentForm({
+  instrumentId,
+  onSaved,
+}: {
+  instrumentId: string;
+  onSaved: () => void;
+}) {
   const [instrument, setInstrument] = useState<InstrumentView | null>(null);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
@@ -11,10 +22,10 @@ export function Phq9Form({ onSaved }: { onSaved: () => void }) {
 
   const loadInstrument = useCallback(() => {
     setError(null);
-    fetchInstrument("phq-9")
+    fetchInstrument(instrumentId)
       .then((response) => setInstrument(response.instrument))
       .catch(() => setError("Не удалось загрузить опросник — повторите попытку."));
-  }, []);
+  }, [instrumentId]);
 
   useEffect(loadInstrument, [loadInstrument]);
 
@@ -28,7 +39,7 @@ export function Phq9Form({ onSaved }: { onSaved: () => void }) {
     setBusy(true);
     setError(null);
     try {
-      await submitAssessment("phq-9", { submissionId: crypto.randomUUID(), answers });
+      await submitAssessment(instrumentId, { submissionId: crypto.randomUUID(), answers });
       setAnswers({});
       onSaved();
     } catch (cause) {
@@ -56,16 +67,16 @@ export function Phq9Form({ onSaved }: { onSaved: () => void }) {
    * between them, and the submit button across the full width.
    */
   return (
-    <form onSubmit={submit} className="phq9">
+    <form onSubmit={submit} className="instrument">
       <p className="muted">{instrument.intro}</p>
-      <ol className="phq9__items">
+      <ol className="instrument__items">
         {instrument.items.map((item, index) => (
-          <li key={item.id} className="phq9__item">
-            <p className="phq9__counter">
+          <li key={item.id} className="instrument__item">
+            <p className="instrument__counter">
               Вопрос {index + 1} из {instrument.items.length}
             </p>
-            <p className="phq9__question">{item.text}</p>
-            <div className="phq9__answers">
+            <p className="instrument__question">{item.text}</p>
+            <div className="instrument__answers">
               {instrument.options.map((option) => (
                 <label key={option.value} className="choice">
                   <input
@@ -86,16 +97,16 @@ export function Phq9Form({ onSaved }: { onSaved: () => void }) {
           {error}
         </p>
       )}
-      <Button type="submit" variant="primary" className="phq9__submit" disabled={busy || !complete}>
+      <Button type="submit" variant="primary" className="instrument__submit" disabled={busy || !complete}>
         {busy ? "Отправляем…" : "Отправить ответы"}
       </Button>
       {!complete && (
-        <p className="hint phq9__progress">
+        <p className="hint instrument__progress">
           Отвечено {answered} из {instrument.items.length}. Отправить можно, когда ответите на все
           вопросы.
         </p>
       )}
-      <p className="phq9__source">{instrument.sourceNote}</p>
+      <p className="instrument__source">{instrument.sourceNote}</p>
     </form>
   );
 }

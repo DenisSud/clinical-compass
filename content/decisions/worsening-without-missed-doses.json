@@ -1,0 +1,24 @@
+{
+  "id": "worsening-without-missed-doses",
+  "question": "Ухудшение по шкале при отсутствии пропусков приёма?",
+  "when": [
+    {
+      "fact": "assessment.totalIncrease",
+      "atLeast": 5
+    },
+    {
+      "fact": "adherence.consecutiveMissedDoses",
+      "atMost": 0
+    }
+  ],
+  "severity": "medium",
+  "output": {
+    "title": "Ухудшение по шкале без пропусков приёма",
+    "detail": "Шкала «{instrument}»: {previousTotal} → {total}, пропусков приёма подряд нет. Приверженность ухудшение не объясняет — пересмотрите диагноз или схему."
+  },
+  "source": {
+    "kind": "ours",
+    "ref": "docs/research/ai-decision-logic/sources-needed.md#1.2",
+    "status": "placeholder"
+  }
+}

@@ -58,9 +58,30 @@ export const patientSummarySchema = z.object({
   email: z.string(),
   name: z.string().nullable(),
   boundAt: z.string().nullable(),
+  /**
+   * Рабочая пометка врача. Выбирает набор опросников (content/instrument-statuses.json),
+   * пациенту не показывается: «ухудшение» — интерпретация (issue #68).
+   */
+  status: z.string(),
+  statusLabel: z.string(),
 });
 
 export type PatientSummary = z.infer<typeof patientSummarySchema>;
+
+/** Что врач может поставить. Значения — из файла статусов, но список закрыт и проверяется здесь. */
+export const patientStatusUpdateSchema = z.object({
+  status: z.enum(["screening", "treatment", "worsening"]),
+});
+
+/** Подписи статусов живут в файле данных: врач читает их, пациент не получает вовсе. */
+export const patientStatusViewSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+});
+
+export const patientStatusesResponseSchema = z.object({
+  statuses: z.array(patientStatusViewSchema),
+});
 
 export const patientListResponseSchema = z.object({
   patients: z.array(patientSummarySchema),
@@ -155,6 +176,13 @@ export const instrumentViewSchema = z.object({
 });
 
 export type InstrumentView = z.infer<typeof instrumentViewSchema>;
+
+/** Порядок — из файла статуса: пациент видит назначенное, а не весь реестр. */
+export const instrumentListResponseSchema = z.object({
+  instruments: z.array(instrumentViewSchema),
+});
+
+export type InstrumentListResponse = z.infer<typeof instrumentListResponseSchema>;
 
 /**
  * Where a rule came from. `status` is the honesty marker: a placeholder says the

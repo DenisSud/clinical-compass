@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+import { newApp, setPatientStatus, signUpDoctor, signUpPatient, type App } from "./test-support.js";
 
 function answers(value: number, overrides: Record<string, number> = {}) {
   const filled = Object.fromEntries(
@@ -206,9 +206,10 @@ function items(count: number, value: number, overrides: Record<string, number> =
 describe("the patient's set past PHQ-9", () => {
   it("takes a GAD-7 submission and keeps the score away from the patient", async () => {
     const app = await newApp();
-    const cookie = await signUpPatient(app);
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    await setPatientStatus(app, doctorCookie, patientId, "treatment");
 
-    const response = await submit(app, cookie, { submissionId: "g-1", answers: items(7, 2) }, "gad-7");
+    const response = await submit(app, patientCookie, { submissionId: "g-1", answers: items(7, 2) }, "gad-7");
 
     expect(response.statusCode).toBe(201);
     expect(response.json().assessment.answers).toHaveLength(7);
@@ -220,6 +221,7 @@ describe("the patient's set past PHQ-9", () => {
   it("shows the doctor the GAD-7 total and its band", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    await setPatientStatus(app, doctorCookie, patientId, "treatment");
     await submit(app, patientCookie, { submissionId: "g-1", answers: items(7, 2) }, "gad-7");
 
     const response = await app.inject({
@@ -258,7 +260,8 @@ describe("the patient's set past PHQ-9", () => {
 
   it("keeps the PHQ-9 critical item raising a signal with three instruments in play", async () => {
     const app = await newApp();
-    const { doctorCookie, patientCookie } = await boundPair(app);
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    await setPatientStatus(app, doctorCookie, patientId, "treatment");
 
     await submit(app, patientCookie, { submissionId: "a-1", answers: items(4, 0) }, "asq");
     await submit(app, patientCookie, { submissionId: "g-1", answers: items(7, 0) }, "gad-7");

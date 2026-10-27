@@ -31,6 +31,27 @@ export async function signUpPatient(
   return cookieOf(response);
 }
 
+/**
+ * Врач ставит статус — так тесты выбирают набор опросников. Статус это пометка этапа,
+ * а не вывод из данных, поэтому в тестах он ставится явно, а не выводится (Q47).
+ */
+export async function setPatientStatus(
+  app: App,
+  doctorCookie: string,
+  patientId: string,
+  status: "screening" | "treatment" | "worsening",
+): Promise<void> {
+  const response = await app.inject({
+    method: "PATCH",
+    url: `/api/patients/${patientId}/status`,
+    headers: { cookie: doctorCookie },
+    payload: { status },
+  });
+  if (response.statusCode !== 200) {
+    throw new Error(`статус ${status} не поставился: ${response.statusCode}`);
+  }
+}
+
 export async function signUpDoctor(
   app: App,
   credentials: { email: string; password: string } = DOCTOR,

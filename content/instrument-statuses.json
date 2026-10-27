@@ -1,0 +1,69 @@
+{
+  "statuses": [
+    {
+      "id": "screening",
+      "label": "Скрининг",
+      "instruments": [
+        {
+          "id": "phq-9",
+          "repeatAfterHours": 168
+        },
+        {
+          "id": "asq",
+          "repeatAfterHours": 0
+        }
+      ],
+      "source": {
+        "kind": "ours",
+        "ref": "docs/research/ai-decision-logic/sources-needed.md#1.1",
+        "status": "placeholder"
+      }
+    },
+    {
+      "id": "treatment",
+      "label": "Терапия",
+      "instruments": [
+        {
+          "id": "gad-7",
+          "repeatAfterHours": 168
+        },
+        {
+          "id": "phq-9",
+          "repeatAfterHours": 168
+        },
+        {
+          "id": "asq",
+          "repeatAfterHours": 0
+        }
+      ],
+      "source": {
+        "kind": "ours",
+        "ref": "docs/research/ai-decision-logic/sources-needed.md#1.1",
+        "status": "placeholder"
+      }
+    },
+    {
+      "id": "worsening",
+      "label": "Ухудшение",
+      "instruments": [
+        {
+          "id": "gad-7",
+          "repeatAfterHours": 72
+        },
+        {
+          "id": "phq-9",
+          "repeatAfterHours": 168
+        },
+        {
+          "id": "asq",
+          "repeatAfterHours": 0
+        }
+      ],
+      "source": {
+        "kind": "ours",
+        "ref": "docs/research/ai-decision-logic/sources-needed.md#1.1",
+        "status": "placeholder"
+      }
+    }
+  ]
+}

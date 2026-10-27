@@ -35,6 +35,16 @@ const FACT_VALUES: Record<RuleCondition["fact"], readonly string[]> = {
 
 const PLACEHOLDER = /\{([a-zA-Z][a-zA-Z0-9]*)\}/g;
 
+/** A range condition with neither bound would fire on any number of misses: that is a typo, not a rule. */
+export function assertBounds(rule: Pick<Rule, "id" | "when">): void {
+  for (const condition of rule.when) {
+    if (condition.fact !== "adherence.consecutiveMissedDoses") continue;
+    if (condition.atLeast === undefined && condition.atMost === undefined) {
+      throw new InvalidRule(`правило ${rule.id}: у пропусков нет ни atLeast, ни atMost`);
+    }
+  }
+}
+
 export function parseRule(value: unknown): Rule {
   const parsed = ruleSchema.safeParse(value);
   if (!parsed.success) {
@@ -44,6 +54,7 @@ export function parseRule(value: unknown): Rule {
     throw new InvalidRule(`правило не прошло схему — ${reason}`);
   }
   assertPlaceholders(parsed.data);
+  assertBounds(parsed.data);
   return parsed.data;
 }
 
@@ -108,11 +119,30 @@ export function evaluateRule(rule: Rule, facts: RuleFacts): RuleMatch | null {
 
   return {
     ruleId: rule.id,
-    title: render(rule.output.title, values),
+    title: renderTemplate(rule.output.title, values),
     severity: rule.severity,
-    detail: render(rule.output.detail, values),
+    detail: renderTemplate(rule.output.detail, values),
     source: rule.source,
   };
+}
+
+/**
+ * Checks joined by "and": the value is null when any check does not hold, and the
+ * templates of the matched checks are merged. Questions ask about a conjunction
+ * («ухудшение *при* пропусках»), where a single false check means the answer is no,
+ * so they cannot reuse `evaluateRule`'s "or" (decisions.md Q44).
+ */
+export function allConditionsMatch(
+  conditions: readonly RuleCondition[],
+  facts: RuleFacts,
+): Record<string, string> | null {
+  const matched: Record<string, string>[] = [];
+  for (const condition of conditions) {
+    const values = matchCondition(condition, facts);
+    if (values === null) return null;
+    matched.push(values);
+  }
+  return joinMatches(matched);
 }
 
 /**
@@ -202,8 +232,12 @@ function matchCondition(
 
     case "adherence.consecutiveMissedDoses": {
       const adherence = facts.adherence;
-      if (adherence === null || adherence.consecutiveMissedDoses < condition.atLeast) return null;
-      return { missedDoses: String(adherence.consecutiveMissedDoses) };
+      if (adherence === null) return null;
+
+      const missed = adherence.consecutiveMissedDoses;
+      if (condition.atLeast !== undefined && missed < condition.atLeast) return null;
+      if (condition.atMost !== undefined && missed > condition.atMost) return null;
+      return { missedDoses: String(missed) };
     }
 
     case "patientFact.epilepsyOrOrganicBrainDisease":
@@ -246,7 +280,7 @@ function matchPatientFact(
   }
 }
 
-function render(template: string, values: Record<string, string>): string {
+export function renderTemplate(template: string, values: Record<string, string>): string {
   return template.replace(PLACEHOLDER, (_match, name: string) => {
     const value = values[name];
     if (value === undefined) throw new InvalidRule(`в шаблоне нет значения для {${name}}`);
@@ -261,18 +295,35 @@ function render(template: string, values: Record<string, string>): string {
  * which on a route is a 500 instead of a card (issue #47).
  */
 function assertPlaceholders(rule: Rule): void {
-  const available = rule.when
-    .map((condition) => new Set(FACT_VALUES[condition.fact]))
-    .reduce((common, names) => new Set([...common].filter((name) => names.has(name))));
-  const facts = rule.when.map((condition) => condition.fact).join(", ");
+  assertTemplateNames(`правило ${rule.id}`, [rule.output.title, rule.output.detail], rule.when, "every");
+}
 
-  for (const template of [rule.output.title, rule.output.detail]) {
+/**
+ * Which template names the conditions can fill. `every` is the rules' rule: checks are
+ * joined by "or", so any one of them may be the only match. `any` is the questions':
+ * all checks must hold at once, and the values are merged, so a name produced by one
+ * check is there when the answer is built.
+ */
+export function assertTemplateNames(
+  label: string,
+  templates: readonly string[],
+  conditions: readonly RuleCondition[],
+  mode: "every" | "any",
+): void {
+  const sets = conditions.map((condition) => new Set(FACT_VALUES[condition.fact]));
+  const available =
+    mode === "every"
+      ? sets.reduce((common, names) => new Set([...common].filter((name) => names.has(name))))
+      : new Set(sets.flatMap((names) => [...names]));
+  const facts = conditions.map((condition) => condition.fact).join(", ");
+
+  for (const template of templates) {
     for (const match of template.matchAll(PLACEHOLDER)) {
       const name = match[1]!;
       if (!available.has(name)) {
         throw new InvalidRule(
-          `правило ${rule.id}: в шаблоне {${name}} есть не у каждого условия (${facts}) — ` +
-            `значение даёт только часть из них`,
+          `${label}: в шаблоне {${name}} нет значения (условия: ${facts}) — ` +
+            `ни одно из них не даёт этот факт`,
         );
       }
     }

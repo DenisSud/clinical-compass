@@ -11,6 +11,8 @@ import { requireAuth, requireRole } from "../auth/guard.js";
 import { patientFacts } from "../db/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
+import { runDecisionQuestions } from "../decisions/service.js";
+import { toFacts } from "../patient-facts.js";
 import { createHash } from "node:crypto";
 import { signalsForFacts } from "../rules/signals.js";
 import { saveSignals } from "./signals.js";
@@ -29,19 +31,6 @@ const FACT_KEYS: (keyof PatientFacts)[] = [
 const NOT_YOURS = "Этот пациент ведёт другой врач";
 
 /** An absent row and a row of nulls mean the same thing: nothing was asked yet. */
-function toFacts(row: FactsRow | undefined): PatientFacts {
-  return {
-    epilepsyOrOrganicBrainDisease:
-      (row?.epilepsyOrOrganicBrainDisease as PatientFacts["epilepsyOrOrganicBrainDisease"]) ?? null,
-    maoInhibitors: (row?.maoInhibitors as PatientFacts["maoInhibitors"]) ?? null,
-    egfrMlMin: row?.egfrMlMin ?? null,
-    childPugh: (row?.childPugh as PatientFacts["childPugh"]) ?? null,
-    pregnancy: (row?.pregnancy as PatientFacts["pregnancy"]) ?? null,
-    galactoseIntolerance:
-      (row?.galactoseIntolerance as PatientFacts["galactoseIntolerance"]) ?? null,
-  };
-}
-
 /**
  * Which facts are still missing. This is a completeness list, not a verdict:
  * the doctor needs to know what was never asked, the patient has the right to see
@@ -170,6 +159,10 @@ export const factsRoutes: FastifyPluginAsync = async (app) => {
      * by a later answer — closure is the doctor's action with an outcome (Q17).
      */
     const drafts = signalsForFacts(toFacts(row));
+
+    // Факты пациента меняют ответы вопросов так же, как шкала: пересчёт по событию,
+    // а не по кнопке «обновить» (Q44).
+    await runDecisionQuestions(app, { patientId, sourceType: "facts", sourceId: patientId });
 
     /*
      * A second contraindication must not hide behind the first card. The unique index

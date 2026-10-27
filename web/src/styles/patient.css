@@ -277,36 +277,36 @@
  * where in the list the patient is (§3.6). Between blocks a hairline, not a gap: nine
  * identical blocks read as a list, not as nine separate cards (§3.2).
  */
-.phq9 {
+.instrument {
   margin: 0;
 }
 
-.phq9__items {
+.instrument__items {
   margin: var(--space-3) 0 0;
   padding: 0;
   list-style: none;
 }
 
-.phq9__item + .phq9__item {
+.instrument__item + .instrument__item {
   margin-top: var(--space-5);
   padding-top: var(--space-4);
   border-top: var(--border-width) solid var(--border-hairline);
 }
 
-.phq9__counter {
+.instrument__counter {
   margin: 0;
   font-size: var(--text-small);
   color: var(--text-muted);
 }
 
-.phq9__question {
+.instrument__question {
   margin: var(--space-1) 0 var(--space-2);
   font-size: var(--text-h3);
   font-weight: var(--fw-bold);
   color: var(--text-strong);
 }
 
-.phq9__answers {
+.instrument__answers {
   display: grid;
   gap: var(--space-2);
 }
@@ -326,25 +326,25 @@
  * supported the row loses only the tint and the marker; the radio still carries the state
  * on its own.
  */
-.phq9 .choice {
+.instrument .choice {
   border-left: var(--border-width-strong) solid transparent;
 }
 
-.phq9 .choice:has(input:checked) {
+.instrument .choice:has(input:checked) {
   border-left-color: var(--action-primary);
   background: var(--surface-muted);
 }
 
-.phq9__submit {
+.instrument__submit {
   width: 100%;
   margin-top: var(--space-4);
 }
 
-.phq9__progress {
+.instrument__progress {
   margin: var(--space-2) 0 0;
 }
 
-.phq9__source {
+.instrument__source {
   margin: var(--space-3) 0 0;
   font-size: var(--text-small);
   color: var(--text-muted);
@@ -442,4 +442,33 @@
   font-size: var(--text-small);
   line-height: var(--lh-dense);
   color: var(--color-body);
+}
+
+/* ---------- Список опросников ----------
+ * Набор выбирает врач по статусу, пациент выбирает только из назначенного. Строка, а не
+ * карточка: это список дел, и он должен читаться как список. Название и действие в одной
+ * строке — на телефоне кнопка переносится под название, но не отрывается от него.
+ */
+.instrument-list {
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.instrument-list__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) 0;
+  border-top: var(--border-width) solid var(--border-hairline);
+}
+
+.instrument-list__row:last-child {
+  border-bottom: var(--border-width) solid var(--border-hairline);
+}
+
+.instrument-list__title {
+  font-size: var(--text-body);
 }

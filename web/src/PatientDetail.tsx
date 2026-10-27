@@ -20,8 +20,10 @@ import {
   fetchPatientDiary,
   fetchPatientMessages,
   fetchPatientSignals,
+  fetchPatientStatuses,
   fetchRecommendations,
   sendPatientMessage,
+  setPatientStatus,
   unbindPatient,
 } from "./api";
 import { Button, Empty, LoadError, Tabs, loading, track, type Load } from "./ui";
@@ -102,6 +104,11 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
   >(loading());
   const [unbindStep, setUnbindStep] = useState<"idle" | "confirm" | "busy">("idle");
   const [unbindError, setUnbindError] = useState<string | null>(null);
+  /** Статус выбран врачом, а не выведен из данных: это пометка этапа, а не оценка (Q47). */
+  const [status, setStatus] = useState(patient.status);
+  const [statusOptions, setStatusOptions] = useState<{ id: string; label: string }[]>([]);
+  const [statusBusy, setStatusBusy] = useState(false);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   const loadAssessments = useCallback(() => {
     track(setAssessments, fetchPatientAssessments(patient.id).then((response) => response.assessments));
@@ -126,6 +133,26 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
     loadRecommendations();
   }, [loadAssessments, loadEntries, loadMessages, loadRecommendations]);
 
+  useEffect(() => {
+    fetchPatientStatuses()
+      .then((response) => setStatusOptions(response.statuses))
+      .catch(() => setStatusError("Не удалось загрузить статусы — выбор недоступен."));
+  }, []);
+
+  async function chooseStatus(next: string) {
+    if (next === status) return;
+    setStatusBusy(true);
+    setStatusError(null);
+    try {
+      const response = await setPatientStatus(patient.id, next);
+      setStatus(response.patient.status);
+    } catch (cause) {
+      setStatusError(cause instanceof ApiRequestError ? cause.message : "Не удалось сменить статус");
+    } finally {
+      setStatusBusy(false);
+    }
+  }
+
   async function unbind() {
     setUnbindStep("busy");
     setUnbindError(null);
@@ -147,6 +174,33 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
         <p className="patient-card__meta">{patient.email}</p>
         {patient.boundAt && (
           <p className="patient-card__meta">Привязан(а) с {formatDate(patient.boundAt)}</p>
+        )}
+
+        {statusOptions.length > 0 && (
+          <div className="status-control" role="group" aria-label="Статус пациента">
+            <span className="status-control__label">Статус</span>
+            {statusOptions.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                className={
+                  option.id === status
+                    ? "status-control__button status-control__button--current"
+                    : "status-control__button"
+                }
+                aria-pressed={option.id === status}
+                disabled={statusBusy}
+                onClick={() => chooseStatus(option.id)}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        )}
+        {statusError && (
+          <p className="notice notice--error" role="alert">
+            {statusError}
+          </p>
         )}
       </div>
 

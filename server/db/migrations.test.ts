@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 const migrationsDir = fileURLToPath(new URL("./migrations", import.meta.url));
 
 /** Миграция, которая делает СКФ дробной (#52). Файлы до неё — состояние «как было». */
-const EGFR_MIGRATION = "0013_egfr_fractional.sql";
+const EGFR_MIGRATION = "0014_patient_status.sql";
 
 const files = readdirSync(migrationsDir)
   .filter((file) => file.endsWith(".sql"))

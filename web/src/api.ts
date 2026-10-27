@@ -99,6 +99,17 @@ export function fetchPatient(id: string): Promise<{ patient: PatientSummary }> {
   return request<{ patient: PatientSummary }>(`/api/patients/${id}`);
 }
 
+export function fetchPatientStatuses(): Promise<{ statuses: { id: string; label: string }[] }> {
+  return request<{ statuses: { id: string; label: string }[] }>("/api/patient-statuses");
+}
+
+export function setPatientStatus(id: string, status: string): Promise<{ patient: PatientSummary }> {
+  return request<{ patient: PatientSummary }>(`/api/patients/${id}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
 /**
  * Факты, блокирующие решение: одни и те же у пациента и у врача. PUT отправляет
  * только изменённое, поэтому непереданные поля остаются как были (частичное сохранение).
@@ -121,6 +132,11 @@ export function unbindPatient(id: string): Promise<void> {
 
 export function fetchHealth(): Promise<HealthResponse> {
   return request<HealthResponse>("/api/health");
+}
+
+/** Что назначено этому пациенту. Набор решает статус, а не экран (issue #68). */
+export function fetchMyInstruments(): Promise<{ instruments: InstrumentView[] }> {
+  return request<{ instruments: InstrumentView[] }>("/api/instruments");
 }
 
 export function fetchInstrument(id: string): Promise<{ instrument: InstrumentView }> {

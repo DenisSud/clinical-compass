@@ -6,12 +6,14 @@ import { requireAuth, requireRole } from "../auth/guard.js";
 import { patients, signals } from "../db/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
+import { findQuestion } from "../decisions/registry.js";
 import { findRule } from "../rules/registry.js";
 import type { SignalDraft } from "../rules/signals.js";
 
 export function toSignal(row: typeof signals.$inferSelect): Signal {
   const ruleId = row.ruleId === "" ? null : row.ruleId;
   const rule = ruleId === null ? undefined : findRule(ruleId);
+  const question = ruleId === null ? undefined : findQuestion(ruleId);
 
   return {
     id: row.id,
@@ -29,8 +31,9 @@ export function toSignal(row: typeof signals.$inferSelect): Signal {
     ruleId,
     // Read from the registry rather than stored twice: the card always shows the rule
     // as it is written now, not a copy that can go stale (decisions.md Q31).
-    ruleTitle: rule?.title ?? null,
-    ruleSource: rule?.source ?? null,
+    // Вопрос к данным живёт в своём реестре, но карточке нужен тот же источник (Q44).
+    ruleTitle: rule?.title ?? question?.question ?? null,
+    ruleSource: rule?.source ?? question?.source ?? null,
   };
 }
 

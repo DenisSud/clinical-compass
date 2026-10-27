@@ -6,6 +6,7 @@ import { requireAuth, requireRole } from "../auth/guard.js";
 import { diaryEntries } from "../db/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
+import { runDecisionQuestions } from "../decisions/service.js";
 import { signalsForDiary } from "../rules/signals.js";
 import { raiseWatchSignals } from "../watch-service.js";
 import { saveSignals } from "./signals.js";
@@ -33,6 +34,8 @@ async function deriveDiarySignals(
     sourceId: row.id,
     drafts: signalsForDiary({ value: row.value, previousValue }),
   });
+
+  await runDecisionQuestions(app, { patientId, sourceType: "diary", sourceId: row.id });
 
   await raiseWatchSignals(app, {
     patientId,

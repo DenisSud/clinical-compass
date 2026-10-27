@@ -81,7 +81,7 @@
 
 /*
  * Every option is a 44 px row with a frame; the chosen one takes a mint fill and the 2 px
- * marker on the left — the same pair the questionnaire uses (patient.css, `.phq9 .choice`),
+ * marker on the left — the same pair the questionnaire uses (patient.css, `.instrument .choice`),
  * so «выбрано» looks the same on both patient forms. The left edge is 2 px on every row and
  * only changes colour when the row is chosen: a transparent edge would leave the frame open
  * on one side, and the text must not jump sideways when the answer changes. «Не знаю» is

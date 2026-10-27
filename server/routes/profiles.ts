@@ -1,5 +1,6 @@
 import type { DoctorProfile, PatientProfile, PatientSummary } from "../../shared/contracts.js";
 import type { doctors, patients } from "../db/schema.js";
+import { statusLabel } from "../instruments/statuses.js";
 
 type DoctorRow = typeof doctors.$inferSelect;
 type PatientRow = typeof patients.$inferSelect;
@@ -24,6 +25,14 @@ export function toPatientProfile(row: PatientRow, doctor: DoctorRow | undefined)
   };
 }
 
+/** The doctor's view of a patient: the status is a working label, the label comes from the status file. */
 export function toPatientSummary(row: PatientRow): PatientSummary {
-  return { id: row.id, email: row.email, name: row.name, boundAt: row.boundAt };
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    boundAt: row.boundAt,
+    status: row.status,
+    statusLabel: statusLabel(row.status),
+  };
 }

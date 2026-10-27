@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+import { newApp, setPatientStatus, signUpDoctor, signUpPatient, type App } from "./test-support.js";
 
 /**
  * Each test here pins a defect found in review. They are cheap and they are the
@@ -61,7 +61,8 @@ describe("signal wording follows the instrument", () => {
 
   it("names the questionnaire, so «10 из 21» cannot be read as PHQ-9", async () => {
     const app = await newApp();
-    const { doctorCookie, patientCookie } = await boundPair(app);
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    await setPatientStatus(app, doctorCookie, patientId, "treatment");
 
     await app.inject({
       method: "POST",

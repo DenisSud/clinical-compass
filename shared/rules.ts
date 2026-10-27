@@ -57,7 +57,9 @@ export const ruleConditionSchema = z.discriminatedUnion("fact", [
   }),
   z.strictObject({
     fact: z.literal("adherence.consecutiveMissedDoses"),
-    atLeast: z.number().int().positive(),
+    /** «Было хотя бы N пропусков». Проверка «не было ни одного» — это `atMost: 0`. */
+    atLeast: z.number().int().positive().optional(),
+    atMost: z.number().int().nonnegative().optional(),
   }),
   z.strictObject({
     fact: z.literal("patientFact.epilepsyOrOrganicBrainDisease"),

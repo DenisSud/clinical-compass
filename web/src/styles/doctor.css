@@ -1220,3 +1220,49 @@
     stroke: CanvasText;
   }
 }
+
+/* ---------- Статус пациента ----------
+ * Этап работы, а не тяжесть: три слова, из которых одно текущее. Кнопка, а не
+ * выпадающий список — состояний три, и врач не должен открывать меню, чтобы увидеть
+ * текущее. Текущее отличается подчёркиванием и весом, не цветом: статус не является
+ * сигналом и не должен читаться как уровень тревоги (DESIGN.md §2.3).
+ */
+.status-control {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  margin-top: var(--space-2);
+}
+
+.status-control__label {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}
+
+.status-control__button {
+  padding: 0 0 2px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--text-muted);
+  cursor: pointer;
+  border-bottom: var(--border-width) solid transparent;
+}
+
+.status-control__button:hover:not(:disabled) {
+  color: var(--color-body);
+}
+
+.status-control__button--current {
+  color: var(--color-body);
+  font-weight: var(--fw-bold);
+  border-bottom-color: var(--color-body);
+}
+
+.status-control__button:disabled {
+  cursor: progress;
+}
+
+

@@ -1,26 +1,51 @@
 import { describe, expect, it } from "vitest";
-import { patientInstrument, patientInstruments } from "./loader.js";
+import {
+  assertStatusInstrumentsExist,
+  instrument,
+  patientInstrument,
+  patientInstruments,
+  repeatAfterHours,
+} from "./loader.js";
+import { PATIENT_STATUS_IDS, UnknownStatus } from "./statuses.js";
 
 describe("the patient's set", () => {
-  it("is exactly the free instruments from decisions.md Q29–Q30", () => {
-    expect(patientInstruments().map((instrument) => instrument.id)).toEqual([
-      "phq-9",
+  it("comes from the status, not from a list in code", () => {
+    expect(patientInstruments("screening").map((item) => item.id)).toEqual(["phq-9", "asq"]);
+    expect(patientInstruments("treatment").map((item) => item.id)).toEqual([
       "gad-7",
+      "phq-9",
       "asq",
     ]);
   });
 
-  it("has no HADS: it left the set altogether", () => {
-    expect(patientInstrument("hads")).toBeUndefined();
+  it("keeps a questionnaire out of a status that does not assign it", () => {
+    expect(patientInstrument("screening", "gad-7")).toBeUndefined();
+    expect(patientInstrument("treatment", "gad-7")?.id).toBe("gad-7");
   });
 
-  it("does not make a doctor's form patient-facing just because it is a file", () => {
-    expect(patientInstrument("c-ssrs")).toBeUndefined();
+  it("refuses an unknown status instead of returning an empty set", () => {
+    expect(() => patientInstruments("remission")).toThrow(UnknownStatus);
   });
 
-  it("describes every instrument's origin in text the patient can read", () => {
-    for (const instrument of patientInstruments()) {
-      expect(instrument.source.note.length).toBeGreaterThan(20);
+  it("names a missing instrument file at the assembly, not on the patient's screen", () => {
+    expect(() => assertStatusInstrumentsExist()).not.toThrow();
+  });
+
+  it("prefers the status interval over the instrument's own", () => {
+    expect(instrument("phq-9")?.repeatAfterHours).toBe(168);
+    expect(repeatAfterHours("worsening", "phq-9")).toBe(168);
+    expect(repeatAfterHours("worsening", "asq")).toBe(0);
+  });
+
+  it("returns null for an instrument the status no longer assigns", () => {
+    expect(repeatAfterHours("worsening", "c-ssrs")).toBeNull();
+  });
+
+  it("describes every assigned instrument's origin in text the patient can read", () => {
+    for (const status of PATIENT_STATUS_IDS) {
+      for (const assigned of patientInstruments(status)) {
+        expect(assigned.source.note.length).toBeGreaterThan(20);
+      }
     }
   });
 });
