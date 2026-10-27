@@ -47,7 +47,7 @@ post POST /api/diary '{"submissionId":"demo-diary-2","value":3,"comment":"Ста
 rm -f "$JAR"
 signin doctor doctor@example.com
 PID=$(patient_id anna@example.com)
-TOMORROW=$(date -d tomorrow '+%Y-%m-%dT14:00:00')
+TOMORROW=$(date -u -d "tomorrow 14:00" +%Y-%m-%dT%H:%M:%SZ)
 post POST "/api/patients/$PID/messages" '{"body":"Здравствуйте, Анна. Спасибо, что написали. Обсудим сон и дозу на приёме в четверг, раньше ничего не меняйте."}'
 post POST "/api/patients/$PID/appointments" "{\"scheduledAt\":\"$TOMORROW\"}"
 curl -s -b "$JAR" "$BASE/api/signals" | python3 -c "
