@@ -57,6 +57,14 @@ describe("рекомендации без корпуса", () => {
 });
 
 describe("рекомендации с корпусом", () => {
+  it("называет отсутствие измерений, когда их нет вовсе", () => {
+    const result = recommendations({ ...context, trend: "unknown", hasAssessment: false }, [smpc()]);
+
+    expect(result.cards[0]?.missing).toContain(
+      "Нет предыдущих измерений — динамику оценить не на чем",
+    );
+  });
+
   it("строит карточку, основание которой взято из рекомендации, а не из догадки", () => {
     const result = recommendations(context, [smpc(), guideline("СИОЗС — препараты первой линии.")]);
 
@@ -258,7 +266,7 @@ describe("маршрут рекомендаций", () => {
     });
     const missing = cardMissing(response.json());
 
-    expect(missing).toContain("Нет второй отправки шкалы с общей суммой — динамику оценить не на чем");
+    expect(missing).toContain("Нет ни одной отправки шкалы с общей суммой — динамику оценить не на чем");
     expect(missing).not.toContain("Состояние ухудшается — нужен разбор сигнала до смены терапии");
     await app.close();
   });
@@ -283,7 +291,7 @@ describe("маршрут рекомендаций", () => {
     const missing = cardMissing(response.json());
 
     expect(missing).toContain("Состояние ухудшается — нужен разбор сигнала до смены терапии");
-    expect(missing).not.toContain("Нет второй отправки шкалы с общей суммой — динамику оценить не на чем");
+    expect(missing).not.toContain("Нет ни одной отправки шкалы с общей суммой — динамику оценить не на чем");
     await app.close();
   });
 });
