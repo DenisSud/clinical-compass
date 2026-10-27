@@ -181,11 +181,9 @@ export function DoctorHome() {
                       aria-current={selected?.id === patient.id}
                       onClick={() => setSelected(patient)}
                     >
-                      {patient.name ?? patient.email}
+                      <span className="patient-list__name">{patient.name ?? patient.email}</span>
                       {patient.boundAt && (
-                        <span className="hint" style={{ display: "block" }}>
-                          с {formatDate(patient.boundAt)}
-                        </span>
+                        <span className="patient-list__meta">с {formatDate(patient.boundAt)}</span>
                       )}
                     </button>
                   </li>

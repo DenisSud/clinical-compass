@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PatientCheckinItem } from "../../shared/contracts";
 import { fetchCheckins, submitCheckin } from "./api";
+import { Button } from "./ui";
 
 /**
  * One place for the daily routine: what is prescribed, taken or not. The patient
@@ -41,7 +42,7 @@ export function TodayPlan() {
 
   if (failed) {
     return (
-      <p style={{ color: "var(--signal-critical)", fontSize: 14 }}>
+      <p className="notice notice--error">
         Не удалось загрузить назначения. Это не значит, что их нет — обновите страницу.
       </p>
     );
@@ -52,99 +53,56 @@ export function TodayPlan() {
   const busy = busyId !== null;
 
   return (
-    <div>
-      {error && <p style={{ color: "var(--signal-critical)", fontSize: 14, marginTop: 0 }}>{error}</p>}
-      <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
+    <>
+      {error && <p className="notice notice--error">{error}</p>}
+      <ul className="intake">
         {items.map((item) => (
-          <li key={item.planItemId} style={{ padding: 12, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}>
-            <strong style={{ fontSize: 15 }}>{item.title}</strong>
+          <li key={item.planItemId} className="intake__item">
+            <p className="intake__title">{item.title}</p>
 
             {item.status === null && editing !== item.planItemId && (
-              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
-                <button
-                  type="button"
+              <div className="intake__actions">
+                <Button
+                  variant="primary"
                   disabled={busy}
                   onClick={() => mark(item.planItemId, "done")}
-                  style={{
-                    minHeight: 44,
-                    padding: "0 16px",
-                    borderRadius: "var(--radius-surface)",
-                    border: "1px solid var(--action-primary)",
-                    background: "var(--action-primary)",
-                    color: "var(--action-primary-ink)",
-                    opacity: busy ? 0.5 : 1,
-                    cursor: busy ? "progress" : "pointer",
-                  }}
                 >
                   {busyId === item.planItemId ? "Отмечаем…" : "Выполнил"}
-                </button>
-                <button
-                  type="button"
+                </Button>
+                <Button
                   disabled={busy}
                   onClick={() => {
                     setEditing(item.planItemId);
                     setReason("");
                     setError(null);
                   }}
-                  style={{
-                    minHeight: 44,
-                    padding: "0 16px",
-                    borderRadius: "var(--radius-surface)",
-                    border: "1px solid var(--border-divider)",
-                    background: "var(--surface-card)",
-                    opacity: busy ? 0.5 : 1,
-                    cursor: busy ? "default" : "pointer",
-                  }}
                 >
                   Пропустил
-                </button>
+                </Button>
               </div>
             )}
 
             {editing === item.planItemId && (
-              <div style={{ marginTop: 8 }}>
-                <label htmlFor={`reason-${item.planItemId}`} style={{ fontSize: 14, color: "var(--text-muted)" }}>
+              <div>
+                <label className="intake__reason-label" htmlFor={`reason-${item.planItemId}`}>
                   Что помешало?
                 </label>
                 <textarea
                   id={`reason-${item.planItemId}`}
+                  className="field"
                   value={reason}
                   onChange={(event) => setReason(event.target.value)}
                   rows={2}
-                  style={{ width: "100%", marginTop: 4, padding: 8, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}
                 />
-                <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-                  <button
-                    type="button"
+                <div className="intake__actions">
+                  <Button
+                    variant="primary"
                     disabled={busy || reason.trim().length < 3}
                     onClick={() => mark(item.planItemId, "skipped", reason)}
-                    style={{
-                      minHeight: 44,
-                      padding: "0 16px",
-                      borderRadius: "var(--radius-surface)",
-                      border: "1px solid var(--action-primary)",
-                      background: "var(--action-primary)",
-                      color: "var(--action-primary-ink)",
-                      opacity: busy || reason.trim().length < 3 ? 0.5 : 1,
-                      cursor: busy || reason.trim().length < 3 ? "default" : "pointer",
-                    }}
                   >
                     {busyId === item.planItemId ? "Сохраняем…" : "Сохранить"}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setEditing(null)}
-                    style={{
-                      minHeight: 44,
-                      padding: "0 16px",
-                      borderRadius: "var(--radius-surface)",
-                      border: "1px solid var(--border-divider)",
-                      background: "var(--surface-card)",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Отмена
-                  </button>
+                  </Button>
+                  <Button onClick={() => setEditing(null)}>Отмена</Button>
                 </div>
                 {reason.trim().length < 3 && (
                   <p className="hint">Без причины пропуск не сохраняется.</p>
@@ -153,34 +111,26 @@ export function TodayPlan() {
             )}
 
             {item.status !== null && editing !== item.planItemId && (
-              <div style={{ marginTop: 6, fontSize: 14 }}>
+              <p className="intake__status">
                 {item.status === "done" ? (
-                  <span style={{ color: "var(--signal-done)" }}>Выполнено</span>
+                  <span className="intake__status--done">Выполнено</span>
                 ) : (
-                  <span style={{ color: "var(--signal-high)" }}>Пропущено: {item.reason}</span>
-                )}{" "}
-                <button
-                  type="button"
+                  <span className="intake__status--skipped">Пропущено: {item.reason}</span>
+                )}
+                <Button
+                  variant="quiet"
                   onClick={() => {
                     setEditing(item.planItemId);
                     setReason(item.status === "skipped" ? (item.reason ?? "") : "");
                   }}
-                  style={{
-                    border: "none",
-                    background: "none",
-                    color: "var(--link)",
-                    cursor: "pointer",
-                    fontSize: 14,
-                    padding: 0,
-                  }}
                 >
                   изменить
-                </button>
-              </div>
+                </Button>
+              </p>
             )}
           </li>
         ))}
       </ul>
-    </div>
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import type { DoctorSignal, Signal, SignalRuleSource } from "../../shared/contracts";
 import { ApiRequestError, closeSignal, takeSignal } from "./api";
 import { Button, Empty, LoadError, type Load } from "./ui";
@@ -84,43 +84,92 @@ export const SIGNAL_STATUS_LABEL: Record<Signal["status"], string> = {
 const SEVERITY_RANK: Record<Signal["severity"], number> = { critical: 0, high: 1, medium: 2 };
 
 const RULE_ORIGIN: Record<SignalRuleSource["kind"], string> = {
-  guideline: "источник: КР",
-  ohlp: "источник: ОХЛП",
+  guideline: "КР",
+  ohlp: "ОХЛП",
   ours: "наше правило",
 };
 
+type RuleDescription = {
+  title: string;
+  origin: string;
+  ref: string;
+  placeholder: boolean;
+};
+
 /**
- * Which rule raised the card and where the rule came from. The doctor reads this;
- * the patient has no signal route at all (DESIGN.md §2.2). A placeholder says so in
- * words, so an ours-for-now rule never reads as one taken from the guidelines.
+ * Which rule raised the card and where it came from. A placeholder says so in words,
+ * so an ours-for-now rule never reads as one taken from the guidelines. The patient
+ * has no signal route at all (DESIGN.md §2.2).
  */
+function describeRule(
+  signal: Pick<Signal, "ruleId" | "ruleTitle" | "ruleSource">,
+): RuleDescription | null {
+  if (!signal.ruleId || !signal.ruleTitle || !signal.ruleSource) return null;
+
+  const source = signal.ruleSource;
+  const placeholder = source.status === "placeholder";
+
+  return {
+    title: signal.ruleTitle,
+    origin: placeholder ? "наше правило, источник ещё не подтверждён" : RULE_ORIGIN[source.kind],
+    ref: source.ref,
+    placeholder,
+  };
+}
+
+/** The rule as one sentence — the read-only card in `PatientDetail` has no room for labels. */
 export function SignalRule({
   signal,
 }: {
   signal: Pick<Signal, "ruleId" | "ruleTitle" | "ruleSource">;
 }) {
-  if (!signal.ruleId || !signal.ruleTitle || !signal.ruleSource) return null;
+  const rule = describeRule(signal);
+  if (!rule) return null;
 
-  const source = signal.ruleSource;
-  const origin =
-    source.status === "placeholder"
-      ? "наше правило, источник ещё не подтверждён"
-      : RULE_ORIGIN[source.kind];
+  // A placeholder already names itself as ours; a confirmed rule names its kind after «источник:».
+  const sourceLabel = rule.placeholder ? rule.origin : `источник: ${rule.origin}`;
 
   return (
-    <p
-      className={
-        source.status === "placeholder"
-          ? "signal__source signal__source--placeholder"
-          : "signal__source"
-      }
-    >
-      Правило «{signal.ruleTitle}» · {origin}
+    <p className={rule.placeholder ? "signal__source signal__source--placeholder" : "signal__source"}>
+      Правило «{rule.title}» · {sourceLabel}
       <span className="signal__source-ref" title="Где лежит источник правила">
         {" "}
-        {source.ref}
+        {rule.ref}
       </span>
     </p>
+  );
+}
+
+/**
+ * The same pair as a panel with the two labels spelled out (_8): on this list the rule
+ * and its source are read as two separate facts, and the panel keeps a mono path from
+ * competing with the title. Every level gets it — «к сведению» too.
+ */
+export function SignalRulePanel({
+  signal,
+}: {
+  signal: Pick<Signal, "ruleId" | "ruleTitle" | "ruleSource">;
+}) {
+  const rule = describeRule(signal);
+  if (!rule) return null;
+
+  return (
+    <div className="signal__rule">
+      <p className="signal__rule-line">
+        <span className="signal__rule-label">Правило:</span> {rule.title}
+      </p>
+      <p
+        className={
+          rule.placeholder ? "signal__rule-line signal__rule-line--placeholder" : "signal__rule-line"
+        }
+      >
+        <span className="signal__rule-label">Источник:</span> {rule.origin}
+        <span className="signal__source-ref" title="Где лежит источник правила">
+          {" "}
+          {rule.ref}
+        </span>
+      </p>
+    </div>
   );
 }
 
@@ -232,7 +281,7 @@ export function SignalsPanel({
           {signal.watchItemId && " · по вашему правилу"}
         </p>
         <p className="signal__detail">{signal.detail}</p>
-        <SignalRule signal={signal} />
+        <SignalRulePanel signal={signal} />
 
         {signal.status === "saved" && (
           <div className="signal__actions">
@@ -301,21 +350,36 @@ export function SignalsPanel({
       )}
       {open.length > 0 && (
         <div className="signal-groups">
-          {sectionBySeverity(open).map((section) => (
-            <Fragment key={section.level}>
-              <ul className="signal-list">{section.visible.map(renderCard)}</ul>
+          {sectionBySeverity(open).map((section) => {
+            const level = SIGNAL_SEVERITY_LABEL[section.level];
+            const count = section.visible.length + section.folded.length;
 
-              {section.folded.length > 0 && (
-                <details className={`signal-more signal-more--${section.level}`}>
-                  <summary>
-                    <SeverityMark severity={section.level} />Ещё {section.folded.length}:{" "}
-                    {SIGNAL_SEVERITY_LABEL[section.level]}
-                  </summary>
-                  <ul className="signal-list">{section.folded.map(renderCard)}</ul>
-                </details>
-              )}
-            </Fragment>
-          ))}
+            return (
+              <section className="signal-group" key={section.level}>
+                {/*
+                 * The word and the number only: level tone lives on the card, so a group
+                 * heading can never outshout the critical card it introduces (DESIGN.md
+                 * §2.3, §3.6).
+                 */}
+                <h2 className="signal-group__head">
+                  {level.charAt(0).toUpperCase() + level.slice(1)}{" "}
+                  <span className="signal-group__count">· {count}</span>
+                </h2>
+
+                <ul className="signal-list">{section.visible.map(renderCard)}</ul>
+
+                {section.folded.length > 0 && (
+                  <details className={`signal-more signal-more--${section.level}`}>
+                    <summary>
+                      <SeverityMark severity={section.level} />Ещё {section.folded.length}:{" "}
+                      {SIGNAL_SEVERITY_LABEL[section.level]}
+                    </summary>
+                    <ul className="signal-list">{section.folded.map(renderCard)}</ul>
+                  </details>
+                )}
+              </section>
+            );
+          })}
         </div>
       )}
 

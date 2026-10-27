@@ -1,0 +1,483 @@
+/*
+ * Layout only: structure, hierarchy, responsiveness. Colour and decoration are
+ * kept to the minimum DESIGN.md §2 allows, so that clinical severity wins over
+ * anything decorative on the same screen.
+ */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--lh-body);
+  color: var(--color-body);
+  background: var(--surface-page);
+}
+
+:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--text-strong);
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+td,
+th {
+  overflow-wrap: anywhere;
+}
+
+/* ---------- app shell ----------
+ *
+ * Two shells, one stylesheet. The control points are the ones the references were
+ * drawn on (issues #30, #31): phone 375, tablet 768, desktop 1440. Nothing here
+ * may scroll sideways at 375 px (WCAG 2.2 §1.4.10 reflow).
+ *
+ * Doctor: a wide screen, list and card side by side (DESIGN.md §3.10, #30 §4.4).
+ * Patient: one narrow column that stays narrow on a desktop, so the line length and
+ * the 44 px targets (DESIGN.md §3.9) do not change with the device.
+ */
+
+.app {
+  min-height: 100vh;
+}
+
+/*
+ * One compact row for both roles: brand, address, quiet exit, hairline under it. The
+ * export's patient header is a 144 px app bar (system §2.1) and its doctor header 96 px;
+ * a phone cannot spend that on chrome, so the row is sticky and 52 px high instead. The
+ * safe-area insets are added rather than absorbed — on a notched phone the row is taller
+ * by the inset, because the alternative is the brand under the cutout (viewport-fit=cover
+ * in web/index.html). The height here is content plus insets; the exit keeps its 44 px
+ * target inside it (§3.9), so the row is 53 px, not 44.
+ */
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  align-items: center;
+  column-gap: var(--space-3);
+  min-height: 52px;
+  padding: var(--space-1) var(--space-4);
+  padding-top: calc(var(--space-1) + env(safe-area-inset-top));
+  padding-right: calc(var(--space-4) + env(safe-area-inset-right));
+  padding-left: calc(var(--space-4) + env(safe-area-inset-left));
+  background: var(--surface-page);
+  border-bottom: var(--border-width) solid var(--border-hairline);
+}
+
+.topbar__brand {
+  margin: 0;
+  font-size: 12px;
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-strong);
+}
+
+.topbar__spacer {
+  min-width: 0;
+}
+
+.topbar__email {
+  justify-self: end;
+  min-width: 0;
+  overflow: hidden;
+  font-size: var(--text-small);
+  color: var(--text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* On a phone the brand and the address share a column and the exit spans both lines:
+   the row stays one row of 53 px instead of growing a second line under the rule. */
+@media (max-width: 520px) {
+  .topbar {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "brand exit"
+      "email exit";
+    align-content: center;
+    row-gap: 0;
+  }
+
+  .topbar__spacer {
+    display: none;
+  }
+
+  .topbar__brand {
+    grid-area: brand;
+  }
+
+  .topbar__email {
+    grid-area: email;
+    justify-self: end;
+    max-width: 100%;
+  }
+
+  .topbar button {
+    grid-area: exit;
+  }
+}
+
+.page {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.page > .tabs:first-child {
+  margin-top: 16px;
+}
+
+.page--wide {
+  max-width: 1120px;
+}
+
+.page--patient {
+  max-width: 560px;
+}
+
+@media (min-width: 768px) {
+  .page {
+    padding: 24px 24px 48px;
+  }
+}
+
+/* ---------- tabs ----------
+ * A row with an underline marker, not a segmented plate on a grey inset: the plate read
+ * as a switch between two values, and the marker of the export (system §2.3) reads as
+ * «this is where you are». The selected tab is marked by the 2 px rule and 700 weight at
+ * the same size as its neighbours — the export grows the selected label from 13 to
+ * 15 px, which moves the row on every switch (system §4, item 14).
+ */
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-5);
+  margin: 0 0 var(--space-4);
+  border-bottom: var(--border-width) solid var(--border-hairline);
+}
+
+.tab {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 var(--space-1);
+  border: none;
+  border-bottom: var(--border-width-strong) solid transparent;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab[aria-selected="true"] {
+  border-bottom-color: var(--link);
+  color: var(--text-strong);
+  font-weight: var(--fw-bold);
+}
+
+.tab__count {
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-inset);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/*
+ * The tabs wrap onto a second row instead of scrolling (#48 revised #35). #35 chose the
+ * scroller because the five patient tabs fitted a phone row exactly (329 of 333 px) and
+ * wrapping left the fifth one alone on its own line. The sixth tab («Мои данные») turned
+ * the scroller into a hiding place: «План» and «Врач» sat behind the edge, and the fade
+ * over the selected tab's white plate read as the end of the row rather than as «there are
+ * two more sections» (DESIGN.md §2.4, §3.7). Two rows of 44 px cost 88 px of height and
+ * show every section; a row that fits stays one row (desktop, the patient card).
+ */
+@media (max-width: 520px) {
+  .tabs {
+    column-gap: var(--space-3);
+  }
+
+  /* Never shrink below the label: a tab is read, not truncated. */
+  .tab {
+    flex: 0 0 auto;
+  }
+}
+
+/*
+ * The fade is drawn by the component only when the row is measured wider than its box
+ * (see Tabs in ui.tsx), so it always covers clipped content and never dims a tab that is
+ * entirely on screen. It is an alpha ramp, not a colour: it takes no palette value.
+ *
+ * Since #48 a row wraps, so the fade no longer fires for six patient tabs; what is left
+ * for it is the row that cannot wrap at all — a single label wider than the row at a
+ * phone with 200–250 % zoom. There the label is cut and the fade is the only honest
+ * sign of it.
+ */
+.tabs--overflow {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 1) calc(100% - var(--space-4)),
+    rgba(0, 0, 0, 0)
+  );
+  mask-image: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 1) calc(100% - var(--space-4)),
+    rgba(0, 0, 0, 0)
+  );
+}
+
+/* ---------- blocks ---------- */
+
+.card {
+  padding: 16px;
+  margin-bottom: 16px;
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+}
+
+.card:last-child {
+  margin-bottom: 0;
+}
+
+.card__title {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
+.section-title {
+  margin: 0 0 8px;
+  font-size: 16px;
+}
+
+.stack {
+  display: grid;
+  gap: 16px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.muted {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.hint {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.notice {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.notice--error {
+  color: var(--signal-critical);
+}
+
+/* «Запись сохранена» — a state of the action, not a severity level (tokens.css). */
+.notice--done {
+  color: var(--signal-done);
+}
+
+.load-error {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+
+/* ---------- buttons ----------
+ * 44 px is the floor everywhere, not only on a phone: DESIGN.md §3.9 is a rule about
+ * the target, and signal-semantics.md §7.8 closes the disagreement with WCAG 2.5.8
+ * in one direction.
+ */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 16px;
+  border: var(--border-width) solid var(--border-divider);
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+  color: var(--text-strong);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.button--primary {
+  border-color: var(--action-primary);
+  background: var(--action-primary);
+  color: var(--action-primary-ink);
+}
+
+.button--quiet {
+  min-height: 44px;
+  padding: 0 8px;
+  border-color: transparent;
+  background: none;
+  color: var(--link);
+  text-decoration: underline;
+}
+
+.button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* One answer of the PHQ-9: the radio is 13 px, the label around it is the target. */
+.choice {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-2);
+  font-size: var(--text-body);
+  color: var(--color-body);
+  cursor: pointer;
+}
+
+/* Any bare disclosure header is a target too. */
+.details-summary {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+
+/* ---------- messages ----------
+ *
+ * One thread for both roles (system §2.15). The export signs the author inside the
+ * bubble as a caption and puts the patient left on white and the doctor left on light
+ * blue — two languages for one dialogue, and the doctor's bubble is not on its own
+ * side. Here the side carries the author: own messages sit right on --surface-inset,
+ * the counterpart's left on --surface-muted, so the caption says who in words and the
+ * place says it again without colour. 640 px is the export's measure for a bubble; it
+ * keeps the line readable inside the doctor's 1120 px column and is wider than the
+ * patient's 560 px page, so on a phone the bubble is the column.
+ */
+
+.thread__list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.thread__item {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.thread__item--mine {
+  justify-content: flex-end;
+}
+
+/*
+ * The hairline sits 12 px from the bubble above and 12 px from the one below (list gap
+ * plus padding): it separates two messages, it is not a border of either.
+ */
+.thread__item + .thread__item {
+  padding-top: var(--space-3);
+  border-top: var(--border-width) solid var(--border-hairline);
+}
+
+/* min-width 0 and the cap together keep one long word from widening the page at 375 px. */
+.thread__bubble {
+  min-width: 0;
+  max-width: min(640px, 100%);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-surface);
+  background: var(--surface-muted);
+}
+
+.thread__item--mine .thread__bubble {
+  background: var(--surface-inset);
+}
+
+/* The author and the date: 12 px caps, muted, the export's label-sm with our type scale. */
+.thread__meta {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-micro);
+  font-weight: var(--fw-bold);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.thread__body {
+  margin: 0;
+  font-size: var(--text-body);
+  color: var(--color-body);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.thread__form {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+}
+
+/* 44 px floor for the field as well as the button (DESIGN.md §3.9); vertical resize
+   only, so a drag cannot push the page sideways on a phone. */
+.thread__field {
+  width: 100%;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--brand-slate); /* 5.86:1 — граница поля, WCAG 1.4.11 */
+  border-radius: var(--radius-surface);
+  background: var(--surface-card);
+  font: inherit;
+  font-size: var(--text-body);
+  color: var(--color-body);
+  resize: vertical;
+}
+
+.thread__form .button {
+  justify-self: start;
+}

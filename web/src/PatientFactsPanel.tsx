@@ -1,12 +1,30 @@
 import { useCallback, useEffect, useState } from "react";
 import type { PatientFactsView } from "../../shared/contracts";
-import { FACT_QUESTIONS, NOT_ASKED_LABEL, factAnswerText, factState } from "../../shared/facts";
+import {
+  FACT_QUESTIONS,
+  NOT_ASKED_LABEL,
+  factAnswerText,
+  factState,
+  type FactState,
+} from "../../shared/facts";
 import { fetchPatientFacts } from "./api";
 import { LoadError, loading, track, type Load } from "./ui";
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
 }
+
+/**
+ * The state word is the first channel: it survives greyscale and forced-colors, and the
+ * surface (filled / outline / dashed) only confirms it (signal-semantics.md §1). «Не
+ * отмечено» and «Не спрашивали» stay two different words — the export glues them into one
+ * line with the answer, which is exactly the confusion GLOSSARY.md forbids.
+ */
+const STATE_LABEL: Record<FactState, string> = {
+  marked: "Отмечено",
+  clear: "Не отмечено",
+  not_asked: NOT_ASKED_LABEL,
+};
 
 /**
  * Те же шесть фактов, что видит пациент, но с источником ответа. Врач читает их
@@ -34,66 +52,34 @@ export function PatientFactsPanel({ patientId }: { patientId: string }) {
   }
 
   const { facts, answeredAt } = view.data;
-  const marked = FACT_QUESTIONS.filter((question) => factState(question.key, facts) === "marked");
-  const clear = FACT_QUESTIONS.filter((question) => factState(question.key, facts) === "clear");
-  const notAsked = FACT_QUESTIONS.filter((question) => factState(question.key, facts) === "not_asked");
-  const answeredCount = marked.length + clear.length;
 
   return (
     <div className="facts-report">
+      {/*
+       * Дата одна на все шесть ответов, а не на каждый: строка в базе одна, и подписать
+       * ею каждый факт значило бы соврать про более ранние (`PatientFactsView.answeredAt`).
+       */}
       <p className="hint">
         {answeredAt
           ? `Источник — ответы пациента от ${formatDate(answeredAt)}`
           : "Пациент ещё не отвечал на эти вопросы."}
       </p>
 
-      <section>
-        <h4 className="facts-report__title">Отмечено</h4>
-        {marked.length > 0 ? (
-          <ul className="facts-report__list">
-            {marked.map((question) => (
-              <li key={question.key}>
-                <strong>{question.label}</strong> — {factAnswerText(question.key, facts)}
-              </li>
-            ))}
-          </ul>
-        ) : answeredCount === 0 ? (
-          /*
-           * Список «Отмечено» говорит только об отвеченном. Пока не отвечено ничего,
-           * у него нет права говорить «ничего не отмечено»: рядом стоит «Не спрашивали»
-           * на все шесть, и пропуск прочитался бы как благополучие (#51, GLOSSARY.md).
-           */
-          <p className="notice">Пока не о чем: ни на один из этих вопросов ещё нет ответа.</p>
-        ) : (
-          <p className="notice">Ничего из перечисленного не отмечено.</p>
-        )}
-      </section>
+      <ul className="facts-cards">
+        {FACT_QUESTIONS.map((question) => {
+          const state = factState(question.key, facts);
+          const answer = factAnswerText(question.key, facts);
 
-      <section>
-        <h4 className="facts-report__title">{NOT_ASKED_LABEL}</h4>
-        {notAsked.length === 0 ? (
-          <p className="notice">Спросили обо всём.</p>
-        ) : (
-          <ul className="facts-report__list facts-report__list--muted">
-            {notAsked.map((question) => (
-              <li key={question.key}>{question.label}</li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {clear.length > 0 && (
-        <section>
-          <h4 className="facts-report__title">Не отмечено</h4>
-          <ul className="facts-report__list facts-report__list--muted">
-            {clear.map((question) => (
-              <li key={question.key}>
-                {question.label} — {factAnswerText(question.key, facts)}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+          return (
+            <li key={question.key} className={`fact-card fact-card--${state}`}>
+              <p className="fact-card__state">{STATE_LABEL[state]}</p>
+              <p className="fact-card__label">{question.label}</p>
+              {/* У «не спрашивали» ответа не существует: выдуманного значения здесь нет. */}
+              {answer !== null && <p className="fact-card__value">{answer}</p>}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }

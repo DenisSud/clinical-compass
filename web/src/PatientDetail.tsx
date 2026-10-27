@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from "react";
 import { AdherenceTable } from "./AdherenceTable";
 import { PatientFactsPanel } from "./PatientFactsPanel";
 import { WatchPanel } from "./WatchPanel";
+import { DiaryChart } from "./DiaryChart";
 import { MessageThread } from "./MessageThread";
 import { PlanPanel } from "./PlanPanel";
-import { SIGNAL_STATUS_LABEL, SignalRule, SignalSeverity, signalClassName, sortSignals } from "./SignalsPanel";
+import { SIGNAL_STATUS_LABEL, SignalRule, SignalSeverity, sortSignals } from "./SignalsPanel";
 import type {
   DiaryEntry,
   DoctorAssessment,
@@ -31,7 +32,20 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
 }
 
-/** The patient's own signals, read-only: the doctor's tabs should not hide the history that led here. */
+/** A closed signal keeps only the word: no bar, no level tone (signal-semantics.md §6). */
+function patientSignalClassName(signal: Pick<Signal, "severity" | "status">): string {
+  return signal.status === "closed"
+    ? "patient-signal patient-signal--closed"
+    : `patient-signal patient-signal--${signal.severity}`;
+}
+
+/**
+ * The patient's own signals, compact and read-only: this tab shows what the doctor's rules
+ * and the patient's facts produced, so the history stays visible (DESIGN.md §2.4). It keeps
+ * the word, the shape and the 8 / 4 / 0 px bar of a level and drops the review actions — a
+ * signal is taken into review on its own screen, where the result of the review is written
+ * (§3.2).
+ */
 function PatientSignals({ patientId }: { patientId: string }) {
   const [signals, setSignals] = useState<Load<Signal[]>>(loading());
 
@@ -54,19 +68,18 @@ function PatientSignals({ patientId }: { patientId: string }) {
   if (signals.data.length === 0) return <Empty>По этому пациенту сигналов не было.</Empty>;
 
   return (
-    <ul className="signal-list">
+    <ul className="patient-signals">
       {sortSignals(signals.data).map((signal) => (
-        <li key={signal.id} className={signalClassName(signal)}>
-          <div className="signal__head">
+        <li key={signal.id} className={patientSignalClassName(signal)}>
+          <div className="patient-signal__head">
             <SignalSeverity severity={signal.severity} closed={signal.status === "closed"} />
-            <span className="signal__status">{SIGNAL_STATUS_LABEL[signal.status]}</span>
+            <h4 className="patient-signal__title">{signal.title}</h4>
           </div>
-          <h4 className="signal__title">{signal.title}</h4>
-          <p className="signal__meta">
-            {formatDate(signal.createdAt)}
+          <p className="patient-signal__meta">
+            {SIGNAL_STATUS_LABEL[signal.status]} · {formatDate(signal.createdAt)}
             {signal.watchItemId && " · по вашему правилу"}
           </p>
-          <p className="signal__detail">{signal.detail}</p>
+          <p className="patient-signal__detail">{signal.detail}</p>
           <SignalRule signal={signal} />
           {signal.outcome && (
             <p className="hint">
@@ -131,8 +144,10 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
     <section className="card" aria-label={`Карточка пациента ${patient.name ?? patient.email}`}>
       <div className="patient-card__head">
         <h2 className="patient-card__name">{patient.name ?? patient.email}</h2>
-        <p className="muted">{patient.email}</p>
-        {patient.boundAt && <p className="hint">Привязан(а) с {formatDate(patient.boundAt)}</p>}
+        <p className="patient-card__meta">{patient.email}</p>
+        {patient.boundAt && (
+          <p className="patient-card__meta">Привязан(а) с {formatDate(patient.boundAt)}</p>
+        )}
       </div>
 
       <Tabs<PatientTab>
@@ -169,15 +184,15 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
             {recommendations.status === "ready" && (
               <>
                 {recommendations.data.cards.length > 0 && (
-                  <ul className="stack" style={{ gap: 10, margin: 0, padding: 0, listStyle: "none" }}>
+                  <ul className="stack" style={{ gap: 12, margin: 0, padding: 0, listStyle: "none" }}>
                     {recommendations.data.cards.map((card) => (
-                      <li key={card.id} style={{ padding: 12, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}>
+                      <li key={card.id} style={{ padding: 16, borderRadius: "var(--radius-surface)", border: "1px solid var(--border-divider)" }}>
                         <strong>{card.title}</strong>
-                        <p style={{ margin: "6px 0 0", fontSize: 14 }}>
+                        <p style={{ margin: "8px 0 0", fontSize: 13 }}>
                           <em>Основание:</em> {card.basis}
                         </p>
                         {card.missing.length > 0 && (
-                          <p style={{ margin: "6px 0 0", fontSize: 14, color: "var(--signal-high)" }}>
+                          <p style={{ margin: "8px 0 0", fontSize: 13, color: "var(--signal-high)" }}>
                             Не хватает: {card.missing.join("; ")}
                           </p>
                         )}
@@ -186,7 +201,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
                             href={card.source.url}
                             target="_blank"
                             rel="noreferrer"
-                            style={{ fontSize: 13, color: "var(--link)" }}
+                            style={{ display: "inline-block", marginTop: 8, fontSize: 13, color: "var(--link)" }}
                           >
                             Источник
                           </a>
@@ -249,6 +264,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
           {messages.status === "ready" && (
             <MessageThread
               messages={messages.data}
+              viewer="doctor"
               placeholder="Ответить пациенту"
               onSend={async (body) => {
                 const response = await sendPatientMessage(patient.id, body);
@@ -277,24 +293,22 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
               <Empty>Пациент ещё не проходил опросник.</Empty>
             )}
             {assessments.status === "ready" && assessments.data.length > 0 && (
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
+              <table className="assessment-table">
                 <thead>
-                  <tr style={{ textAlign: "left", color: "var(--text-muted)" }}>
-                    <th style={{ padding: "6px 0", fontWeight: 500 }}>Дата</th>
-                    <th style={{ fontWeight: 500 }}>Сумма</th>
-                    <th style={{ fontWeight: 500 }}>Диапазон</th>
+                  <tr>
+                    <th scope="col">Дата</th>
+                    <th scope="col">Сумма</th>
+                    <th scope="col">Диапазон</th>
                   </tr>
                 </thead>
                 <tbody>
                   {assessments.data.map((assessment) => (
-                    <tr key={assessment.id} style={{ borderTop: "1px solid var(--border-hairline)", verticalAlign: "top" }}>
-                      <td style={{ padding: "8px 8px 8px 0" }}>{formatDate(assessment.submittedAt)}</td>
-                      <td style={{ paddingRight: 8 }}>
+                    <tr key={assessment.id}>
+                      <td>{formatDate(assessment.submittedAt)}</td>
+                      <td>
                         {assessment.total}
                         {assessment.criticalItems.length > 0 && (
-                          <span style={{ display: "block", fontSize: 12, fontWeight: 600, color: "var(--signal-critical)" }}>
-                            критический пункт
-                          </span>
+                          <span className="assessment-table__critical">критический пункт</span>
                         )}
                       </td>
                       <td>{assessment.band.label}</td>
@@ -315,14 +329,16 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
             )}
             {entries.status === "ready" && entries.data.length === 0 && <Empty>Записей пока нет.</Empty>}
             {entries.status === "ready" && entries.data.length > 0 && (
-              <ul className="stack" style={{ gap: 10, margin: 0, padding: 0, listStyle: "none" }}>
+              <DiaryChart entries={entries.data} />
+            )}
+            {entries.status === "ready" && entries.data.length > 0 && (
+              <ul className="diary-log">
                 {entries.data.map((entry) => (
-                  <li key={entry.id} style={{ borderTop: "1px solid var(--border-hairline)", paddingTop: 10 }}>
-                    <strong>{entry.value}</strong>
-                    <span className="hint" style={{ marginLeft: 4 }}>
-                      / 10 — {formatDate(entry.entryDate)}
-                    </span>
-                    {entry.comment && <p style={{ margin: "4px 0 0", color: "var(--text-body)" }}>{entry.comment}</p>}
+                  <li key={entry.id} className="diary-log__entry">
+                    <p className="diary-log__line">
+                      {formatDate(entry.entryDate)} — {entry.value} / 10
+                    </p>
+                    {entry.comment && <p className="diary-log__comment">{entry.comment}</p>}
                   </li>
                 ))}
               </ul>

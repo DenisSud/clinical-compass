@@ -2,7 +2,10 @@
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- No maximum-scale and no user-scalable=no: the export forbids zoom (system §4,
+         item 8), which takes WCAG 1.4.4 away from the patient. viewport-fit=cover is
+         what the safe-area insets of the sticky header in base.css measure against. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Клинический компас</title>
   </head>
   <body>

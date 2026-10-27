@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ApiRequestError, submitDiary } from "./api";
+import { Button } from "./ui";
 
 export function DiaryForm({ onSaved }: { onSaved: () => void }) {
   const [value, setValue] = useState<number | null>(null);
@@ -33,69 +34,46 @@ export function DiaryForm({ onSaved }: { onSaved: () => void }) {
 
   return (
     <form onSubmit={submit}>
-      <p style={{ display: "block", fontSize: 14, color: "var(--text-muted)", margin: "0 0 8px" }}>
-        Насколько вы сегодня себя чувствуете? 1 — очень плохо, 10 — хорошо.
-      </p>
+      <div className="diary-form__edges">
+        <span>1 — очень плохо</span>
+        <span>10 — хорошо</span>
+      </div>
       <div className="diary-scale">
         {Array.from({ length: 10 }, (_, index) => index + 1).map((option) => (
           <button
             key={option}
             type="button"
+            className="diary-scale__option"
             aria-pressed={value === option}
             onClick={() => {
               setValue(option);
               setSaved(false);
-            }}
-            style={{
-              minHeight: 44,
-              borderRadius: "var(--radius-surface)",
-              border: value === option ? "2px solid var(--action-primary)" : "1px solid var(--border-divider)",
-              background: value === option ? "var(--surface-muted)" : "var(--surface-card)",
-              fontWeight: value === option ? 600 : 400,
-              cursor: "pointer",
             }}
           >
             {option}
           </button>
         ))}
       </div>
-      <p style={{ color: "var(--text-muted)", fontSize: 13, margin: "6px 0 0" }}>
+      <p className="hint">
         {value === null ? "Выберите оценку — без выбора запись не сохранится." : " "}
       </p>
       <textarea
+        className="field diary-form__comment"
         value={comment}
         onChange={(event) => setComment(event.target.value)}
         placeholder="Комментарий, если хочется что-то добавить"
         rows={3}
-        style={{
-          width: "100%",
-          marginTop: 12,
-          padding: 10,
-          borderRadius: "var(--radius-surface)",
-          border: "1px solid var(--border-divider)",
-          fontFamily: "inherit",
-          boxSizing: "border-box",
-        }}
       />
-      {error && <p style={{ color: "var(--signal-critical)", fontSize: 14 }}>{error}</p>}
-      {saved && <p style={{ color: "var(--signal-done)", fontSize: 14 }}>Запись сохранена.</p>}
-      <button
+      {error && <p className="notice notice--error">{error}</p>}
+      {saved && <p className="notice notice--done">Запись сохранена.</p>}
+      <Button
         type="submit"
+        variant="primary"
+        className="diary-form__submit"
         disabled={busy || value === null}
-        style={{
-          marginTop: 8,
-          minHeight: 44,
-          opacity: busy || value === null ? 0.5 : 1,
-          padding: "10px 16px",
-          borderRadius: "var(--radius-surface)",
-          border: "none",
-          background: "var(--action-primary)",
-          color: "var(--action-primary-ink)",
-          cursor: busy || value === null ? "default" : "pointer",
-        }}
       >
         {busy ? "Сохраняем…" : "Записать самочувствие"}
-      </button>
+      </Button>
     </form>
   );
 }

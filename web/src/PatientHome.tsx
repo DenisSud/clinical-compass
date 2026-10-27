@@ -32,6 +32,23 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
 }
 
+/* «— с 21 октября» under «Ведущий врач»: the export gives the binding date without a year. */
+function formatDayMonth(iso: string): string {
+  return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
+}
+
+/*
+ * The plan's kinds in the doctor's own words (`PlanPanel.tsx`, `KIND`). Written out here
+ * rather than imported so the patient screen does not reach into a doctor screen module;
+ * a fifth kind has to change both maps in the same commit.
+ */
+const PLAN_KIND_LABEL: Record<PlanItem["kind"], string> = {
+  medication: "Препарат",
+  therapy: "Терапия",
+  observation: "Наблюдение",
+  referral: "Направление",
+};
+
 export function PatientHome({
   profile,
   onChanged,
@@ -124,10 +141,8 @@ export function PatientHome({
       )}
 
       {!profile.doctor && (
-        <Card className="bind-card">
-          <h2 className="card__title" style={{ marginTop: 0 }}>
-            Введите код от врача
-          </h2>
+        <Card>
+          <h2 className="card__title">Введите код от врача</h2>
           {bindDone ? (
             <p className="notice">Код принят — вы привязаны к врачу.</p>
           ) : (
@@ -135,33 +150,21 @@ export function PatientHome({
               <p className="muted">
                 Врач передаст вам код. Пока вы его не ввели, врач не видит вашу карточку.
               </p>
-              <form onSubmit={bind} className="row" style={{ marginTop: 12 }}>
+              <form onSubmit={bind} className="row bind-card__form">
                 <input
                   value={code}
                   onChange={(event) => setCode(event.target.value)}
                   placeholder="Код привязки"
                   required
                   aria-label="Код привязки"
-                  style={{
-                    padding: "10px 12px",
-                    borderRadius: "var(--radius-surface)",
-                    border: "1px solid var(--border-divider)",
-                    fontFamily: "var(--font-mono)",
-                    letterSpacing: 2,
-                    textTransform: "uppercase",
-                    width: 180,
-                    maxWidth: "100%",
-                    minHeight: 44,
-                  }}
+                  className="bind-card__code"
                 />
                 <Button type="submit" variant="primary" disabled={bindBusy}>
                   {bindBusy ? "Привязываемся…" : "Привязаться"}
                 </Button>
               </form>
               {bindError && (
-                <p className="notice notice--error" style={{ marginTop: 8 }}>
-                  {bindError}
-                </p>
+                <p className="notice notice--error bind-card__error">{bindError}</p>
               )}
             </>
           )}
@@ -188,7 +191,7 @@ export function PatientHome({
             <TodayPlan />
           </Card>
 
-          <Card title="Самочувствие">
+          <Card title="Насколько вы сегодня себя чувствуете?">
             {entries.status === "loading" && <p className="notice">Проверяем запись за сегодня…</p>}
             {entries.status === "failed" && (
               <LoadError onRetry={reloadDiary}>
@@ -197,14 +200,13 @@ export function PatientHome({
             )}
             {entries.status === "ready" &&
               (todayEntry ? (
-                <p className="muted">
-                  Сегодня отмечено: <strong>{todayEntry.value}</strong> / 10
-                  {todayEntry.comment && <span> — {todayEntry.comment}</span>}
-                  <br />
-                  <span className="hint" style={{ display: "inline-block" }}>
-                    Следующая запись — завтра.
-                  </span>
-                </p>
+                <>
+                  <p className="muted">
+                    Сегодня отмечено: <strong>{todayEntry.value}</strong> / 10
+                    {todayEntry.comment && <span> — {todayEntry.comment}</span>}
+                  </p>
+                  <p className="hint">Следующая запись — завтра.</p>
+                </>
               ) : (
                 <DiaryForm onSaved={reloadDiary} />
               ))}
@@ -233,14 +235,14 @@ export function PatientHome({
             <Empty>Записей пока нет. Первая запись появится на вкладке «Сегодня».</Empty>
           )}
           {entries.status === "ready" && entries.data.length > 0 && (
-            <ul className="stack" style={{ gap: 10, margin: 0, padding: 0, listStyle: "none" }}>
+            <ul className="diary-entries">
               {entries.data.map((entry) => (
-                <li key={entry.id} style={{ borderTop: "1px solid var(--border-hairline)", paddingTop: 10 }}>
-                  <strong>{entry.value}</strong>
-                  <span className="hint" style={{ marginLeft: 4 }}>
-                    / 10 — {formatDate(entry.entryDate)}
-                  </span>
-                  {entry.comment && <p style={{ margin: "4px 0 0", color: "var(--text-body)" }}>{entry.comment}</p>}
+                <li key={entry.id} className="diary-entry">
+                  <div className="diary-entry__head">
+                    <span className="diary-entry__date">{formatDate(entry.entryDate)}</span>
+                    <span className="diary-entry__value">{entry.value} / 10</span>
+                  </div>
+                  {entry.comment && <p className="diary-entry__comment">{entry.comment}</p>}
                 </li>
               ))}
             </ul>
@@ -302,24 +304,22 @@ export function PatientHome({
             ))
           )}
 
-          <h3 className="section-title" style={{ marginTop: 24 }}>
-            Прошлые ответы
-          </h3>
+          <h3 className="section-title section-title--spaced">Прошлые ответы</h3>
           {assessments.status === "ready" && assessments.data.assessments.length === 0 && (
             <Empty>Вы ещё не проходили опросник.</Empty>
           )}
           {assessments.status === "ready" && assessments.data.assessments.length > 0 && (
-            <ul className="stack" style={{ gap: 8, margin: 0, padding: 0, listStyle: "none" }}>
+            <ul className="past-answers">
               {assessments.data.assessments.map((assessment) => (
-                <li key={assessment.id} style={{ borderTop: "1px solid var(--border-hairline)", paddingTop: 10 }}>
+                <li key={assessment.id} className="past-answer">
                   <details>
                     <summary className="details-summary">
                       {formatDate(assessment.submittedAt)} — {assessment.instrumentTitle}
                     </summary>
-                    <ul style={{ margin: "8px 0 0", paddingLeft: 20, color: "var(--text-body)", fontSize: 14 }}>
+                    <ul className="past-answer__list">
                       {assessment.answers.map((answer) => (
-                        <li key={answer.itemId}>
-                          {answer.text} — <em>{answer.label}</em>
+                        <li key={answer.itemId} className="past-answer__row">
+                          {answer.text} — <span className="past-answer__choice">{answer.label}</span>
                         </li>
                       ))}
                     </ul>
@@ -346,15 +346,29 @@ export function PatientHome({
               Врач пока не добавил план. Пункты появляются здесь после того, как врач их подтвердит.
             </Empty>
           )}
+          {/*
+           * Only confirmed items: `/api/plan` returns `active` ones
+           * (`server/routes/plan.ts:115`), so a draft never reaches this screen and no
+           * state word or filter is drawn here. The kind is the doctor's word, the
+           * explanation is optional and stays under the title (patient.css, `.plan-entry`).
+           */}
           {plan.status === "ready" && plan.data.length > 0 && (
-            <ul className="stack" style={{ gap: 10, margin: 0, padding: 0, listStyle: "none" }}>
-              {plan.data.map((item) => (
-                <li key={item.id} style={{ borderLeft: "3px solid var(--signal-done)", paddingLeft: 12 }}>
-                  <strong>{item.title}</strong>
-                  {item.details && <p style={{ margin: "2px 0 0", color: "var(--text-body)" }}>{item.details}</p>}
-                </li>
-              ))}
-            </ul>
+            <>
+              <ul className="plan-entries">
+                {plan.data.map((item) => (
+                  <li key={item.id} className="plan-entry">
+                    <p className="plan-entry__kind">{PLAN_KIND_LABEL[item.kind]}</p>
+                    <p className="plan-entry__title">{item.title}</p>
+                    {item.details && <p className="plan-entry__details">{item.details}</p>}
+                  </li>
+                ))}
+              </ul>
+              {/*
+               * No actions here and one quiet line saying why: an item becomes visible
+               * only after the doctor confirms it (GLOSSARY.md, «План»).
+               */}
+              <p className="hint">План ведёт врач.</p>
+            </>
           )}
         </Card>
       )}
@@ -364,15 +378,7 @@ export function PatientHome({
           {profile.doctor ? (
             <p className="muted">
               {profile.doctor.name ?? profile.doctor.email}
-              {profile.boundAt && (
-                <span className="hint" style={{ display: "inline-block", marginLeft: 4 }}>
-                  — с{" "}
-                  {new Date(profile.boundAt).toLocaleDateString("ru-RU", {
-                    day: "numeric",
-                    month: "long",
-                  })}
-                </span>
-              )}
+              {profile.boundAt && ` — с ${formatDayMonth(profile.boundAt)}`}
             </p>
           ) : (
             <p className="muted">
@@ -380,9 +386,7 @@ export function PatientHome({
             </p>
           )}
 
-          <h3 className="section-title" style={{ marginTop: 20 }}>
-            Переписка
-          </h3>
+          <h3 className="section-title section-title--spaced">Переписка</h3>
           {messages.status === "loading" && <p className="notice">Загрузка переписки…</p>}
           {messages.status === "failed" && (
             <LoadError onRetry={reloadMessages}>
@@ -392,6 +396,7 @@ export function PatientHome({
           {messages.status === "ready" && (
             <MessageThread
               messages={messages.data}
+              viewer="patient"
               placeholder="Напишите сообщение врачу"
               onSend={async (body) => {
                 const response = await sendMessage(body);
