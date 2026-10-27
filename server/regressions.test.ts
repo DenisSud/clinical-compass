@@ -1,28 +1,31 @@
 import { describe, expect, it } from "vitest";
-import { newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+import { bindPatient, newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
 
 /**
- * Each test here pins a defect found in review. They are cheap and they are the
- * reason a fixed bug cannot quietly come back.
+ * Каждый тест здесь закрепляет дефект, найденный на ревью. Они дешёвые и именно они
+ * не дают исправленной ошибке тихо вернуться.
  */
 
-async function boundPair(app: App, email?: string) {
-  const doctorCookie = await signUpDoctor(app);
+const PSYCHIATRIST = {
+  email: "psychiatrist@example.com",
+  password: "correct horse battery",
+  specialty: "psychiatrist" as const,
+};
+
+/** Этап приходит с врачом (SPEC S3, Q49): терапевт — скрининг, психиатр — терапия. */
+async function boundPair(
+  app: App,
+  options: { email?: string; specialty?: "therapist" | "psychiatrist" } = {},
+) {
+  const doctorCookie =
+    options.specialty === "psychiatrist"
+      ? await signUpDoctor(app, PSYCHIATRIST)
+      : await signUpDoctor(app);
   const patientCookie = await signUpPatient(
     app,
-    email ? { email, password: "patient password" } : undefined,
+    options.email ? { email: options.email, password: "patient password" } : undefined,
   );
-  const code = await app.inject({
-    method: "GET",
-    url: "/api/binding-code",
-    headers: { cookie: doctorCookie },
-  });
-  await app.inject({
-    method: "POST",
-    url: "/api/bind",
-    headers: { cookie: patientCookie },
-    payload: { code: code.json().code },
-  });
+  await bindPatient(app, patientCookie, doctorCookie);
   const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie: patientCookie } });
   return { doctorCookie, patientCookie, patientId: me.json().profile.id as string };
 }
@@ -45,11 +48,11 @@ const submitPhq9 = (
     },
   });
 
-describe("signal wording follows the instrument", () => {
-  it("names the band the score actually falls in", async () => {
+describe("формулировка сигнала следует за инструментом", () => {
+  it("называет полосу, в которую сумма действительно попадает", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
-    await submitPhq9(app, patientCookie, 2); // 16 of 27 — moderately severe, not severe
+    await submitPhq9(app, patientCookie, 2); //16 из 27: умеренно тяжёлая степень, не тяжёлая
 
     const signals = await app.inject({ method: "GET", url: "/api/signals", headers: { cookie: doctorCookie } });
     const total = signals.json().signals.find((signal: { kind: string }) => signal.kind === "severe_total");
@@ -59,17 +62,17 @@ describe("signal wording follows the instrument", () => {
     await app.close();
   });
 
-  it("names the questionnaire, so «10 из 21» cannot be read as PHQ-9", async () => {
+  it("называет шкалу, чтобы «14 из 21» нельзя было прочитать как PHQ-9", async () => {
     const app = await newApp();
-    const { doctorCookie, patientCookie } = await boundPair(app);
+    const { doctorCookie, patientCookie } = await boundPair(app, { specialty: "psychiatrist" });
 
     await app.inject({
       method: "POST",
-      url: "/api/assessments/gad-7",
+      url: "/api/assessments/hads-anxiety",
       headers: { cookie: patientCookie },
       payload: {
-        submissionId: "gad7-band-test",
-        answers: Object.fromEntries(Array.from({ length: 7 }, (_, index) => [`q${index + 1}`, 2])),
+        submissionId: "hads-band-test",
+        answers: Object.fromEntries(Array.from({ length: 7 }, (_, index) => [`a${index + 1}`, 2])),
       },
     });
 
@@ -78,14 +81,14 @@ describe("signal wording follows the instrument", () => {
       .json()
       .signals.find((signal: { kind: string }) => signal.kind === "severe_total");
 
-    expect(total.title).toBe("GAD-7: умеренные проявления — 14 из 21");
+    expect(total.title).toBe("HADS-Т: клинически выраженная — 14 из 21");
     await app.close();
   });
 
-  it("says «выраженные» only when the severe band is reached", async () => {
+  it("говорит «выраженные» только в тяжёлой полосе", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
-    await submitPhq9(app, patientCookie, 3); // 24 of 27
+    await submitPhq9(app, patientCookie, 3); //24 из 27
 
     const signals = await app.inject({ method: "GET", url: "/api/signals", headers: { cookie: doctorCookie } });
     const total = signals.json().signals.find((signal: { kind: string }) => signal.kind === "severe_total");
@@ -95,10 +98,12 @@ describe("signal wording follows the instrument", () => {
   });
 });
 
-describe("a check-in date is a plain day", () => {
-  it("refuses a timestamp that would not match the stored day", async () => {
+describe("дата отметки это просто день", () => {
+  it("отказывает во времени, которое не совпало бы с сохранённым днём", async () => {
     const app = await newApp();
-    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app, {
+      specialty: "psychiatrist",
+    });
     const created = await app.inject({
       method: "POST",
       url: `/api/patients/${patientId}/plan`,
@@ -128,8 +133,8 @@ describe("a check-in date is a plain day", () => {
   });
 });
 
-describe("a signal cannot be closed before it is taken", () => {
-  it("refuses saved -> closed", async () => {
+describe("сигнал нельзя закрыть, не взяв его в разбор", () => {
+  it("отказывает в переходе saved -> closed", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie } = await boundPair(app);
     await submitPhq9(app, patientCookie, 3);
@@ -149,10 +154,12 @@ describe("a signal cannot be closed before it is taken", () => {
   });
 });
 
-describe("archived prescriptions keep their adherence", () => {
-  it("still shows what the patient did before the item was archived", async () => {
+describe("архивные назначения сохраняют приверженность", () => {
+  it("всё равно показывает, что пациент делал до архивации пункта", async () => {
     const app = await newApp();
-    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app, {
+      specialty: "psychiatrist",
+    });
     const created = await app.inject({
       method: "POST",
       url: `/api/patients/${patientId}/plan`,
@@ -182,12 +189,12 @@ describe("archived prescriptions keep their adherence", () => {
   });
 });
 
-describe("submission ids are per patient", () => {
-  it("lets two patients use the same id and still returns each one's own result", async () => {
+describe("идентификаторы отправок принадлежат пациенту", () => {
+  it("даёт двум пациентам один идентификатор и всё равно возвращает каждому его результат", async () => {
     const app = await newApp();
     const shared = "same-id-for-both";
 
-    // One doctor, two patients on the same code: the id is per patient, not global.
+    // Один врач, два пациента на одном коде: идентификатор принадлежит пациенту, а не общий.
     const doctorCookie = await signUpDoctor(app);
     const code = await app.inject({
       method: "GET",

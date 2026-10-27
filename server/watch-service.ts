@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type { WatchItem } from "../shared/contracts.js";
 import { watchItems } from "./db/schema.js";
+import { instrument } from "./instruments/loader.js";
 import { signalsForWatchItems, type WatchEvent } from "./rules/watch.js";
 import { saveSignals } from "./routes/signals.js";
 
@@ -21,6 +22,17 @@ export function toWatchItem(row: Row): WatchItem {
   };
 }
 
+/**
+ * Правило суммы у шкалы без общей суммы или у шкалы, которой больше нет в наборе, не сработает
+ * никогда: строка могла остаться в базе с тех пор, как отказ появился только на создании
+ * правила (#68, SPEC S10).
+ */
+export function hasComparableTotal(item: WatchItem): boolean {
+  if (item.kind !== "score_threshold") return true;
+  const scale = instrument(String(item.params.instrumentId));
+  return scale !== undefined && scale.scoring !== "items";
+}
+
 export async function activeWatchItems(app: FastifyInstance, patientId: string): Promise<WatchItem[]> {
   const rows = await app.conn.db
     .select()
@@ -29,7 +41,7 @@ export async function activeWatchItems(app: FastifyInstance, patientId: string):
   return rows.map(toWatchItem);
 }
 
-/** Runs the doctor's rules against one new event and stores whatever fired. */
+/** Прогоняет правила врача по одному новому событию и сохраняет то, что сработало. */
 export async function raiseWatchSignals(
   app: FastifyInstance,
   input: {

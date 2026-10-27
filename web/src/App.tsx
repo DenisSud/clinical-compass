@@ -25,8 +25,8 @@ export function App() {
 
   useEffect(refresh, [refresh]);
 
-  // The old shared address `/login` keeps working: it is rewritten to the patient
-  // screen, and any address that names no role also lands there.
+  // Старый общий адрес `/login` продолжает работать: он переписывается на экран
+  // пациента, и туда же попадает любой адрес, который не называет роль.
   useEffect(() => {
     const path = canonicalLoginPath(window.location.pathname);
     if (window.location.pathname !== path) window.history.replaceState(null, "", path);
@@ -39,7 +39,7 @@ export function App() {
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  // Once the server has confirmed the role, the address no longer has to name it.
+  // После того как сервер подтвердил роль, адресу уже не нужно её называть.
   useEffect(() => {
     if (me) window.history.replaceState(null, "", "/");
   }, [me]);
@@ -76,7 +76,7 @@ export function App() {
     <div className="app">
       <TopBar email={me.profile.email} onSignOut={handleSignOut} />
       {me.role === "doctor" ? (
-        <DoctorHome />
+        <DoctorHome doctor={me.profile} />
       ) : (
         <PatientHome profile={me.profile} onChanged={refresh} />
       )}

@@ -4,9 +4,9 @@ import { fetchCheckins, submitCheckin } from "./api";
 import { Button } from "./ui";
 
 /**
- * One place for the daily routine: what is prescribed, taken or not. The patient
- * picks one of two buttons — nothing is pre-marked, because a pre-marked dose is
- * a dose nobody actually confirmed.
+ * Одно место для ежедневной рутины: что назначено, принято или нет. Пациент выбирает
+ * одну из двух кнопок, ничего не отмечено заранее, потому что заранее отмеченный приём
+ * это приём, который никто на самом деле не подтверждал.
  */
 export function TodayPlan() {
   const [items, setItems] = useState<PatientCheckinItem[] | null>(null);

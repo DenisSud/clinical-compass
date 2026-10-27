@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { and, desc, eq } from "drizzle-orm";
 import type { FastifyPluginAsync } from "fastify";
 import { planItemCreateSchema, type PlanItem } from "../../shared/contracts.js";
-import { requireAuth, requireRole } from "../auth/guard.js";
+import { requireAuth, requirePsychiatrist, requireRole } from "../auth/guard.js";
 import { planItems } from "../db/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
@@ -43,9 +43,11 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
     },
   );
 
+  // План лечения ведёт психиатр (SPEC S7, Q50). Терапевт его читает, но не создаёт и
+  // не подтверждает; чтение выше не закрыто намеренно.
   app.post<{ Params: { id: string } }>(
     "/patients/:id/plan",
-    { preHandler: requireRole("doctor") },
+    { preHandler: [requireRole("doctor"), requirePsychiatrist()] },
     async (request, reply) => {
       const lookup = await loadPatientForDoctor(app, requireAuth(request).userId, request.params.id);
       if (!lookup.ok) {
@@ -77,7 +79,7 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
 
   app.post<{ Params: { id: string } }>(
     "/plan/:id/confirm",
-    { preHandler: requireRole("doctor") },
+    { preHandler: [requireRole("doctor"), requirePsychiatrist()] },
     async (request, reply) => {
       const found = await loadOwnItem(app, requireAuth(request).userId, request.params.id);
       if (!found.ok) return found.reply(reply);
@@ -97,7 +99,7 @@ export const planRoutes: FastifyPluginAsync = async (app) => {
 
   app.post<{ Params: { id: string } }>(
     "/plan/:id/archive",
-    { preHandler: requireRole("doctor") },
+    { preHandler: [requireRole("doctor"), requirePsychiatrist()] },
     async (request, reply) => {
       const found = await loadOwnItem(app, requireAuth(request).userId, request.params.id);
       if (!found.ok) return found.reply(reply);

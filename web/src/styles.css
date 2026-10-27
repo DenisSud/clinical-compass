@@ -1,5 +1,6 @@
-/* Order is fixed: base resets first, then the surfaces, then the domain blocks that
-   must be able to win over the base rules (facts over base, auth last). */
+/* Порядок фиксирован: сначала обнуления base, затем поверхности, затем доменные блоки,
+ * которые должны уметь перебить правила base (facts поверх base, авторизация последней).
+ */
 @import "./styles/base.css";
 @import "./styles/patient.css";
 @import "./styles/doctor.css";

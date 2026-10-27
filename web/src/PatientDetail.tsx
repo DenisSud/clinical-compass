@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { AdherenceTable } from "./AdherenceTable";
+import { DoctorAppointment } from "./Appointments";
+import { DoctorAssessmentForm } from "./DoctorAssessmentForm";
 import { PatientFactsPanel } from "./PatientFactsPanel";
 import { WatchPanel } from "./WatchPanel";
 import { DiaryChart } from "./DiaryChart";
@@ -32,7 +34,7 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
 }
 
-/** A closed signal keeps only the word: no bar, no level tone (signal-semantics.md §6). */
+/** Закрытый сигнал сохраняет только слово: ни полосы, ни тона уровня (signal-semantics.md §6). */
 function patientSignalClassName(signal: Pick<Signal, "severity" | "status">): string {
   return signal.status === "closed"
     ? "patient-signal patient-signal--closed"
@@ -40,11 +42,10 @@ function patientSignalClassName(signal: Pick<Signal, "severity" | "status">): st
 }
 
 /**
- * The patient's own signals, compact and read-only: this tab shows what the doctor's rules
- * and the patient's facts produced, so the history stays visible (DESIGN.md §2.4). It keeps
- * the word, the shape and the 8 / 4 / 0 px bar of a level and drops the review actions — a
- * signal is taken into review on its own screen, where the result of the review is written
- * (§3.2).
+ * Собственные сигналы пациента, компактно и только для чтения: эта вкладка показывает,
+ * что дали правила врача и факты пациента, поэтому история остаётся видимой (DESIGN.md §2.4).
+ * Она сохраняет слово, форму и полосу 8 / 4 / 0 px, а действия разбора убирает: сигнал
+ * берут в разбор на его собственном экране, где и записывают исход разбора (§3.2).
  */
 function PatientSignals({ patientId }: { patientId: string }) {
   const [signals, setSignals] = useState<Load<Signal[]>>(loading());
@@ -92,7 +93,19 @@ function PatientSignals({ patientId }: { patientId: string }) {
   );
 }
 
-export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary; onUnbound: () => void }) {
+export function PatientDetail({
+  patient,
+  isPsychiatrist,
+  onUnbound,
+}: {
+  patient: PatientSummary;
+  /**
+   * Психиатр правит план и назначает приём, терапевт их только видит (SPEC S7, S24, Q50).
+   * Специальность — поле врача, а не роль (S2), поэтому решение одно на всю карточку.
+   */
+  isPsychiatrist: boolean;
+  onUnbound: () => void;
+}) {
   const [tab, setTab] = useState<PatientTab>("overview");
   const [assessments, setAssessments] = useState<Load<DoctorAssessment[]>>(loading());
   const [entries, setEntries] = useState<Load<DiaryEntry[]>>(loading());
@@ -102,7 +115,6 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
   >(loading());
   const [unbindStep, setUnbindStep] = useState<"idle" | "confirm" | "busy">("idle");
   const [unbindError, setUnbindError] = useState<string | null>(null);
-
   const loadAssessments = useCallback(() => {
     track(setAssessments, fetchPatientAssessments(patient.id).then((response) => response.assessments));
   }, [patient.id]);
@@ -148,6 +160,9 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
         {patient.boundAt && (
           <p className="patient-card__meta">Привязан(а) с {formatDate(patient.boundAt)}</p>
         )}
+
+        {/* Название этапа приходит из файла этапов, а не переводится здесь второй раз. */}
+        <p className="patient-card__meta">Этап: {patient.statusLabel.toLowerCase()}</p>
       </div>
 
       <Tabs<PatientTab>
@@ -165,6 +180,8 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
 
       {tab === "overview" && (
         <div className="stack">
+          <DoctorAppointment patientId={patient.id} canEdit={isPsychiatrist} />
+
           <div>
             <h3 className="section-title">Приверженность</h3>
             <AdherenceTable patientId={patient.id} />
@@ -232,7 +249,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
         <div className="stack">
           <div>
             <h3 className="section-title">Правила наблюдения</h3>
-            <WatchPanel patientId={patient.id} />
+            <WatchPanel key={patient.status} patientId={patient.id} />
           </div>
           {/*
             * Факты стоят вплотную над сигналами: карточка сигнала называет факт
@@ -251,7 +268,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
         </div>
       )}
 
-      {tab === "plan" && <PlanPanel patientId={patient.id} />}
+      {tab === "plan" && <PlanPanel patientId={patient.id} canEdit={isPsychiatrist} />}
 
       {tab === "messages" && (
         <>
@@ -281,8 +298,14 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
 
       {tab === "data" && (
         <div className="stack">
+          <DoctorAssessmentForm
+            patientId={patient.id}
+            canFill={isPsychiatrist}
+            onSaved={loadAssessments}
+          />
+
           <div>
-            <h3 className="section-title">Опросник PHQ-9</h3>
+            <h3 className="section-title">Опросники</h3>
             {assessments.status === "loading" && <p className="notice">Загрузка ответов…</p>}
             {assessments.status === "failed" && (
               <LoadError onRetry={loadAssessments}>
@@ -296,6 +319,7 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
               <table className="assessment-table">
                 <thead>
                   <tr>
+                    <th scope="col">Опросник</th>
                     <th scope="col">Дата</th>
                     <th scope="col">Сумма</th>
                     <th scope="col">Диапазон</th>
@@ -304,9 +328,11 @@ export function PatientDetail({ patient, onUnbound }: { patient: PatientSummary;
                 <tbody>
                   {assessments.data.map((assessment) => (
                     <tr key={assessment.id}>
+                      <td>{assessment.instrumentTitle}</td>
                       <td>{formatDate(assessment.submittedAt)}</td>
                       <td>
-                        {assessment.total}
+                        {/* Шкала без общей суммы показывает прочерк, а не число (SPEC S10). */}
+                        {assessment.total === null ? "—" : assessment.total}
                         {assessment.criticalItems.length > 0 && (
                           <span className="assessment-table__critical">критический пункт</span>
                         )}

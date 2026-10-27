@@ -4,8 +4,8 @@ import { ApiRequestError, closeSignal, takeSignal } from "./api";
 import { Button, Empty, LoadError, type Load } from "./ui";
 
 /**
- * Level labels are tokens, not phrases: one family, equal length, readable as a
- * word and as an icon (signal-semantics.md #32 §1.1, §7.11).
+ * Подписи уровней это значения, а не фразы: одно семейство, равная длина, читается
+ * словом и иконкой (signal-semantics.md #32 §1.1, §7.11).
  */
 export const SIGNAL_SEVERITY_LABEL: Record<Signal["severity"], string> = {
   critical: "критично",
@@ -14,9 +14,9 @@ export const SIGNAL_SEVERITY_LABEL: Record<Signal["severity"], string> = {
 };
 
 /**
- * Shape is the second channel after the word (#32 §1.1, §4.3): filled triangle for
- * critical, outline triangle for high, outline circle for medium. It has to carry
- * the level without colour — in greyscale, at deuteranopia and in forced-colors.
+ * Форма это второй канал после слова (#32 §1.1, §4.3): залитый треугольник для
+ * критичного, контурный треугольник для высокого, контурный круг для среднего. Она
+ * обязана нести уровень без цвета: в оттенках серого, при дейтеранопии и в forced-colors.
  */
 function SeverityMark({ severity }: { severity: Signal["severity"] }) {
   const filled = severity === "critical";
@@ -52,14 +52,14 @@ function SeverityMark({ severity }: { severity: Signal["severity"] }) {
 }
 
 /**
- * Severity owns the card's form; a closed signal drops every accent and keeps only
- * the word (#32 §6).
+ * Тяжесть владеет формой карточки; закрытый сигнал снимает каждый акцент и оставляет
+ * только слово (#32 §6).
  */
 export function signalClassName(signal: Pick<Signal, "severity" | "status">): string {
   return signal.status === "closed" ? "signal signal--closed" : `signal signal--${signal.severity}`;
 }
 
-/** Word plus shape — the two channels that survive greyscale and forced-colors. */
+/** Слово плюс форма: два канала, которые выживают в оттенках серого и в forced-colors. */
 export function SignalSeverity({
   severity,
   closed = false,
@@ -97,9 +97,9 @@ type RuleDescription = {
 };
 
 /**
- * Which rule raised the card and where it came from. A placeholder says so in words,
- * so an ours-for-now rule never reads as one taken from the guidelines. The patient
- * has no signal route at all (DESIGN.md §2.2).
+ * Какое правило подняло карточку и откуда оно. Заглушка говорит об этом словами,
+ * поэтому наше временное правило никогда не читается как взятое из рекомендаций.
+ * У пациента маршрута сигналов нет вообще (DESIGN.md §2.2).
  */
 function describeRule(
   signal: Pick<Signal, "ruleId" | "ruleTitle" | "ruleSource">,
@@ -117,7 +117,7 @@ function describeRule(
   };
 }
 
-/** The rule as one sentence — the read-only card in `PatientDetail` has no room for labels. */
+/** Правило одной фразой: карточке только для чтения в `PatientDetail` негде разместить подписи. */
 export function SignalRule({
   signal,
 }: {
@@ -126,7 +126,7 @@ export function SignalRule({
   const rule = describeRule(signal);
   if (!rule) return null;
 
-  // A placeholder already names itself as ours; a confirmed rule names its kind after «источник:».
+  // Заглушка уже называет себя нашей; подтверждённое правило называет вид после «источник:».
   const sourceLabel = rule.placeholder ? rule.origin : `источник: ${rule.origin}`;
 
   return (
@@ -141,9 +141,9 @@ export function SignalRule({
 }
 
 /**
- * The same pair as a panel with the two labels spelled out (_8): on this list the rule
- * and its source are read as two separate facts, and the panel keeps a mono path from
- * competing with the title. Every level gets it — «к сведению» too.
+ * Та же пара панелью, где обе подписи выписаны (_8): в этом списке правило
+ * и его источник читаются как два отдельных факта, а панель не даёт моно-пути
+ * соревноваться с названием. Она есть у каждого уровня, у «к сведению» тоже.
  */
 export function SignalRulePanel({
   signal,
@@ -173,7 +173,7 @@ export function SignalRulePanel({
   );
 }
 
-/** Severity first, newest second — the order the doctor reads, not the order the server sent (§3.7). */
+/** Сначала тяжесть, потом новизна: порядок, в котором читает врач, а не в котором прислал сервер (§3.7). */
 export function sortSignals<T extends Signal>(signals: T[]): T[] {
   return [...signals].sort(
     (left, right) =>
@@ -183,8 +183,8 @@ export function sortSignals<T extends Signal>(signals: T[]): T[] {
 }
 
 /**
- * signal-semantics.md §3: no more than three cards of one level on the screen before
- * the rest folds into «Ещё N». The number is the research's, not a style choice.
+ * signal-semantics.md §3: не больше трёх карточек одного уровня на экране, дальше
+ * остальное складывается в «Ещё N». Это число из исследования, а не выбор стиля.
  */
 export const SIGNALS_PER_LEVEL = 3;
 
@@ -197,9 +197,9 @@ export type SeveritySection<T extends Signal> = {
 };
 
 /**
- * Critical is never folded (#35): DESIGN.md §2.1 puts a missed signal above
- * compactness, and a critical signal behind a closed «Ещё N» is exactly the miss this
- * screen exists to prevent. The other levels fold after three.
+ * Критичные не складываются никогда (#35): DESIGN.md §2.1 ставит пропущенный сигнал выше
+ * компактности, а критический сигнал за закрытым «Ещё N» это ровно тот пропуск, который
+ * этот экран существует предотвращать. Остальные уровни складываются после трёх.
  */
 export function sectionBySeverity<T extends Signal>(sorted: T[]): SeveritySection<T>[] {
   return SEVERITY_ORDER.flatMap((level) => {
@@ -215,9 +215,9 @@ function formatDate(iso: string): string {
 }
 
 /**
- * Controlled by DoctorHome so the open count in the header and the list on screen
- * can never disagree. Signal updates arrive from the server and replace the card
- * in place, so the doctor does not lose their position (§3.2, §5.6).
+ * Управляется из DoctorHome, чтобы число открытых в шапке и список на экране
+ * не могли разойтись. Обновления сигналов приходят с сервера и заменяют карточку
+ * на месте, поэтому врач не теряет своё место (§3.2, §5.6).
  */
 export function SignalsPanel({
   signals,
@@ -357,8 +357,8 @@ export function SignalsPanel({
             return (
               <section className="signal-group" key={section.level}>
                 {/*
-                 * The word and the number only: level tone lives on the card, so a group
-                 * heading can never outshout the critical card it introduces (DESIGN.md
+                 * Только слово и число: тон уровня живёт на карточке, поэтому заголовок группы
+                 * никогда не перекричит критическую карточку, которую открывает (DESIGN.md
                  * §2.3, §3.6).
                  */}
                 <h2 className="signal-group__head">

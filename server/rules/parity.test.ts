@@ -17,7 +17,7 @@ const phq9 = instrument("phq-9");
 if (!phq9) throw new Error("phq-9 missing");
 const phq9Form = phq9;
 
-/** Conditions that belong to a submission, so their rules must sit in `SIGNAL_RULES`. */
+/** Условия, которые принадлежат отправке, поэтому их правила должны быть в `SIGNAL_RULES`. */
 const SCALE_OR_DIARY_FACTS = new Set([
   "assessment.criticalItem",
   "assessment.totalIncrease",
@@ -49,26 +49,26 @@ function conditionOf(rule: Rule) {
   return first;
 }
 
-describe("the rule registry and the signal engine are one source", () => {
-  it("has a file behind every rule the engine names", () => {
+describe("реестр правил и движок сигналов это один источник", () => {
+  it("имеет файл за каждым правилом, которое называет движок", () => {
     for (const id of ALL_SIGNAL_RULE_IDS) {
       expect(findRule(id), `${id} названо в signals.ts, а файла в content/rules нет`).toBeDefined();
     }
   });
 
-  it("gives every scale or diary rule a twin in the engine", () => {
+  it("даёт каждому правилу шкалы или дневника пару в движке", () => {
     for (const rule of listRules()) {
       if (!rule.when.some((condition) => SCALE_OR_DIARY_FACTS.has(condition.fact))) continue;
       expect(SIGNAL_RULE_IDS, `${rule.id} объявлено, но signals.ts его не читает`).toContain(rule.id);
     }
   });
 
-  it("leaves no rule file without a path to the doctor", () => {
-    // Reachability is the engine's own lists, and there is no exceptions list. The earlier
-    // version searched the sources for `requireRule("<id>")`, so a rule mentioned in a
-    // comment passed while a dead rule stayed dead, and moving the id into a constant
-    // broke a test nothing was wrong with (issue #45). A rule file outside every list
-    // has to fail here by name: add it to its list, not to an exception.
+  it("не оставляет ни одного файла правила без пути к врачу", () => {
+    // Достижимость это собственные списки движка, списка исключений нет. Прежняя версия искала
+    // в исходниках `requireRule("<id>")`, поэтому правило, упомянутое в комментарии, проходило,
+    // мёртвое правило оставалось мёртвым, а перенос идентификатора в константу ломал тест,
+    // с которым всё было в порядке (issue #45). Файл правила вне любого списка должен падать
+    // здесь по имени: добавь его в список, а не в исключение.
     const wired = new Set(ALL_SIGNAL_RULE_IDS);
 
     for (const rule of listRules()) {
@@ -79,7 +79,7 @@ describe("the rule registry and the signal engine are one source", () => {
     }
   });
 
-  it("raises the fact rules from the facts on file", () => {
+  it("поднимает правила фактов из фактов на диске", () => {
     const blank: PatientFacts = {
       epilepsyOrOrganicBrainDisease: null,
       maoInhibitors: null,
@@ -94,7 +94,7 @@ describe("the rule registry and the signal engine are one source", () => {
     expect(raised[0]?.detail).toContain("беременность");
   });
 
-  it("raises every wired rule and only wired rules", () => {
+  it("поднимает каждое подключённое правило и только подключённые", () => {
     const raised = [
       ...assessment(18, 10),
       ...assessment(1, null, ["q9"]),
@@ -104,7 +104,7 @@ describe("the rule registry and the signal engine are one source", () => {
     expect([...new Set(ruleIdsOf(raised))].sort()).toEqual([...SIGNAL_RULE_IDS].sort());
   });
 
-  it("raises the adherence rule from its own list, not from the route", () => {
+  it("поднимает правило приверженности из своего списка, а не с маршрута", () => {
     const card = signalsForAdherence({
       skipped: [
         { scheduledAt: "2026-10-20T08:00", reason: "не было препарата" },
@@ -120,7 +120,7 @@ describe("the rule registry and the signal engine are one source", () => {
     expect(card[0]).toMatchObject({ kind: "missed_doses", ruleId: "adherence-three-missed-doses" });
   });
 
-  it("leaves the instrument band signal to the instrument, without a rule id", () => {
+  it("оставляет сигнал по полосе шкалы инструменту, без идентификатора правила", () => {
     const band = assessment(18, null).find((signal) => signal.kind === "severe_total");
 
     expect(band).toBeDefined();
@@ -128,13 +128,13 @@ describe("the rule registry and the signal engine are one source", () => {
   });
 });
 
-describe("the declared thresholds did not change", () => {
-  it("treats five points of worsening as a signal and four as none", () => {
+describe("объявленные пороги не изменились", () => {
+  it("считает пять баллов ухудшения сигналом, а четыре нет", () => {
     expect(ruleIdsOf(assessment(14, 10))).not.toContain("worsening");
     expect(ruleIdsOf(assessment(15, 10))).toContain("worsening");
   });
 
-  it("treats a diary value of three as low and four as not", () => {
+  it("считает оценку дневника три низкой, а четыре нет", () => {
     expect(ruleIdsOf(signalsForDiary({ value: 4, previousValue: null }))).not.toContain(
       "diary-low-wellbeing",
     );
@@ -143,14 +143,14 @@ describe("the declared thresholds did not change", () => {
     );
   });
 
-  it("treats a three-point diary drop as sharp and two as not", () => {
+  it("считает падение дневника на три балла резким, а на два нет", () => {
     expect(ruleIdsOf(signalsForDiary({ value: 8, previousValue: 10 }))).not.toContain(
       "diary-sharp-drop",
     );
     expect(ruleIdsOf(signalsForDiary({ value: 7, previousValue: 10 }))).toContain("diary-sharp-drop");
   });
 
-  it("keeps the prescription threshold equal to the declared adherence rule", () => {
+  it("держит порог назначения равным объявленному правилу приверженности", () => {
     const rule = findRule("adherence-three-missed-doses");
     expect(rule).toBeDefined();
 

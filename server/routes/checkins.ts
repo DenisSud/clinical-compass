@@ -27,7 +27,7 @@ function shiftDate(date: string, days: number): string {
   return parsed.toISOString().slice(0, 10);
 }
 
-/** Inclusive list of dates from `from` to `to`. */
+/** Включающий список дат от `from` до `to`. */
 function dateRange(from: string, to: string): string[] {
   const dates: string[] = [];
   for (let date = from; date <= to; date = shiftDate(date, 1)) dates.push(date);
@@ -83,7 +83,7 @@ export const checkinRoutes: FastifyPluginAsync = async (app) => {
     }
 
     const reason = parsed.data.reason?.trim() ?? "";
-    // A skip without a reason tells the doctor nothing they can act on.
+    // Пропуск без причины не даёт врачу ничего, с чем можно работать.
     if (parsed.data.status === "skipped" && reason.length < REASON_MIN_LENGTH) {
       return fail(reply, 400, "invalid_request", "Опишите, что помешало — без причины пропуск не записывается");
     }
@@ -91,13 +91,13 @@ export const checkinRoutes: FastifyPluginAsync = async (app) => {
     const createdAt = new Date().toISOString();
     const checkinDate = parsed.data.checkinDate ?? createdAt.slice(0, 10);
 
-    // Same rule as the diary: the patient's clock wins, but only by a day either way.
+    // То же правило, что и в дневнике: часы пациента главнее, но расходятся не больше чем на день.
     const skewDays = Math.abs(Date.parse(checkinDate) - Date.parse(createdAt.slice(0, 10))) / 86_400_000;
     if (Number.isNaN(skewDays) || skewDays > 1) {
       return fail(reply, 400, "invalid_request", "Дата отметки вне допустимого диапазона");
     }
 
-    // A mis-tap is corrected, not preserved: the same item and day is overwritten.
+    // Случайное нажатие исправляют, а не сохраняют: тот же пункт за тот же день перезаписывается.
     const [saved] = await app.conn.db
       .insert(planCheckins)
       .values({
@@ -171,8 +171,8 @@ export const checkinRoutes: FastifyPluginAsync = async (app) => {
       const day = today();
       const windowStart = shiftDate(day, -(windowDays - 1));
 
-      // Archived prescriptions keep their history: what the patient did while taking
-      // them decides the next prescription, so it cannot disappear with the item.
+      // Архивные назначения сохраняют свою историю: что пациент делал, пока их принимал, решает
+      // следующее назначение, поэтому история не может исчезнуть вместе с пунктом.
       const items = await app.conn.db
         .select()
         .from(planItems)
@@ -193,7 +193,7 @@ export const checkinRoutes: FastifyPluginAsync = async (app) => {
 
       const result: AdherenceItem[] = items.map((item) => {
         const startedAt = (item.confirmedAt ?? item.createdAt).slice(0, 10);
-        // Days before the prescription existed are not the patient's failure.
+        // Дни до появления назначения не вина пациента.
         const from = startedAt > windowStart ? startedAt : windowStart;
         const dates = from <= day ? dateRange(from, day) : [];
 

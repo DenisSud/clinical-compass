@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type {
   BindingCodeResponse,
+  DoctorProfile,
   DoctorSignal,
   PatientSummary,
 } from "../../shared/contracts";
@@ -15,7 +16,9 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }
 
-export function DoctorHome() {
+export function DoctorHome({ doctor }: { doctor: DoctorProfile }) {
+  /** План, приём и врачебные шкалы ведёт психиатр; терапевт их только читает (S7, S24, Q50). */
+  const isPsychiatrist = doctor.specialty === "psychiatrist";
   const [view, setView] = useState<DoctorView>("signals");
   const [signals, setSignals] = useState<Load<DoctorSignal[]>>(loading());
   const [patients, setPatients] = useState<Load<PatientSummary[]>>(loading());
@@ -201,6 +204,7 @@ export function DoctorHome() {
                 <PatientDetail
                   key={selected.id}
                   patient={selected}
+                  isPsychiatrist={isPsychiatrist}
                   onUnbound={() => {
                     setSelected(null);
                     loadPatients();

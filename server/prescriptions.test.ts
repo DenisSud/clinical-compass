@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { shiftDay, wallClockDay, wallClockMinute } from "./prescriptions/schedule.js";
-import { newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+import { bindPatient, newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+/** Назначает и ведёт план психиатр (SPEC S7, Q50): у терапевта этих маршрутов нет. */
+const PSYCHIATRIST = {
+  email: "psychiatrist@example.com",
+  password: "correct horse battery",
+  specialty: "psychiatrist" as const,
+};
 
 function today(): string {
   return wallClockDay(new Date());
@@ -24,7 +30,7 @@ function minuteAt(minutesOffset: number): { scheduledAt: string; day: string; ti
 }
 
 async function boundPair(app: App) {
-  const doctorCookie = await signUpDoctor(app);
+  const doctorCookie = await signUpDoctor(app, PSYCHIATRIST);
   const patientCookie = await signUpPatient(app);
   const code = await app.inject({
     method: "GET",
@@ -80,8 +86,8 @@ function mark(
   return app.inject({ method: "POST", url: "/api/doses", headers: { cookie }, payload });
 }
 
-describe("writing a prescription", () => {
-  it("keeps an unconfirmed prescription out of the pillbox", async () => {
+describe("создание назначения", () => {
+  it("не пускает неподтверждённое назначение в аптечку", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
 
@@ -108,7 +114,7 @@ describe("writing a prescription", () => {
     await app.close();
   });
 
-  it("records which doctor confirmed the prescription", async () => {
+  it("записывает, какой врач подтвердил назначение", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     await confirmed(app, doctorCookie, patientId);
@@ -129,7 +135,7 @@ describe("writing a prescription", () => {
     await app.close();
   });
 
-  it("refuses a schedule that does not add up", async () => {
+  it("отказывает в расписании, которое не сходится", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
 
@@ -151,7 +157,7 @@ describe("writing a prescription", () => {
     await app.close();
   });
 
-  it("refuses a drug the reference does not have", async () => {
+  it("отказывает в препарате, которого нет в справочнике", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
 
@@ -163,8 +169,70 @@ describe("writing a prescription", () => {
   });
 });
 
-describe("the pillbox", () => {
-  it("records an intake against the planned time and measures the delay", async () => {
+describe("кому можно назначать", () => {
+  it("не даёт терапевту создать назначение и ничего не пишет", async () => {
+    const app = await newApp();
+    const therapistCookie = await signUpDoctor(app, {
+      email: "therapist@example.com",
+      password: "correct horse battery",
+    });
+    const patientCookie = await signUpPatient(app);
+    await bindPatient(app, patientCookie, therapistCookie);
+    const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie: patientCookie } });
+    const patientId = me.json().profile.id as string;
+
+    const response = await prescribe(app, therapistCookie, patientId);
+    const list = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/prescriptions`,
+      headers: { cookie: therapistCookie },
+    });
+
+    expect(response.statusCode).toBe(403);
+    expect(response.json().message).toMatch(/психиатр/);
+    expect(list.statusCode).toBe(200);
+    expect(list.json().prescriptions).toEqual([]);
+    await app.close();
+  });
+
+  it("даёт терапевту читать назначенное психиатром, но не подтверждать и не архивировать", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    const draft = await prescribe(app, doctorCookie, patientId);
+
+    // Передача терапевту: пациент меняет ведущего врача, назначения остаются.
+    const therapistCookie = await signUpDoctor(app, {
+      email: "therapist@example.com",
+      password: "correct horse battery",
+    });
+    await bindPatient(app, patientCookie, therapistCookie);
+
+    const read = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/prescriptions`,
+      headers: { cookie: therapistCookie },
+    });
+    const confirm = await app.inject({
+      method: "POST",
+      url: `/api/prescriptions/${draft.json().prescription.id}/confirm`,
+      headers: { cookie: therapistCookie },
+    });
+    const archive = await app.inject({
+      method: "POST",
+      url: `/api/prescriptions/${draft.json().prescription.id}/archive`,
+      headers: { cookie: therapistCookie },
+    });
+
+    expect(read.statusCode).toBe(200);
+    expect(read.json().prescriptions).toHaveLength(1);
+    expect(confirm.statusCode).toBe(403);
+    expect(archive.statusCode).toBe(403);
+    await app.close();
+  });
+});
+
+describe("аптечка", () => {
+  it("записывает приём относительно запланированного времени и измеряет опоздание", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const id = await confirmed(app, doctorCookie, patientId, {
@@ -184,7 +252,7 @@ describe("the pillbox", () => {
     await app.close();
   });
 
-  it("shows the doctor the adherence of the patient by planned time", async () => {
+  it("показывает врачу приверженность пациента по запланированным временам", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const id = await confirmed(app, doctorCookie, patientId, {
@@ -209,7 +277,7 @@ describe("the pillbox", () => {
     await app.close();
   });
 
-  it("corrects a mis-tap instead of keeping two answers for one intake", async () => {
+  it("исправляет случайное нажатие, а не держит два ответа на один приём", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const id = await confirmed(app, doctorCookie, patientId, {
@@ -234,7 +302,7 @@ describe("the pillbox", () => {
     await app.close();
   });
 
-  it("refuses a skip without a reason", async () => {
+  it("отказывает в пропуске без причины", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const id = await confirmed(app, doctorCookie, patientId, {
@@ -252,7 +320,7 @@ describe("the pillbox", () => {
     await app.close();
   });
 
-  it("refuses a time that is not in the schedule", async () => {
+  it("отказывает во времени, которого нет в расписании", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const id = await confirmed(app, doctorCookie, patientId, {
@@ -270,7 +338,7 @@ describe("the pillbox", () => {
     await app.close();
   });
 
-  it("refuses an intake on a prescription the doctor has not confirmed", async () => {
+  it("отказывает в приёме по назначению, которое врач не подтвердил", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const created = await prescribe(app, doctorCookie, patientId, {
@@ -289,8 +357,8 @@ describe("the pillbox", () => {
   });
 });
 
-describe("an intake that has not come yet", () => {
-  it("refuses a mark on a time that is still ahead", async () => {
+describe("приём, который ещё не наступил", () => {
+  it("отказывает в отметке на время, которое ещё впереди", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const ahead = slotAt(2);
@@ -318,7 +386,7 @@ describe("an intake that has not come yet", () => {
     await app.close();
   });
 
-  it("accepts a mark once the planned time has come", async () => {
+  it("принимает отметку, когда запланированное время наступило", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const past = slotAt(-2);
@@ -339,7 +407,7 @@ describe("an intake that has not come yet", () => {
     await app.close();
   });
 
-  it("accepts a mark exactly on the current minute", async () => {
+  it("принимает отметку ровно на текущей минуте", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const now = minuteAt(0);
@@ -360,7 +428,7 @@ describe("an intake that has not come yet", () => {
     await app.close();
   });
 
-  it("refuses a mark one minute ahead as a fact that has not happened", async () => {
+  it("отказывает в отметке на минуту вперёд как в факте, которого не было", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const ahead = minuteAt(1);
@@ -381,7 +449,7 @@ describe("an intake that has not come yet", () => {
     await app.close();
   });
 
-  it("writes nothing when it refuses a mark on a time that is still ahead", async () => {
+  it("ничего не пишет, когда отказывает в отметке на время, которое ещё впереди", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const ahead = slotAt(2);
@@ -407,7 +475,7 @@ describe("an intake that has not come yet", () => {
   });
 });
 
-describe("three missed intakes in a row", () => {
+describe("три пропущенных приёма подряд", () => {
   async function skipDays(
     app: App,
     patientCookie: string,
@@ -425,7 +493,7 @@ describe("three missed intakes in a row", () => {
     }
   }
 
-  it("raises a signal the doctor sees", async () => {
+  it("поднимает сигнал, который видит врач", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const id = await confirmed(app, doctorCookie, patientId, {
@@ -457,7 +525,7 @@ describe("three missed intakes in a row", () => {
     await app.close();
   });
 
-  it("takes the card, its severity and its source from the rule file", async () => {
+  it("берёт карточку, её тяжесть и источник из файла правила", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const id = await confirmed(app, doctorCookie, patientId, {
@@ -499,7 +567,7 @@ describe("three missed intakes in a row", () => {
     await app.close();
   });
 
-  it("is not raised while one of the intakes has no data", async () => {
+  it("не поднимается, пока по одному из приёмов нет сведений", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const id = await confirmed(app, doctorCookie, patientId, {
@@ -533,7 +601,7 @@ describe("three missed intakes in a row", () => {
     await app.close();
   });
 
-  it("counts two intakes a day by their planned times, not by days", async () => {
+  it("считает два приёма в день по запланированным временам, а не по дням", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const id = await confirmed(app, doctorCookie, patientId, {
@@ -569,8 +637,8 @@ describe("three missed intakes in a row", () => {
   });
 });
 
-describe("who may see and mark a prescription", () => {
-  it("does not let one patient mark another patient's intake", async () => {
+describe("кому можно видеть назначение и отмечать приём", () => {
+  it("не даёт одному пациенту отметить приём другого", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const id = await confirmed(app, doctorCookie, patientId, {
@@ -592,7 +660,7 @@ describe("who may see and mark a prescription", () => {
     await app.close();
   });
 
-  it("does not let one patient read another patient's pillbox", async () => {
+  it("не даёт одному пациенту читать аптечку другого", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
     await confirmed(app, doctorCookie, patientId);
@@ -611,7 +679,7 @@ describe("who may see and mark a prescription", () => {
     await app.close();
   });
 
-  it("keeps another doctor out of the adherence summary", async () => {
+  it("не пускает другого врача в сводку приверженности", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
     await confirmed(app, doctorCookie, patientId);
@@ -630,7 +698,7 @@ describe("who may see and mark a prescription", () => {
     await app.close();
   });
 
-  it("keeps another doctor from confirming someone else's prescription", async () => {
+  it("не даёт врачу подтвердить чужое назначение", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
     const created = await prescribe(app, doctorCookie, patientId);
@@ -649,7 +717,7 @@ describe("who may see and mark a prescription", () => {
     await app.close();
   });
 
-  it("keeps a patient off the doctor's prescription routes", async () => {
+  it("не пускает пациента на маршруты назначений врача", async () => {
     const app = await newApp();
     const { patientCookie, patientId } = await boundPair(app);
 

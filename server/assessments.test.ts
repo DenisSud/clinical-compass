@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+import { bindPatient, newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
 
 function answers(value: number, overrides: Record<string, number> = {}) {
   const filled = Object.fromEntries(
@@ -17,28 +17,28 @@ function submit(app: App, cookie: string, payload: unknown, instrumentId = "phq-
   });
 }
 
-async function boundPair(app: App) {
-  const doctorCookie = await signUpDoctor(app);
-  const patientCookie = await signUpPatient(app);
+const PSYCHIATRIST = {
+  email: "psychiatrist@example.com",
+  password: "correct horse battery",
+  specialty: "psychiatrist" as const,
+};
 
-  const code = await app.inject({
-    method: "GET",
-    url: "/api/binding-code",
-    headers: { cookie: doctorCookie },
-  });
-  await app.inject({
-    method: "POST",
-    url: "/api/bind",
-    headers: { cookie: patientCookie },
-    payload: { code: code.json().code },
-  });
+/**
+ * Пара «врач — пациент». Этап приходит с врачом: у терапевта скрининг, у психиатра
+ * терапия (SPEC S3, Q49), поэтому отдельного переключателя этапа здесь нет.
+ */
+async function boundPair(app: App, specialty: "therapist" | "psychiatrist" = "therapist") {
+  const doctorCookie =
+    specialty === "psychiatrist" ? await signUpDoctor(app, PSYCHIATRIST) : await signUpDoctor(app);
+  const patientCookie = await signUpPatient(app);
+  await bindPatient(app, patientCookie, doctorCookie);
 
   const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie: patientCookie } });
   return { doctorCookie, patientCookie, patientId: me.json().profile.id as string };
 }
 
-describe("submitting an assessment", () => {
-  it("stores the answers and returns them without a score", async () => {
+describe("отправка опросника", () => {
+  it("сохраняет ответы и возвращает их без суммы", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -52,7 +52,7 @@ describe("submitting an assessment", () => {
     await app.close();
   });
 
-  it("returns the first result when the same submission arrives twice", async () => {
+  it("возвращает первый результат, когда та же отправка приходит дважды", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -66,7 +66,7 @@ describe("submitting an assessment", () => {
     await app.close();
   });
 
-  it("refuses a half-filled questionnaire", async () => {
+  it("отказывает в наполовину заполненном опроснике", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -77,7 +77,7 @@ describe("submitting an assessment", () => {
     await app.close();
   });
 
-  it("refuses a value outside the scale", async () => {
+  it("отказывает в значении вне шкалы", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -90,7 +90,7 @@ describe("submitting an assessment", () => {
     await app.close();
   });
 
-  it("refuses an unknown instrument", async () => {
+  it("отказывает в неизвестном инструменте", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -100,7 +100,7 @@ describe("submitting an assessment", () => {
     await app.close();
   });
 
-  it("keeps a doctor out of the submission route", async () => {
+  it("не пускает врача на маршрут отправки", async () => {
     const app = await newApp();
     const cookie = await signUpDoctor(app);
 
@@ -111,8 +111,8 @@ describe("submitting an assessment", () => {
   });
 });
 
-describe("reading assessments", () => {
-  it("shows the patient only their own history", async () => {
+describe("чтение оценок", () => {
+  it("показывает пациенту только его историю", async () => {
     const app = await newApp();
     const mine = await signUpPatient(app);
     const theirs = await signUpPatient(app, { email: "other@example.com", password: "other password" });
@@ -131,7 +131,7 @@ describe("reading assessments", () => {
     await app.close();
   });
 
-  it("shows the doctor the score and the band", async () => {
+  it("показывает врачу сумму и полосу", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     await submit(app, patientCookie, { submissionId: "s-1", answers: answers(2) });
@@ -149,7 +149,7 @@ describe("reading assessments", () => {
     await app.close();
   });
 
-  it("marks item 9 for the doctor when it is answered", async () => {
+  it("отмечает пункт 9 для врача, когда на него ответили", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     await submit(app, patientCookie, { submissionId: "s-1", answers: answers(0, { q9: 2 }) });
@@ -164,7 +164,7 @@ describe("reading assessments", () => {
     await app.close();
   });
 
-  it("keeps another doctor out", async () => {
+  it("не пускает другого врача", async () => {
     const app = await newApp();
     const { patientCookie, patientId } = await boundPair(app);
     await submit(app, patientCookie, { submissionId: "s-1", answers: answers(1) });
@@ -180,7 +180,7 @@ describe("reading assessments", () => {
     await app.close();
   });
 
-  it("keeps a patient off the doctor's route", async () => {
+  it("не пускает пациента на маршрут врача", async () => {
     const app = await newApp();
     const { patientCookie, patientId } = await boundPair(app);
 
@@ -195,20 +195,34 @@ describe("reading assessments", () => {
   });
 });
 
-/** GAD-7 has seven items and ASQ four; both number them q1… and answer on one scale. */
-function items(count: number, value: number, overrides: Record<string, number> = {}) {
+/** HADS-тревога нумерует пункты a1…a7, UKU — u01…u48; у каждого пункта свои варианты. */
+function hadsAnswers(value: number, overrides: Record<string, number> = {}) {
   return {
-    ...Object.fromEntries(Array.from({ length: count }, (_, index) => [`q${index + 1}`, value])),
+    ...Object.fromEntries(Array.from({ length: 7 }, (_, index) => [`a${index + 1}`, value])),
     ...overrides,
   };
 }
 
-describe("the patient's set past PHQ-9", () => {
-  it("takes a GAD-7 submission and keeps the score away from the patient", async () => {
-    const app = await newApp();
-    const cookie = await signUpPatient(app);
+function ukuAnswers(value: number, overrides: Record<string, number> = {}) {
+  return {
+    ...Object.fromEntries(
+      Array.from({ length: 48 }, (_, index) => [`u${String(index + 1).padStart(2, "0")}`, value]),
+    ),
+    ...overrides,
+  };
+}
 
-    const response = await submit(app, cookie, { submissionId: "g-1", answers: items(7, 2) }, "gad-7");
+describe("набор психиатра", () => {
+  it("принимает отправку HADS и не показывает сумму пациенту", async () => {
+    const app = await newApp();
+    const { patientCookie } = await boundPair(app, "psychiatrist");
+
+    const response = await submit(
+      app,
+      patientCookie,
+      { submissionId: "h-1", answers: hadsAnswers(2) },
+      "hads-anxiety",
+    );
 
     expect(response.statusCode).toBe(201);
     expect(response.json().assessment.answers).toHaveLength(7);
@@ -217,32 +231,14 @@ describe("the patient's set past PHQ-9", () => {
     await app.close();
   });
 
-  it("shows the doctor the GAD-7 total and its band", async () => {
+  it("показывает врачу сумму HADS и её полосу", async () => {
     const app = await newApp();
-    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
-    await submit(app, patientCookie, { submissionId: "g-1", answers: items(7, 2) }, "gad-7");
-
-    const response = await app.inject({
-      method: "GET",
-      url: `/api/patients/${patientId}/assessments`,
-      headers: { cookie: doctorCookie },
-    });
-
-    const [assessment] = response.json().assessments;
-    expect(assessment.instrumentId).toBe("gad-7");
-    expect(assessment.total).toBe(14);
-    expect(assessment.band.label).toBe("Умеренные проявления");
-    await app.close();
-  });
-
-  it("takes an ASQ submission and marks the positive question for the doctor", async () => {
-    const app = await newApp();
-    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
-    const submitted = await submit(
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app, "psychiatrist");
+    await submit(
       app,
       patientCookie,
-      { submissionId: "a-1", answers: items(4, 0, { q3: 1 }) },
-      "asq",
+      { submissionId: "h-1", answers: hadsAnswers(2) },
+      "hads-anxiety",
     );
 
     const response = await app.inject({
@@ -251,23 +247,85 @@ describe("the patient's set past PHQ-9", () => {
       headers: { cookie: doctorCookie },
     });
 
-    expect(submitted.statusCode).toBe(201);
-    expect(response.json().assessments[0].criticalItems).toEqual(["q3"]);
+    const [assessment] = response.json().assessments;
+    expect(assessment.instrumentId).toBe("hads-anxiety");
+    expect(assessment.total).toBe(14);
+    expect(assessment.band.label).toBe("Клинически выраженная");
     await app.close();
   });
 
-  it("keeps the PHQ-9 critical item raising a signal with three instruments in play", async () => {
+  it("принимает отправку UKU по всем 48 пунктам и не отмечает критический пункт", async () => {
     const app = await newApp();
-    const { doctorCookie, patientCookie } = await boundPair(app);
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app, "psychiatrist");
 
-    await submit(app, patientCookie, { submissionId: "a-1", answers: items(4, 0) }, "asq");
-    await submit(app, patientCookie, { submissionId: "g-1", answers: items(7, 0) }, "gad-7");
+    const submitted = await submit(
+      app,
+      patientCookie,
+      { submissionId: "u-1", answers: ukuAnswers(0, { u12: 3 }) },
+      "uku",
+    );
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/assessments`,
+      headers: { cookie: doctorCookie },
+    });
+
+    expect(submitted.statusCode).toBe(201);
+    expect(submitted.json().assessment.answers).toHaveLength(48);
+    expect(response.json().assessments[0].criticalItems).toEqual([]);
+    await app.close();
+  });
+
+  it("не показывает врачу сумму UKU: общей суммы у шкалы нет", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app, "psychiatrist");
+    await submit(
+      app,
+      patientCookie,
+      { submissionId: "u-1", answers: ukuAnswers(0, { u12: 3 }) },
+      "uku",
+    );
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/assessments`,
+      headers: { cookie: doctorCookie },
+    });
+
+    const [assessment] = response.json().assessments;
+    expect(assessment.instrumentId).toBe("uku");
+    // Числа нет, а не ноль: ноль читался бы как ответ по шкале (SPEC S10).
+    expect(assessment.total).toBeNull();
+    expect(assessment.band.label).toBe("Общей суммы нет");
+    await app.close();
+  });
+
+  it("при наборе психиатра критический пункт PHQ-9 всё равно поднимает сигнал", async () => {
+    const app = await newApp();
+    const { patientCookie } = await boundPair(app);
+
+    // PHQ-9 — скрининг. История терапии начинается после передачи психиатру: этап
+    // меняется вместе с ведущим врачом, а не кнопкой (Q49).
     await submit(app, patientCookie, { submissionId: "p-1", answers: answers(0, { q9: 1 }) });
+    const psychiatristCookie = await signUpDoctor(app, PSYCHIATRIST);
+    await bindPatient(app, patientCookie, psychiatristCookie);
+    await submit(
+      app,
+      patientCookie,
+      { submissionId: "u-1", answers: ukuAnswers(0) },
+      "uku",
+    );
+    await submit(
+      app,
+      patientCookie,
+      { submissionId: "h-1", answers: hadsAnswers(0) },
+      "hads-anxiety",
+    );
 
     const signals = await app.inject({
       method: "GET",
       url: "/api/signals",
-      headers: { cookie: doctorCookie },
+      headers: { cookie: psychiatristCookie },
     });
     const critical = signals
       .json()
@@ -278,11 +336,16 @@ describe("the patient's set past PHQ-9", () => {
     await app.close();
   });
 
-  it("still refuses HADS, which is no longer in the set", async () => {
+  it("отказывает в HADS пациенту, который ещё на скрининге", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
-    const response = await submit(app, cookie, { submissionId: "h-1", answers: items(7, 0) }, "hads");
+    const response = await submit(
+      app,
+      cookie,
+      { submissionId: "h-1", answers: hadsAnswers(0) },
+      "hads-anxiety",
+    );
 
     expect(response.statusCode).toBe(404);
     await app.close();

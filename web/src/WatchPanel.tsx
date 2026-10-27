@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { describeWatch, type WatchItem, type WatchKind } from "../../shared/contracts";
-import { createWatchItem, fetchWatchItems, setWatchStatus } from "./api";
+import { describeWatch, type InstrumentChoice, type WatchItem, type WatchKind } from "../../shared/contracts";
+import { createWatchItem, fetchPatientInstruments, fetchWatchItems, setWatchStatus } from "./api";
 import { Button, LoadError, loading, track, type Load } from "./ui";
 
 const KIND_LABEL: Record<WatchKind, string> = {
@@ -13,15 +13,15 @@ const KIND_LABEL: Record<WatchKind, string> = {
 
 const SEVERITY_LABEL = { medium: "средняя", high: "высокая", critical: "критичная" } as const;
 
-/** A paused rule must say so: an inset surface alone does not tell the doctor it is off. */
+/** Правило на паузе обязано это сказать: вставная поверхность сама по себе не говорит врачу, что оно выключено. */
 const STATUS_LABEL: Record<WatchItem["status"], string> = {
   active: "активно",
   paused: "на паузе",
 };
 
 /**
- * The doctor's own rules. They sit on top of the built-in safety net, which cannot
- * be switched off from here — a critical questionnaire answer always raises a signal.
+ * Правила самого врача. Они лежат поверх встроенной страховки, которую отсюда
+ * выключить нельзя: критический ответ в опроснике поднимает сигнал всегда.
  */
 export function WatchPanel({ patientId }: { patientId: string }) {
   const [items, setItems] = useState<Load<WatchItem[]>>(loading());
@@ -34,6 +34,9 @@ export function WatchPanel({ patientId }: { patientId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [toggleBusy, setToggleBusy] = useState<string | null>(null);
+  /** Набор пациента: правило на шкалу вне набора не сработает ни разу (#68). */
+  const [instruments, setInstruments] = useState<InstrumentChoice[]>([]);
+  const [instrumentId, setInstrumentId] = useState("");
   const [toggleError, setToggleError] = useState<string | null>(null);
 
   const reload = useCallback(() => {
@@ -41,6 +44,19 @@ export function WatchPanel({ patientId }: { patientId: string }) {
   }, [patientId]);
 
   useEffect(reload, [reload]);
+
+  useEffect(() => {
+    fetchPatientInstruments(patientId)
+      .then((response) => {
+        // У шкалы без общей суммы нет порога: правило по ней не сработает ни разу (SPEC S10).
+        const choices = response.instruments.filter((option) => option.scoring !== "items");
+        setInstruments(choices);
+        setInstrumentId((current) => current || choices[0]?.id || "");
+      })
+      .catch(() => setInstruments([]));
+  }, [patientId]);
+
+  const titles = Object.fromEntries(instruments.map((item) => [item.id, item.title]));
 
   async function toggle(item: WatchItem) {
     setToggleBusy(item.id);
@@ -65,7 +81,7 @@ export function WatchPanel({ patientId }: { patientId: string }) {
         kind === "message_keyword"
           ? { kind, title, severity, terms: terms.split(",").map((term) => term.trim()).filter(Boolean) }
           : kind === "score_threshold"
-            ? { kind, title, severity, instrumentId: "phq-9", threshold: number }
+            ? { kind, title, severity, instrumentId, threshold: number }
             : kind === "missed_doses"
               ? { kind, title, severity, days: number }
               : kind === "diary_drop"
@@ -114,12 +130,12 @@ export function WatchPanel({ patientId }: { patientId: string }) {
                   <span className="watch-item__status">{STATUS_LABEL[item.status]}</span>
                 </div>
                 {/*
-                 * The level is the last word on the threshold line, in --text-muted: the
-                 * export gives it a red capsule, and a red capsule on a rule row would take
-                 * the one loud accent away from the critical signal card below (§2.3, §3.1).
+                 * Уровень это последнее слово в строке порога, в --text-muted: в экспорте он
+                 * красной капсулой, а красная капсула в строке правила отняла бы единственный
+                 * громкий акцент у карточки критического сигнала ниже (§2.3, §3.1).
                  */}
                 <p className="watch-item__detail">
-                  {describeWatch(item)} · {SEVERITY_LABEL[item.severity]}
+                  {describeWatch(item, titles)} · {SEVERITY_LABEL[item.severity]}
                 </p>
               </div>
               <Button
@@ -163,6 +179,19 @@ export function WatchPanel({ patientId }: { patientId: string }) {
             onChange={(event) => setTitle(event.target.value)}
             placeholder="Название для врача, например «Риск самоповреждения»"
           />
+
+          {kind === "score_threshold" && (
+            <label className="watch-form__label">
+              Опросник
+              <select value={instrumentId} onChange={(event) => setInstrumentId(event.target.value)}>
+                {instruments.map((option) => (
+                  <option key={option.id} value={option.id}>
+                    {option.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
 
           {kind === "message_keyword" ? (
             <input

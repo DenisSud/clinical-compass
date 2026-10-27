@@ -20,7 +20,7 @@ export function setSessionCookie(reply: FastifyReply, token: string): void {
     httpOnly: true,
     sameSite: "lax",
     path: "/",
-    // The demo runs over http on localhost, where a secure cookie is never sent.
+    // Демо работает по http на localhost, где безопасная cookie не отправляется никогда.
     secure: process.env.NODE_ENV === "production",
     maxAge: Math.floor(SESSION_TTL_MS / 1000),
   });
@@ -49,7 +49,7 @@ export async function startSession(
   setSessionCookie(reply, token);
 }
 
-/** Resolves the session cookie to an identity, extending both row and cookie when the session is old. */
+/** Превращает cookie сессии в личность, продлевая и строку, и cookie, когда сессия старая. */
 export async function readSession(
   conn: Db,
   request: FastifyRequest,

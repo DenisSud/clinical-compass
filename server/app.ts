@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { createDb } from "./db/client.js";
 import { fail } from "./http/errors.js";
 import { authRoutes } from "./routes/auth.js";
+import { appointmentRoutes } from "./routes/appointments.js";
 import { assessmentRoutes } from "./routes/assessments.js";
 import { diaryRoutes } from "./routes/diary.js";
 import { factsRoutes } from "./routes/facts.js";
@@ -23,6 +24,7 @@ import { bindingCodeRoutes } from "./routes/binding-code.js";
 import { loginRoutes } from "./routes/login.js";
 import { meRoutes } from "./routes/me.js";
 import { patientRoutes } from "./routes/patients.js";
+import { assertStatusInstrumentsExist } from "./instruments/loader.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -38,9 +40,13 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   app.decorate("conn", createDb(options.dbPath ?? process.env.SQLITE_DB ?? "var/app.db"));
   await app.register(fastifyCookie);
 
-  // An empty body announced as JSON is not a server fault: a bodyless action
-  // (pause a rule, take a signal) sends no body at all. Without this parser
-  // Fastify rejects the request before routing and the doctor's click fails.
+  // Файл статусов, называющий несуществующую шкалу, валит сборку, а не первый запрос
+  // пациента: пустой список опросников выглядит как «врач ничего не назначил».
+  assertStatusInstrumentsExist();
+
+  // Пустое тело, объявленное как JSON, не поломка сервера: действие без тела
+  // (пауза правила, взятие сигнала в разбор) вообще не присылает тело. Без этого
+  // разбора Fastify отклоняет запрос до маршрутизации, и нажатие врача падает.
   app.addContentTypeParser(
     "application/json",
     { parseAs: "string" },
@@ -61,10 +67,10 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
     },
   );
 
-  // Without this, a thrown error returns Fastify's own body, and a client that
-  // validates against apiErrorSchema sees garbage exactly when something broke.
-  // A refusal stays a refusal: turning a 400 into a 500 tells the doctor the
-  // server broke when in fact the request did.
+  // Без этого брошенная ошибка возвращает собственное тело Fastify, и клиент,
+  // сверяющий ответ с apiErrorSchema, получает мусор ровно тогда, когда что-то сломалось.
+  // Отказ остаётся отказом: превратить 400 в 500 значит сказать врачу, что сломался
+  // сервер, хотя на самом деле ошибочен запрос.
   app.setErrorHandler((error: { statusCode?: number; code?: string; message?: string }, request, reply) => {
     const status = error.statusCode ?? 500;
     if (status < 500) {
@@ -90,6 +96,7 @@ export async function buildApp(options: BuildAppOptions = {}): Promise<FastifyIn
   await app.register(recommendationRoutes, { prefix: "/api" });
   await app.register(checkinRoutes, { prefix: "/api" });
   await app.register(prescriptionRoutes, { prefix: "/api" });
+  await app.register(appointmentRoutes, { prefix: "/api" });
   await app.register(watchRoutes, { prefix: "/api" });
   await app.register(rulesRoutes, { prefix: "/api" });
   await app.register(loginRoutes);

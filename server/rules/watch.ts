@@ -1,4 +1,5 @@
 import type { WatchItem } from "../../shared/contracts.js";
+import { instrument } from "../instruments/loader.js";
 import type { SignalDraft } from "./signals.js";
 
 export type WatchEvent =
@@ -10,11 +11,11 @@ export type WatchEvent =
 export type WatchSignalDraft = SignalDraft & { watchItemId: string };
 
 /**
- * The doctor's own rules, evaluated against one new event. Same contract as the
- * built-in rules: a signal is a question to look at, never an instruction.
+ * Правила самого врача, проверяемые против одного нового события. Контракт тот же, что
+ * у встроенных правил: сигнал это вопрос, на который надо посмотреть, а не указание.
  *
- * These are additions to the built-in safety net, not a replacement. Nothing here
- * can switch off the critical-item rule — that one is not the doctor's to disable.
+ * Это дополнение к встроенной страховке, а не замена. Ничто здесь не может выключить правило
+ * критического пункта: его не врачу отключать.
  */
 export function signalsForWatchItems(items: WatchItem[], event: WatchEvent): WatchSignalDraft[] {
   const drafts: WatchSignalDraft[] = [];
@@ -57,6 +58,9 @@ function match(item: WatchItem, event: WatchEvent): string | null {
     case "score_threshold": {
       if (event.type !== "assessment") return null;
       if (event.instrumentId !== String(item.params.instrumentId)) return null;
+      // У шкалы без общей суммы порога нет: сравнивать пришлось бы выдуманное число (SPEC S10).
+      // Строка могла остаться в базе с тех пор, как отказ появился только на создании правила.
+      if (instrument(event.instrumentId)?.scoring === "items") return null;
       const threshold = Number(item.params.threshold);
       if (!(event.total >= threshold)) return null;
       return `Сумма ответов ${event.total} — порог врача: ${threshold}.`;

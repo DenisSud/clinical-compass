@@ -1,7 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import type { KnowledgeDocument } from "./knowledge/corpus.js";
 import { recommendations, type RecommendationContext } from "./recommendations/service.js";
-import { newApp, signUpDoctor, signUpPatient } from "./test-support.js";
+import { bindPatient, newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
 
 const context: RecommendationContext = {
   band: { id: "moderate", label: "Умеренные проявления" },
@@ -37,8 +38,8 @@ const guideline = (firstLine: string): KnowledgeDocument => ({
   sections: { recommendations: "", firstLine, referral: "" },
 });
 
-describe("recommendations without a corpus", () => {
-  it("returns no cards and says exactly what is missing", () => {
+describe("рекомендации без корпуса", () => {
+  it("не возвращает карточек и точно говорит, чего не хватает", () => {
     const result = recommendations(context, []);
 
     expect(result.cards).toEqual([]);
@@ -46,7 +47,7 @@ describe("recommendations without a corpus", () => {
     expect(result.missing).toContain("Нет клинических рекомендаций — основание «первая линия» нечем подтвердить");
   });
 
-  it("names the gap when the patient has no questionnaire", () => {
+  it("называет пробел, когда у пациента нет опросника", () => {
     const result = recommendations({ ...context, hasAssessment: false }, []);
 
     expect(result.missing).toContain(
@@ -55,8 +56,16 @@ describe("recommendations without a corpus", () => {
   });
 });
 
-describe("recommendations with a corpus", () => {
-  it("builds a card whose basis comes from the guideline, not from a guess", () => {
+describe("рекомендации с корпусом", () => {
+  it("называет отсутствие измерений, когда их нет вовсе", () => {
+    const result = recommendations({ ...context, trend: "unknown", hasAssessment: false }, [smpc()]);
+
+    expect(result.cards[0]?.missing).toContain(
+      "Нет предыдущих измерений — динамику оценить не на чем",
+    );
+  });
+
+  it("строит карточку, основание которой взято из рекомендации, а не из догадки", () => {
     const result = recommendations(context, [smpc(), guideline("СИОЗС — препараты первой линии.")]);
 
     expect(result.cards).toHaveLength(1);
@@ -64,14 +73,14 @@ describe("recommendations with a corpus", () => {
     expect(result.cards[0]?.source?.url).toBe("https://lk.regmed.ru/x");
   });
 
-  it("falls back to the indications in the ОХЛП when there is no guideline", () => {
+  it("опирается на показания ОХЛП, когда клинической рекомендации нет", () => {
     const result = recommendations(context, [smpc()]);
 
     expect(result.cards[0]?.basis).toBe("Депрессивные эпизоды.");
     expect(result.missing).toContain("Нет клинических рекомендаций — основание «первая линия» нечем подтвердить");
   });
 
-  it("refuses a card that has nothing to stand on", () => {
+  it("отказывает в карточке, которой не на что опереться", () => {
     const bare = smpc({
       sections: {
         indications: "",
@@ -89,7 +98,7 @@ describe("recommendations with a corpus", () => {
     expect(result.missing.some((line) => line.includes("основание отсутствует"))).toBe(true);
   });
 
-  it("lists the gaps inside a card instead of hiding them", () => {
+  it("перечисляет пробелы внутри карточки, а не прячет их", () => {
     const thin = smpc({
       sections: {
         indications: "Депрессивные эпизоды.",
@@ -110,15 +119,52 @@ describe("recommendations with a corpus", () => {
     expect(card?.missing).toContain("В ОХЛП не указано дозирование");
   });
 
-  it("warns that a worsening patient needs a review before a therapy change", () => {
+  it("предупреждает, что ухудшающемуся пациенту нужен разбор до смены терапии", () => {
     const [card] = recommendations({ ...context, trend: "worsening" }, [smpc()]).cards;
 
     expect(card?.missing).toContain("Состояние ухудшается — нужен разбор сигнала до смены терапии");
   });
 });
 
-describe("the recommendations route", () => {
-  it("builds a card from the shipped ОХЛП and names what is still missing", async () => {
+/** Пациент у психиатра: в наборе HADS и UKU — две шкалы, суммы которых несравнимы. */
+async function psychiatristPair(app: App) {
+  const doctorCookie = await signUpDoctor(app, {
+    email: "psychiatrist@example.com",
+    password: "correct horse battery",
+    specialty: "psychiatrist",
+  });
+  const patientCookie = await signUpPatient(app);
+  await bindPatient(app, patientCookie, doctorCookie);
+  const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie: patientCookie } });
+  return { doctorCookie, patientCookie, patientId: me.json().profile.id as string };
+}
+
+function summedAnswers(id: string, value: number) {
+  const uku = id === "uku";
+  return Object.fromEntries(
+    Array.from({ length: uku ? 48 : 7 }, (_, index) => [
+      uku ? `u${String(index + 1).padStart(2, "0")}` : `a${index + 1}`,
+      value,
+    ]),
+  );
+}
+
+/** Динамика и суммы живут в пробелах карточки: верхний `missing` говорит о корпусе и плане. */
+function cardMissing(body: { cards: Array<{ missing: string[] }> }): string[] {
+  return body.cards.flatMap((card) => card.missing);
+}
+
+async function submit(app: App, cookie: string, instrumentId: string, answers: Record<string, number>) {
+  return app.inject({
+    method: "POST",
+    url: `/api/assessments/${instrumentId}`,
+    headers: { cookie },
+    payload: { submissionId: randomUUID(), answers },
+  });
+}
+
+describe("маршрут рекомендаций", () => {
+  it("строит карточку по сохранённому ОХЛП и называет, чего не хватает", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
     const patientCookie = await signUpPatient(app);
@@ -152,7 +198,7 @@ describe("the recommendations route", () => {
     await app.close();
   });
 
-  it("keeps another doctor out", async () => {
+  it("не пускает другого врача", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
     const patientCookie = await signUpPatient(app);
@@ -177,6 +223,75 @@ describe("the recommendations route", () => {
     });
 
     expect(response.statusCode).toBe(403);
+    await app.close();
+  });
+
+  it("берёт динамику по последней шкале с суммой, а не по сумме UKU", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await psychiatristPair(app);
+
+    await submit(app, patientCookie, "hads-anxiety", summedAnswers("hads-anxiety", 0));
+    // UKU заполнена после HADS: 48 — сумма разных явлений, и вычитать её из HADS нельзя (SPEC S10).
+    await submit(app, patientCookie, "uku", summedAnswers("uku", 1));
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/recommendations`,
+      headers: { cookie: doctorCookie },
+    });
+
+    // Динамика видна в том, что карточка говорит врачу о состоянии.
+    expect(response.statusCode).toBe(200);
+    expect(cardMissing(response.json())).not.toContain(
+      "Состояние ухудшается — нужен разбор сигнала до смены терапии",
+    );
+    await app.close();
+  });
+
+  it("называет динамику неизвестной, когда есть только UKU", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await psychiatristPair(app);
+
+    await submit(app, patientCookie, "uku", summedAnswers("uku", 0));
+    // Неделя прошла: иначе вторая отправка — отказ по периоду повтора.
+    app.conn.sqlite
+      .prepare("UPDATE assessments SET submitted_at = ?")
+      .run(new Date(Date.now() - 8 * 86_400_000).toISOString());
+    await submit(app, patientCookie, "uku", summedAnswers("uku", 1));
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/recommendations`,
+      headers: { cookie: doctorCookie },
+    });
+    const missing = cardMissing(response.json());
+
+    expect(missing).toContain("Нет ни одной отправки шкалы с общей суммой — динамику оценить не на чем");
+    expect(missing).not.toContain("Состояние ухудшается — нужен разбор сигнала до смены терапии");
+    await app.close();
+  });
+
+  it("называет ухудшением две суммы HADS, а не отбрасывает их как несравнимые", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await psychiatristPair(app);
+
+    await submit(app, patientCookie, "hads-anxiety", summedAnswers("hads-anxiety", 0));
+    // Неделя прошла: иначе вторая отправка — отказ по периоду повтора.
+    app.conn.sqlite
+      .prepare("UPDATE assessments SET submitted_at = ?")
+      .run(new Date(Date.now() - 8 * 86_400_000).toISOString());
+    // 7 пунктов по 3 — сумма 21 против 0: рост больше порога в 5 баллов.
+    await submit(app, patientCookie, "hads-anxiety", summedAnswers("hads-anxiety", 3));
+
+    const response = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/recommendations`,
+      headers: { cookie: doctorCookie },
+    });
+    const missing = cardMissing(response.json());
+
+    expect(missing).toContain("Состояние ухудшается — нужен разбор сигнала до смены терапии");
+    expect(missing).not.toContain("Нет ни одной отправки шкалы с общей суммой — динамику оценить не на чем");
     await app.close();
   });
 });

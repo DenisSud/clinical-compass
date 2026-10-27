@@ -42,9 +42,9 @@ const COPY: Record<Role, Copy> = {
 };
 
 /**
- * A failed sign-in says the same thing whether the address is unknown or belongs to
- * the other role: the screen names no account (DESIGN.md §2.5). The role is named by
- * the address; the server still decides who may enter.
+ * Неудачный вход говорит одно и то же и когда адрес неизвестен, и когда он принадлежит
+ * другой роли: экран не называет аккаунт (DESIGN.md §2.5). Роль называет адрес,
+ * а кто может войти, всё равно решает сервер.
  */
 function authErrorMessage(cause: unknown, role: Role, mode: Mode): string {
   if (cause instanceof ApiRequestError) {
@@ -69,9 +69,9 @@ function authErrorMessage(cause: unknown, role: Role, mode: Mode): string {
 }
 
 /**
- * Two doors, one per role (#55). The address names who enters, so the screen does not
- * offer a role choice: the only way to the other door is the quiet line at the bottom.
- * The frame borrows the source's cover (Lato Black under a thin rule), nothing more
+ * Две двери, по одной на роль (#55). Адрес называет, кто входит, поэтому экран не
+ * предлагает выбор роли: единственный путь к другой двери это тихая строка внизу.
+ * Рамка берёт обложку источника (Lato Black под тонкой линией) и ничего больше
  * (DESIGN.md §2.3).
  */
 export function AuthScreen({
@@ -87,6 +87,8 @@ export function AuthScreen({
   const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  /** Выбор врача при регистрации: от него зависит этап его пациентов (Q49). */
+  const [specialty, setSpecialty] = useState<"therapist" | "psychiatrist">("therapist");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [serverUp, setServerUp] = useState<boolean | null>(null);
@@ -108,7 +110,7 @@ export function AuthScreen({
     setError(null);
     try {
       const credentials = { email, password };
-      if (mode === "signup") await signUp(role, credentials);
+      if (mode === "signup") await signUp(role, credentials, role === "doctor" ? specialty : undefined);
       else await signIn(role, credentials);
       onAuthenticated();
     } catch (cause) {
@@ -151,6 +153,19 @@ export function AuthScreen({
               onChange={(event) => setPassword(event.target.value)}
             />
           </label>
+
+          {role === "doctor" && mode === "signup" && (
+            <label className="auth-field">
+              <span>Специальность</span>
+              <select
+                value={specialty}
+                onChange={(event) => setSpecialty(event.target.value as "therapist" | "psychiatrist")}
+              >
+                <option value="therapist">Терапевт</option>
+                <option value="psychiatrist">Психиатр</option>
+              </select>
+            </label>
+          )}
 
           {error && (
             <p className="auth-error" role="alert">

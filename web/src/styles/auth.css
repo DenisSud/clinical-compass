@@ -1,8 +1,8 @@
 /* ---------- вход (#55) ----------
- * Two doors, one per role. The frame is the source's cover (Lato Black under a thin
- * rule); the difference between the screens is the rule's colour and the copy, not a
- * decorative theme. The role switch is one quiet line at the bottom: the screen names
- * who enters, it does not offer a choice (DESIGN.md §2.2, §2.3).
+ * Две двери, по одной на роль. Рамка это обложка источника (Lato Black под тонкой
+ * линией); разница между экранами в цвете линии и в тексте, а не в
+ * декоративной теме. Переключатель роли это одна тихая строка внизу: экран называет,
+ * кто входит, он не предлагает выбор (DESIGN.md §2.2, §2.3).
  */
 
 .auth {
@@ -24,7 +24,7 @@
   border: var(--border-width) solid var(--border-divider);
 }
 
-/* The doctor's frame is tighter and colder: the screen exists for decisions. */
+/* Рамка врача теснее и холоднее: экран существует для решений. */
 .auth--doctor .auth-card {
   max-width: 400px;
   border-top: 3px solid var(--brand-navy);
@@ -147,7 +147,7 @@
   text-decoration: underline;
 }
 
-/* The other door: one quiet line, not a segmented control and not two equal buttons. */
+/* Другая дверь: одна тихая строка, а не сегментированный переключатель и не две равные кнопки. */
 .auth-role {
   margin-top: var(--space-4);
   padding-top: var(--space-2);

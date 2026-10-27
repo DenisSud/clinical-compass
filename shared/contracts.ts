@@ -26,10 +26,29 @@ export const roleSchema = z.enum(["doctor", "patient"]);
 
 export type Role = z.infer<typeof roleSchema>;
 
+/**
+ * Специальность врача — поле врача, а не вторая роль (SPEC S2). Она задаёт этап его
+ * пациентов: терапевт — скрининг, психиатр — терапия (S3, Q49).
+ */
+export const doctorSpecialtySchema = z.enum(["therapist", "psychiatrist"]);
+
+export type DoctorSpecialty = z.infer<typeof doctorSpecialtySchema>;
+
+/**
+ * Тело регистрации врача. Специальность обязательна: от неё зависит этап его пациентов
+ * (S3), и молча выбранный терапевт это клиническое решение, принятое за врача.
+ */
+export const doctorSignupSchema = credentialsSchema.extend({
+  specialty: doctorSpecialtySchema,
+});
+
+export type DoctorSignup = z.infer<typeof doctorSignupSchema>;
+
 export const doctorProfileSchema = z.object({
   id: z.string(),
   email: z.string(),
   name: z.string().nullable(),
+  specialty: doctorSpecialtySchema,
   bindingCode: z.string().nullable(),
   bindingCodeExpiresAt: z.string().nullable(),
 });
@@ -42,6 +61,11 @@ export const patientProfileSchema = z.object({
   name: z.string().nullable(),
   doctor: z.object({ id: z.string(), email: z.string(), name: z.string().nullable() }).nullable(),
   boundAt: z.string().nullable(),
+  /**
+   * Напоминать о приёме на почту — предпочтение пациента (SPEC S24, Q49).
+   * Согласие, а не факт отправки: отправки писем в продукте нет.
+   */
+  remindByEmail: z.boolean(),
 });
 
 export type PatientProfile = z.infer<typeof patientProfileSchema>;
@@ -58,10 +82,17 @@ export const patientSummarySchema = z.object({
   email: z.string(),
   name: z.string().nullable(),
   boundAt: z.string().nullable(),
+  /**
+   * Этап пациента. Следует из специальности ведущего врача (SPEC S3, Q49) и выбирает
+   * набор опросников (content/instrument-statuses.json); пациенту не показывается.
+   */
+  status: z.string(),
+  statusLabel: z.string(),
 });
 
 export type PatientSummary = z.infer<typeof patientSummarySchema>;
 
+/** Что врач может поставить. Значения — из файла статусов, но список закрыт и проверяется здесь. */
 export const patientListResponseSchema = z.object({
   patients: z.array(patientSummarySchema),
 });
@@ -76,8 +107,8 @@ export const bindingCodeResponseSchema = z.object({
 export type BindingCodeResponse = z.infer<typeof bindingCodeResponseSchema>;
 
 /**
- * A model's proposal. `confirmedAt` stays null until a doctor confirms it;
- * an unconfirmed draft never changes what the patient sees.
+ * Предложение модели. `confirmedAt` остаётся null, пока врач его не подтвердит;
+ * неподтверждённый черновик никогда не меняет то, что видит пациент.
  */
 export type Draft<T> = {
   readonly value: T;
@@ -91,6 +122,16 @@ export const assessmentSubmitSchema = z.object({
 
 export type AssessmentSubmit = z.infer<typeof assessmentSubmitSchema>;
 
+/**
+ * Отправка шкалы врачом (SPEC S14, Q53): маршрут пациента её не принимает, а маршрут
+ * врача требует, чтобы шкала была объявлена врачебной в своём файле (audience "doctor").
+ */
+export const doctorAssessmentSubmitSchema = assessmentSubmitSchema.extend({
+  instrumentId: z.string().min(1),
+});
+
+export type DoctorAssessmentSubmit = z.infer<typeof doctorAssessmentSubmitSchema>;
+
 export const assessmentAnswerSchema = z.object({
   itemId: z.string(),
   text: z.string(),
@@ -98,7 +139,7 @@ export const assessmentAnswerSchema = z.object({
   label: z.string(),
 });
 
-/** The patient's own view: answers only, no score and no band. */
+/** Собственный взгляд пациента: только ответы, без суммы и без полосы. */
 export const patientAssessmentSchema = z.object({
   id: z.string(),
   instrumentId: z.string(),
@@ -109,16 +150,20 @@ export const patientAssessmentSchema = z.object({
 
 export type PatientAssessment = z.infer<typeof patientAssessmentSchema>;
 
-/** The doctor's view: the same answers, scored. */
+/** Взгляд врача: те же ответы, посчитанные. */
 export const doctorAssessmentSchema = z.object({
   id: z.string(),
   instrumentId: z.string(),
   instrumentTitle: z.string(),
   submittedAt: z.string(),
-  total: z.number(),
+  /**
+   * Общая сумма; null у шкалы без суммы (UKU). Числа там нет, а не ноль:
+   * врач читает «—», а не пустую строку, которую можно принять за ответ.
+   */
+  total: z.number().nullable(),
   band: z.object({ id: z.string(), label: z.string() }),
   criticalItems: z.array(z.string()),
-  /** True when the stored instrument description is no longer available. */
+  /** True, когда сохранённое описание инструмента больше недоступно. */
   instrumentMissing: z.boolean().optional(),
 });
 
@@ -144,21 +189,44 @@ export const diaryEntrySchema = z.object({
 
 export type DiaryEntry = z.infer<typeof diaryEntrySchema>;
 
-/** The questionnaire as the patient receives it: no bands, no critical flags. */
+/** Опросник в том виде, в каком его получает пациент: без полос, без признаков критического пункта. */
+/** Вариант ответа: у HADS и UKU он свой у каждого пункта, у PHQ-9 общий на шкалу. */
+const answerOptionViewSchema = z.object({ value: z.number(), label: z.string() });
+
 export const instrumentViewSchema = z.object({
   id: z.string(),
   title: z.string(),
   intro: z.string(),
-  options: z.array(z.object({ value: z.number(), label: z.string() })),
-  items: z.array(z.object({ id: z.string(), text: z.string() })),
+  options: z.array(answerOptionViewSchema),
+  items: z.array(
+    z.object({
+      id: z.string(),
+      text: z.string(),
+      options: z.array(answerOptionViewSchema).optional(),
+    }),
+  ),
   sourceNote: z.string(),
 });
 
 export type InstrumentView = z.infer<typeof instrumentViewSchema>;
 
+/** Порядок — из файла статуса: пациент видит назначенное, а не весь реестр. */
+/** В списке у шкалы есть дата, когда её можно пройти: у формы её нет, там нечего ждать. */
+export const patientInstrumentViewSchema = instrumentViewSchema.extend({
+  nextAttemptAt: z.string().nullable(),
+});
+
+export type PatientInstrumentView = z.infer<typeof patientInstrumentViewSchema>;
+
+export const instrumentListResponseSchema = z.object({
+  instruments: z.array(patientInstrumentViewSchema),
+});
+
+export type InstrumentListResponse = z.infer<typeof instrumentListResponseSchema>;
+
 /**
- * Where a rule came from. `status` is the honesty marker: a placeholder says the
- * source is ours until the clinical materials arrive (decisions.md Q31).
+ * Откуда взялось правило. `status` это маркер честности: заглушка говорит, что
+ * источник наш, пока не пришли клинические материалы (decisions.md Q31).
  */
 export const signalRuleSourceSchema = z.object({
   kind: z.enum(["guideline", "ohlp", "ours"]),
@@ -180,11 +248,11 @@ export const signalSchema = z.object({
   createdAt: z.string(),
   takenAt: z.string().nullable(),
   closedAt: z.string().nullable(),
-  /** Set when the signal came from a rule the doctor wrote, not from the built-in set. */
+  /** Заполняется, когда сигнал пришёл из правила, написанного врачом, а не из встроенного набора. */
   watchItemId: z.string().nullable(),
   /**
-   * The registry rule behind the card. Null for the instrument-band signal and for
-   * the doctor's own rules, where there is no rule file to point at.
+   * Правило реестра за карточкой. Null для сигнала по полосе шкалы и для правил
+   * врача, где нет файла правила, на который можно указать.
    */
   ruleId: z.string().nullable(),
   ruleTitle: z.string().nullable(),
@@ -240,9 +308,9 @@ export const messageSchema = z.object({
 export type Message = z.infer<typeof messageSchema>;
 
 /**
- * A recommendation the doctor may act on. `basis` is why it is on screen at all,
- * `missing` is what we do not know and would need before deciding. A card with an
- * empty basis is a defect: the case requires every recommendation to explain itself.
+ * Рекомендация, с которой врач может работать. `basis` это почему она вообще на экране,
+ * `missing` это чего мы не знаем и что нужно до решения. Карточка с пустым основанием
+ * это дефект: кейс требует, чтобы каждая рекомендация объясняла себя.
  */
 export const therapyCardSchema = z.object({
   id: z.string(),
@@ -262,14 +330,14 @@ export const checkinSubmitSchema = z.object({
   planItemId: z.string().min(1),
   status: checkinStatusSchema,
   reason: z.string().trim().max(500).optional(),
-  // Same shape as the diary: everything downstream keys on this exact string.
+  // Та же форма, что у дневника: всё дальше по цепочке смотрит на эту самую строку.
   checkinDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
 });
 
-/** One prescription as the patient sees it today. */
+/** Одно назначение в том виде, в каком его сегодня видит пациент. */
 export type PatientCheckinItem = {
   planItemId: string;
   title: string;
@@ -281,8 +349,8 @@ export type PatientCheckinItem = {
 export type PatientCheckins = { today: string; items: PatientCheckinItem[] };
 
 /**
- * Three states, never two. A day with no answer is not a missed dose, and a doctor
- * who cannot tell them apart will read silence as non-adherence.
+ * Три состояния, никогда два. День без ответа это не пропущенный приём, и врач,
+ * который их не различает, прочитает молчание как неприверженность.
  */
 export type AdherenceDay = {
   date: string;
@@ -354,6 +422,29 @@ export const doseEventSchema = z.object({
 });
 
 export type DoseEvent = z.infer<typeof doseEventSchema>;
+
+/**
+ * Приём, назначенный психиатром (SPEC S24, Q49). `cancelledAt` — отмена, а не
+ * отсутствие строки: история приёмов остаётся, и «перенесли» отличимо от «не было».
+ */
+export const appointmentSchema = z.object({
+  id: z.string(),
+  patientId: z.string(),
+  /** ISO-время с зоной: сутки до приёма считаются от текущего момента. */
+  scheduledAt: z.string(),
+  createdAt: z.string(),
+  cancelledAt: z.string().nullable(),
+});
+
+export type Appointment = z.infer<typeof appointmentSchema>;
+
+/** Время приёма вводит врач: ISO-строка с зоной, а не «завтра после обеда». */
+export const appointmentCreateSchema = z.object({
+  scheduledAt: z.iso.datetime(),
+});
+
+/** Напоминание на почту: согласие пациента, а не запись об отправке письма (S24). */
+export const appointmentReminderSchema = z.object({ remindByEmail: z.boolean() });
 
 /** `scheduled` — время ещё не наступило; это не «нет данных» и не пропуск. */
 export const doseSlotStateSchema = z.enum(["scheduled", "taken", "skipped", "no_data"]);
@@ -522,7 +613,7 @@ const watchBase = {
   severity: watchSeveritySchema,
 };
 
-/** What the doctor is watching, with the parameters that make it checkable. */
+/** Что врач держит под наблюдением, вместе с параметрами, которые делают это проверяемым. */
 export const watchCreateSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("diary_below"), threshold: z.number().int().min(1).max(10), ...watchBase }),
   z.object({ kind: z.literal("diary_drop"), points: z.number().int().min(1).max(9), ...watchBase }),
@@ -554,15 +645,40 @@ export type WatchItem = {
   pausedAt: string | null;
 };
 
-/** Plain-language description of a rule, so the doctor does not have to read JSON. */
-export function describeWatch(item: Pick<WatchItem, "kind" | "params">): string {
+/** Что можно выбрать в правиле «сумма выше порога»: шкалы из набора пациента. */
+export const instrumentChoiceSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  /** Сумма есть или её нет: у шкалы без суммы правило порога не сработает никогда. */
+  scoring: z.enum(["sum", "items"]),
+});
+
+export type InstrumentChoice = z.infer<typeof instrumentChoiceSchema>;
+
+export const instrumentChoicesResponseSchema = z.object({
+  instruments: z.array(instrumentChoiceSchema),
+});
+
+/**
+ * Описание правила человеческим языком, чтобы врачу не приходилось читать JSON.
+ * `titles` это названия шкал: без них «сумма опросника 14 и выше» не говорит, какой
+ * именно шкалы, а у пациента их несколько.
+ */
+export function describeWatch(
+  item: Pick<WatchItem, "kind" | "params">,
+  titles: Record<string, string> = {},
+): string {
   switch (item.kind) {
     case "diary_below":
       return `самочувствие ${String(item.params.threshold)} или ниже`;
     case "diary_drop":
       return `падение самочувствия на ${String(item.params.points)} и больше`;
-    case "score_threshold":
-      return `сумма опросника ${String(item.params.threshold)} и выше`;
+    case "score_threshold": {
+      const title = titles[String(item.params.instrumentId)];
+      return title
+        ? `сумма «${title}» ${String(item.params.threshold)} и выше`
+        : `сумма опросника ${String(item.params.threshold)} и выше`;
+    }
     case "missed_doses":
       return `${String(item.params.days)} пропуска приёма подряд`;
     case "message_keyword":

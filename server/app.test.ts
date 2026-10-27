@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildApp } from "./app.js";
 
 describe("GET /api/health", () => {
-  it("reports the api and the database as healthy", async () => {
+  it("сообщает, что api и база здоровы", async () => {
     const app = await buildApp({ dbPath: ":memory:", logger: false });
 
     const response = await app.inject({ method: "GET", url: "/api/health" });
@@ -12,7 +12,7 @@ describe("GET /api/health", () => {
     await app.close();
   });
 
-  it("creates the three domain tables on startup", async () => {
+  it("создаёт три доменные таблицы при старте", async () => {
     const app = await buildApp({ dbPath: ":memory:", logger: false });
 
     const tables = app.conn.sqlite

@@ -9,7 +9,7 @@ function slot(scheduledAt: string, state: DoseSlotState) {
 }
 
 describe("plannedSlots", () => {
-  it("orders intakes by planned time, not the order the doctor typed them", () => {
+  it("упорядочивает приёмы по запланированному времени, а не в порядке ввода врача", () => {
     expect(plannedSlots(twiceDaily, "2026-10-20", "2026-10-21")).toEqual([
       "2026-10-20T08:00",
       "2026-10-20T20:00",
@@ -18,14 +18,14 @@ describe("plannedSlots", () => {
     ]);
   });
 
-  it("starts at the prescription's start date, not at the edge of the window", () => {
+  it("начинает с даты начала назначения, а не с края окна", () => {
     expect(plannedSlots(twiceDaily, "2026-10-01", "2026-10-20")).toEqual([
       "2026-10-20T08:00",
       "2026-10-20T20:00",
     ]);
   });
 
-  it("stops at the end date, so a finished course schedules nothing", () => {
+  it("останавливается на дате окончания, поэтому законченный курс ничего не планирует", () => {
     const course = { ...twiceDaily, endsOn: "2026-10-20" };
     expect(plannedSlots(course, "2026-10-18", "2026-10-25")).toEqual([
       "2026-10-20T08:00",
@@ -33,7 +33,7 @@ describe("plannedSlots", () => {
     ]);
   });
 
-  it("gives nothing before the start and after the end", () => {
+  it("ничего не даёт до начала и после окончания", () => {
     expect(plannedSlots({ ...twiceDaily, endsOn: "2026-10-19" }, "2026-10-25", "2026-10-26")).toEqual([]);
   });
 });
@@ -41,22 +41,22 @@ describe("plannedSlots", () => {
 describe("slotState", () => {
   const now = "2026-10-21T12:00";
 
-  it("reads an unmarked slot that has come as no data, never as a missed dose", () => {
+  it("читает наступившее время без отметки как отсутствие сведений, а не как пропущенный приём", () => {
     expect(slotState({ scheduledAt: "2026-10-21T08:00", mark: undefined, now })).toBe("no_data");
   });
 
-  it("keeps a slot that has not come yet out of the no-data count", () => {
+  it("не включает время, которое ещё не наступило, в счёт отсутствия сведений", () => {
     expect(slotState({ scheduledAt: "2026-10-21T20:00", mark: undefined, now })).toBe("scheduled");
   });
 
-  it("reads the current minute as already come, not as still scheduled", () => {
+  it("читает текущую минуту как уже наступившую, а не как ещё запланированную", () => {
     // Граница минуты: приём в 12:00 в 12:00 наступил. Строгое «>» — решение, а не
     // случайность, и оно одно с POST /api/doses (issue #47).
     expect(slotState({ scheduledAt: now, mark: undefined, now })).toBe("no_data");
     expect(slotState({ scheduledAt: now, mark: { status: "taken" }, now })).toBe("taken");
   });
 
-  it("takes the patient's own mark as it is", () => {
+  it("берёт собственную отметку пациента как она есть", () => {
     expect(slotState({ scheduledAt: "2026-10-21T08:00", mark: { status: "taken" }, now })).toBe("taken");
     expect(slotState({ scheduledAt: "2026-10-21T08:00", mark: { status: "skipped" }, now })).toBe(
       "skipped",
@@ -66,7 +66,7 @@ describe("slotState", () => {
     );
   });
 
-  it("does not read a mark on a time that has not come as an intake", () => {
+  it("не читает отметку на ненаступившее время как приём", () => {
     expect(slotState({ scheduledAt: "2026-10-21T20:00", mark: { status: "skipped" }, now })).toBe(
       "scheduled",
     );
@@ -76,8 +76,8 @@ describe("slotState", () => {
   });
 });
 
-describe("three skipped intakes in a row", () => {
-  it("counts by planned time, so three intakes in a day and a half are three", () => {
+describe("три пропущенных приёма подряд", () => {
+  it("считает по запланированному времени, поэтому три приёма за полтора дня это три", () => {
     const slots = [
       slot("2026-10-20T08:00", "skipped"),
       slot("2026-10-20T20:00", "skipped"),
@@ -90,7 +90,7 @@ describe("three skipped intakes in a row", () => {
     ]);
   });
 
-  it("is broken by a single intake with no data, not counted through it", () => {
+  it("ломается одним приёмом без сведений, а не считается сквозь него", () => {
     const slots = [
       slot("2026-10-19T08:00", "skipped"),
       slot("2026-10-20T08:00", "no_data"),
@@ -100,7 +100,7 @@ describe("three skipped intakes in a row", () => {
     expect(trailingSkips(slots)).toHaveLength(2);
   });
 
-  it("is broken by an intake the patient took", () => {
+  it("ломается приёмом, который пациент выполнил", () => {
     const slots = [
       slot("2026-10-20T08:00", "skipped"),
       slot("2026-10-20T20:00", "skipped"),
@@ -110,7 +110,7 @@ describe("three skipped intakes in a row", () => {
     expect(trailingSkips(slots)).toHaveLength(1);
   });
 
-  it("does not let an intake that has not come yet hide the run behind it", () => {
+  it("не даёт ненаступившему приёму спрятать серию за ним", () => {
     const slots = [
       slot("2026-10-20T08:00", "skipped"),
       slot("2026-10-20T20:00", "skipped"),
@@ -122,12 +122,12 @@ describe("three skipped intakes in a row", () => {
 });
 
 describe("lateMinutes", () => {
-  it("measures the difference between the planned and the actual time", () => {
+  it("измеряет разницу между запланированным и фактическим временем", () => {
     const takenAt = new Date("2026-10-20T10:30:00").toISOString();
     expect(lateMinutes("2026-10-20T08:00", takenAt)).toBe(150);
   });
 
-  it("has no answer for an intake that did not happen", () => {
+  it("не имеет ответа для приёма, которого не было", () => {
     expect(lateMinutes("2026-10-20T08:00", null)).toBeNull();
   });
 });

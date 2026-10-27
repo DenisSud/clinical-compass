@@ -1,0 +1,42 @@
+{
+  "statuses": [
+    {
+      "id": "screening",
+      "label": "Скрининг",
+      "instruments": [
+        {
+          "id": "phq-9",
+          "repeatAfterHours": 168
+        }
+      ],
+      "source": {
+        "kind": "ours",
+        "ref": "docs/research/ai-decision-logic/sources-needed.md#11-правила-выбора-шкал",
+        "status": "placeholder"
+      }
+    },
+    {
+      "id": "treatment",
+      "label": "Терапия",
+      "instruments": [
+        {
+          "id": "hads-anxiety",
+          "repeatAfterHours": 168
+        },
+        {
+          "id": "hads-depression",
+          "repeatAfterHours": 168
+        },
+        {
+          "id": "uku",
+          "repeatAfterHours": 168
+        }
+      ],
+      "source": {
+        "kind": "ours",
+        "ref": "docs/research/ai-decision-logic/sources-needed.md#11-правила-выбора-шкал",
+        "status": "placeholder"
+      }
+    }
+  ]
+}

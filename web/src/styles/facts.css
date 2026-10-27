@@ -1,12 +1,12 @@
-/* ---------- blocking facts: the patient's form (#48, _6) ----------
+/* ---------- обязательные факты: форма пациента (#48, _6) ----------
  *
- * One list of facts, two screens. The patient sees the question, their own answer and the
- * date: a chosen option is a choice, not an assessment, so «да» carries no signal tone
- * (DESIGN.md §2.2). The doctor sees the same answers as cards with their state and their
- * source; what the answers mean is said by the signal card below, never by this block.
+ * Один список фактов, два экрана. Пациент видит вопрос, свой ответ и
+ * дату: выбранный вариант это выбор, а не оценка, поэтому «да» не несёт тона сигнала
+ * (DESIGN.md §2.2). Врач видит те же ответы карточками с их состоянием и
+ * источником; что ответы значат, говорит карточка сигнала ниже, а не этот блок.
  *
- * Targets are 44 px like everywhere else (§3.9); the fieldset is reset to zero, because its
- * min-content width otherwise pushes the page sideways at 375 px (WCAG 2.2 §1.4.10 reflow).
+ * Цели по 44 px, как везде (§3.9); fieldset обнулён, потому что его
+ * ширина min-content иначе толкает страницу вбок на 375 px (WCAG 2.2 §1.4.10 reflow).
  */
 
 .facts {
@@ -18,11 +18,11 @@
 }
 
 /*
- * One question is one block that opens with its place in the list (§3.6): six identical
- * questions scroll past, and the counter is what says where in them the patient is. Blocks
- * are separated by a hairline and not by a card of their own: the export draws each
- * question as a white card on a tinted page (system §1.5), and inside our white card a
- * second white card would need a second frame inside a frame.
+ * Один вопрос это один блок, который открывается своим местом в списке (§3.6): шесть одинаковых
+ * вопросов прокручиваются мимо, и счётчик это то, что говорит, где в них находится пациент. Блоки
+ * разделены линией, а не собственной карточкой: в экспорте каждый
+ * вопрос нарисован белой карточкой на тонированной странице (system §1.5), а внутри нашей белой карточки
+ * вторая белая карточка потребовала бы второй рамки внутри рамки.
  */
 .fact {
   margin: 0;
@@ -43,9 +43,9 @@
 }
 
 /*
- * The legend carries both the counter and the question, so the group announces where it
- * sits in the list along with its text. `display: block; width: 100%` keeps the legend from
- * shrinking to its longest word, which is how it is laid out by default.
+ * Заголовок группы несёт и счётчик, и вопрос, поэтому группа объявляет, где она
+ * стоит в списке, вместе со своим текстом. `display: block; width: 100%` не даёт заголовку
+ * сжаться до самого длинного слова, как он раскладывается по умолчанию.
  */
 .fact__legend {
   display: block;
@@ -63,7 +63,7 @@
   color: var(--text-muted);
 }
 
-/* The question at 17/700: the export's headline-md is 18, our scale has 17 (§3.6). */
+/* Вопрос 17/700: headline-md из экспорта это 18, в нашей шкале 17 (§3.6). */
 .fact__question {
   display: block;
   margin-top: var(--space-1);
@@ -80,17 +80,17 @@
 }
 
 /*
- * Every option is a 44 px row with a frame; the chosen one takes a mint fill and the 2 px
- * marker on the left — the same pair the questionnaire uses (patient.css, `.phq9 .choice`),
- * so «выбрано» looks the same on both patient forms. The left edge is 2 px on every row and
- * only changes colour when the row is chosen: a transparent edge would leave the frame open
- * on one side, and the text must not jump sideways when the answer changes. «Не знаю» is
- * one of these rows and not a grey button: it is an answer the patient may give, and it must
- * not read as the one option that means «ничего».
+ * Каждый вариант это строка 44 px с рамкой; выбранный получает мятную заливку и метку 2 px
+ * слева: та же пара, что в опроснике (patient.css, `.instrument .choice`),
+ * поэтому «выбрано» выглядит одинаково на обеих пациентских формах. Левый край это 2 px в каждой строке и
+ * меняется только цвет, когда строку выбирают: прозрачный край оставил бы рамку открытой
+ * с одной стороны, а текст не должен прыгать вбок при смене ответа. «Не знаю» это
+ * одна из этих строк, а не серая кнопка: это ответ, который пациент может дать, и он не должен
+ * читаться как единственный вариант, означающий «ничего».
  *
- * The frame is --brand-slate (5.86:1), not --border-divider: a row here is a control, and
- * 1.71:1 on white is below the 3:1 of WCAG 1.4.11 — the same reason our input frames are
- * not the export's #bbc8d1 (system §4, п. 20).
+ * Рамка это --brand-slate (5.86:1), а не --border-divider: строка здесь это элемент управления, а
+ * 1.71:1 на белом ниже 3:1 из WCAG 1.4.11, та же причина, по которой наши рамки полей
+ * не #bbc8d1 из экспорта (system §4, п. 20).
  */
 .facts .choice {
   min-height: 44px;
@@ -101,8 +101,8 @@
   background: var(--surface-card);
 }
 
-/* The tint means «выбрано», not «хорошо» — the language of the day scale, not a signal
-   level (§2.2). */
+/* Заливка значит «выбрано», а не «хорошо»: это язык шкалы дня, а не уровень
+   сигнала (§2.2). */
 .facts .choice:has(input:checked) {
   border-left-color: var(--action-primary);
   background: var(--surface-muted);
@@ -120,9 +120,10 @@
   color: var(--text-muted);
 }
 
-/* The unit sits inside the field's frame (system §2.6): it names the number, and a unit
-   written under the field reads as a second label. The input has no frame of its own — the
-   wrapper carries it, and the focus ring moves to the wrapper for the same reason. */
+/* Единица измерения стоит внутри рамки поля (system §2.6): она называет число, а единица,
+ * написанная под полем, читается как вторая подпись. У самого input своей рамки нет:
+ * её несёт обёртка, и кольцо фокуса переходит на обёртку по той же причине.
+ */
 .fact__number-field {
   display: flex;
   align-items: center;
@@ -172,7 +173,7 @@
   width: 100%;
 }
 
-/* Incompleteness, not risk: a neutral surface and ordinary text, no signal tones. */
+/* Неполнота, а не риск: нейтральная поверхность и обычный текст, без тонов сигнала. */
 .facts-gaps {
   margin-top: var(--space-5);
   padding: var(--space-3) var(--space-4) var(--space-4);
@@ -186,17 +187,17 @@
   line-height: var(--lh-dense);
 }
 
-/* ---------- blocking facts: the doctor's reading (#48, _7) ----------
+/* ---------- обязательные факты: чтение врача (#48, _7) ----------
  *
- * Six facts, one card each, and every card says its state in a word first: answered and
- * marked, answered and clear, or never asked. The surface is the second channel — a filled
- * block, an outline, a dashed outline — because the word alone must not be the only thing
- * separating «не отмечено» from «не спрашивали» (GLOSSARY.md, DESIGN.md §2.5), and because
- * colour is taken by signals. Dashed is the one form nobody can read as the other two in
- * greyscale or in forced-colors mode.
+ * Шесть фактов, по карточке на каждый, и каждая карточка сначала говорит своё состояние словом: отвечено и
+ * отмечено, отвечено и чисто, или не спрашивали. Поверхность это второй канал: залитый
+ * блок, контур, пунктирный контур, потому что одно слово не должно быть единственным, что
+ * отделяет «не отмечено» от «не спрашивали» (GLOSSARY.md, DESIGN.md §2.5), и потому что
+ * цвет занят сигналами. Пунктир это единственная форма, которую нельзя прочитать как две другие
+ * в оттенках серого или в режиме forced-colors.
  *
- * No tone of a signal level appears here: a marked fact is not a severity, and the card
- * that draws the conclusion sits under this block (§2.2, §2.3).
+ * Ни один тон уровня сигнала здесь не появляется: отмеченный факт не тяжесть, а карточка,
+ * которая делает вывод, стоит под этим блоком (§2.2, §2.3).
  */
 
 .facts-report {
@@ -258,8 +259,9 @@
   color: var(--text-muted);
 }
 
-/* The answer is the one thing on the card read at a glance; it leans on weight and
- * --text-strong (12.02:1 on the white card, 10.74:1 on the inset one), not on colour. */
+/* Ответ это единственное на карточке, что читается сразу; он держится на весе и
+ * --text-strong (12.02:1 на белой карточке, 10.74:1 на вставной), а не на цвете.
+ */
 .fact-card__value {
   margin: 0;
   font-size: var(--text-body);

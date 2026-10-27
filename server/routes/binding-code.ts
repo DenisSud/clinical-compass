@@ -6,7 +6,7 @@ import { requireAuth, requireRole } from "../auth/guard.js";
 import { doctors } from "../db/schema.js";
 import { unauthorized } from "../http/errors.js";
 
-/** No 0/O/1/I: the code is read aloud and written down by hand. */
+/** Без 0/O/1/I: код читают вслух и переписывают от руки. */
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const CODE_LENGTH = 6;
 const CODE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -22,8 +22,8 @@ function generateCode(): string {
 async function issueCode(app: FastifyInstance, doctorId: string): Promise<BindingCodeResponse> {
   const expiresAt = new Date(Date.now() + CODE_TTL_MS).toISOString();
 
-  // Six symbols collide rarely, but "rarely" is not "never", and a 500 on issuing a
-  // code is a dead end for the doctor. Try another one.
+  // Шесть символов совпадают редко, но «редко» не значит «никогда», а 500 при выдаче кода
+  // это тупик для врача. Пробуем следующий.
   for (let attempt = 0; attempt < 5; attempt += 1) {
     const code = generateCode();
     try {

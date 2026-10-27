@@ -1,8 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+import { bindPatient, newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+/** Назначает и ведёт план психиатр (SPEC S7, Q50): у терапевта этих маршрутов нет. */
+const PSYCHIATRIST = {
+  email: "psychiatrist@example.com",
+  password: "correct horse battery",
+  specialty: "psychiatrist" as const,
+};
 
 async function boundPair(app: App) {
-  const doctorCookie = await signUpDoctor(app);
+  const doctorCookie = await signUpDoctor(app, PSYCHIATRIST);
   const patientCookie = await signUpPatient(app);
   const code = await app.inject({
     method: "GET",
@@ -28,8 +34,8 @@ function createItem(app: App, cookie: string, patientId: string, title = "Сер
   });
 }
 
-describe("the plan", () => {
-  it("keeps a draft invisible to the patient until it is confirmed", async () => {
+describe("план", () => {
+  it("держит черновик невидимым для пациента, пока его не подтвердят", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
 
@@ -50,7 +56,7 @@ describe("the plan", () => {
     await app.close();
   });
 
-  it("shows the doctor both drafts and confirmed items", async () => {
+  it("показывает врачу и черновики, и подтверждённые пункты", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const created = await createItem(app, doctorCookie, patientId);
@@ -72,7 +78,7 @@ describe("the plan", () => {
     await app.close();
   });
 
-  it("refuses to confirm the same item twice", async () => {
+  it("отказывает в повторном подтверждении того же пункта", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
     const created = await createItem(app, doctorCookie, patientId);
@@ -85,7 +91,7 @@ describe("the plan", () => {
     await app.close();
   });
 
-  it("hides an archived item from the patient", async () => {
+  it("прячет архивный пункт от пациента", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const created = await createItem(app, doctorCookie, patientId);
@@ -99,7 +105,7 @@ describe("the plan", () => {
     await app.close();
   });
 
-  it("keeps the patient from writing the plan", async () => {
+  it("не даёт пациенту писать план", async () => {
     const app = await newApp();
     const { patientCookie, patientId } = await boundPair(app);
 
@@ -109,7 +115,7 @@ describe("the plan", () => {
     await app.close();
   });
 
-  it("keeps another doctor out", async () => {
+  it("не пускает другого врача", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
     const created = await createItem(app, doctorCookie, patientId);
@@ -131,7 +137,45 @@ describe("the plan", () => {
     await app.close();
   });
 
-  it("refuses an item without a title", async () => {
+  it("даёт терапевту читать план, но не создавать, подтверждать и архивировать", async () => {
+    const app = await newApp();
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    const created = await createItem(app, doctorCookie, patientId);
+    const itemId = created.json().item.id as string;
+
+    // Передача терапевту: план психиатра остаётся, менять его терапевт не может (Q50).
+    const therapistCookie = await signUpDoctor(app, {
+      email: "therapist@example.com",
+      password: "correct horse battery",
+    });
+    await bindPatient(app, patientCookie, therapistCookie);
+
+    const read = await app.inject({
+      method: "GET",
+      url: `/api/patients/${patientId}/plan`,
+      headers: { cookie: therapistCookie },
+    });
+    const write = await createItem(app, therapistCookie, patientId);
+    const confirm = await app.inject({
+      method: "POST",
+      url: `/api/plan/${itemId}/confirm`,
+      headers: { cookie: therapistCookie },
+    });
+    const archive = await app.inject({
+      method: "POST",
+      url: `/api/plan/${itemId}/archive`,
+      headers: { cookie: therapistCookie },
+    });
+
+    expect(read.statusCode).toBe(200);
+    expect(read.json().items).toHaveLength(1);
+    expect(write.statusCode).toBe(403);
+    expect(confirm.statusCode).toBe(403);
+    expect(archive.statusCode).toBe(403);
+    await app.close();
+  });
+
+  it("отказывает в пункте без названия", async () => {
     const app = await newApp();
     const { doctorCookie, patientId } = await boundPair(app);
 

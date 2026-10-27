@@ -24,8 +24,8 @@ async function patientIdOf(app: App, patientCookie: string): Promise<string> {
   return me.json<{ profile: { id: string } }>().profile.id;
 }
 
-describe("doctor unbinding a patient", () => {
-  it("removes the patient from the list and clears the patient's doctor", async () => {
+describe("отвязка пациента врачом", () => {
+  it("убирает пациента из списка и очищает у пациента врача", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
     const patientCookie = await signUpPatient(app);
@@ -47,7 +47,33 @@ describe("doctor unbinding a patient", () => {
     await app.close();
   });
 
-  it("keeps the patient's account, so they can bind again", async () => {
+  it("возвращает пациента на скрининг: без ведущего врача этапа терапии нет", async () => {
+    const app = await newApp();
+    const psychiatristCookie = await signUpDoctor(app, {
+      email: "psychiatrist@example.com",
+      password: "correct horse battery",
+      specialty: "psychiatrist",
+    });
+    const patientCookie = await signUpPatient(app);
+    await bindPatient(app, psychiatristCookie, patientCookie);
+    const patientId = await patientIdOf(app, patientCookie);
+
+    const before = await app.inject({ method: "GET", url: "/api/instruments", headers: { cookie: patientCookie } });
+    expect(before.json().instruments.map((entry: { id: string }) => entry.id)).toContain("uku");
+
+    await app.inject({
+      method: "POST",
+      url: `/api/patients/${patientId}/unbind`,
+      headers: { cookie: psychiatristCookie },
+    });
+
+    const after = await app.inject({ method: "GET", url: "/api/instruments", headers: { cookie: patientCookie } });
+    // Набор снова скрининговый: терапевтические шкалы никто не назначал (S3).
+    expect(after.json().instruments.map((entry: { id: string }) => entry.id)).toEqual(["phq-9"]);
+    await app.close();
+  });
+
+  it("сохраняет аккаунт пациента, чтобы он мог привязаться снова", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
     const patientCookie = await signUpPatient(app);
@@ -63,8 +89,8 @@ describe("doctor unbinding a patient", () => {
   });
 });
 
-describe("cross-role and cross-doctor access", () => {
-  it("stops a doctor from opening another doctor's patient", async () => {
+describe("доступ между ролями и врачами", () => {
+  it("не даёт врачу открыть пациента другого врача", async () => {
     const app = await newApp();
     const ownerCookie = await signUpDoctor(app);
     const strangerCookie = await signUpDoctor(app, {
@@ -86,7 +112,7 @@ describe("cross-role and cross-doctor access", () => {
     await app.close();
   });
 
-  it("stops a doctor from unbinding another doctor's patient", async () => {
+  it("не даёт врачу отвязать пациента другого врача", async () => {
     const app = await newApp();
     const ownerCookie = await signUpDoctor(app);
     const strangerCookie = await signUpDoctor(app, {
@@ -107,7 +133,7 @@ describe("cross-role and cross-doctor access", () => {
     await app.close();
   });
 
-  it("stops a patient from reading or unbinding through the doctor's routes", async () => {
+  it("не даёт пациенту читать или отвязываться через маршруты врача", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
     const patientCookie = await signUpPatient(app);
@@ -130,7 +156,7 @@ describe("cross-role and cross-doctor access", () => {
     await app.close();
   });
 
-  it("does not let one patient read another patient's card", async () => {
+  it("не даёт одному пациенту прочитать карточку другого", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
     const firstCookie = await signUpPatient(app);
@@ -152,7 +178,7 @@ describe("cross-role and cross-doctor access", () => {
     await app.close();
   });
 
-  it("reports an unknown patient as not found", async () => {
+  it("сообщает о неизвестном пациенте как о ненайденном", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
 
@@ -166,7 +192,7 @@ describe("cross-role and cross-doctor access", () => {
     await app.close();
   });
 
-  it("takes identity from the session only, never from the request body", async () => {
+  it("берёт личность только из сессии, никогда из тела запроса", async () => {
     const app = await newApp();
     const doctorCookie = await signUpDoctor(app);
     const patientCookie = await signUpPatient(app);

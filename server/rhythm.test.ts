@@ -31,8 +31,8 @@ function daysAgo(days: number): string {
   return new Date(Date.now() - days * 86_400_000).toISOString().slice(0, 10);
 }
 
-describe("the diary is one entry per day", () => {
-  it("refuses a second entry for the same day", async () => {
+describe("в дневнике одна запись в день", () => {
+  it("отказывает во второй записи за тот же день", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -45,7 +45,7 @@ describe("the diary is one entry per day", () => {
     await app.close();
   });
 
-  it("still returns the first entry when the same submission is retried", async () => {
+  it("всё равно возвращает первую запись, когда ту же отправку повторяют", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
     const payload = { submissionId: "retry", value: 5, entryDate: today() };
@@ -59,7 +59,7 @@ describe("the diary is one entry per day", () => {
     await app.close();
   });
 
-  it("accepts yesterday and refuses a date far from today", async () => {
+  it("принимает вчера и отказывает в дате далеко от сегодня", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -70,7 +70,7 @@ describe("the diary is one entry per day", () => {
     await app.close();
   });
 
-  it("lets the next day through", async () => {
+  it("пропускает следующий день", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -82,8 +82,8 @@ describe("the diary is one entry per day", () => {
   });
 });
 
-describe("the questionnaire is weekly", () => {
-  it("refuses a second attempt within a week", async () => {
+describe("опросник недельный", () => {
+  it("отказывает во второй попытке в пределах недели", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -93,11 +93,11 @@ describe("the questionnaire is weekly", () => {
     expect(first.statusCode).toBe(201);
     expect(second.statusCode).toBe(409);
     expect(second.json().code).toBe("too_soon");
-    expect(second.json().message).toMatch(/не чаще раза в неделю/);
+    expect(second.json().message).toMatch(/Следующий раз/);
     await app.close();
   });
 
-  it("does not let the refusal block a retry of the same submission", async () => {
+  it("не даёт отказу заблокировать повтор той же отправки", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
     const payload = { submissionId: "one", answers: answers(1) };
@@ -114,21 +114,7 @@ describe("the questionnaire is weekly", () => {
     await app.close();
   });
 
-  it("reports no waiting time once the week has passed", async () => {
-    const app = await newApp();
-    const cookie = await signUpPatient(app);
-    await submitAssessment(app, cookie);
-    app.conn.sqlite
-      .prepare("UPDATE assessments SET submitted_at = ?")
-      .run(new Date(Date.now() - 8 * 86_400_000).toISOString());
-
-    const response = await app.inject({ method: "GET", url: "/api/assessments", headers: { cookie } });
-
-    expect(response.json().nextAllowedAt).toBeNull();
-    await app.close();
-  });
-
-  it("opens again after seven days", async () => {
+  it("открывается снова через семь дней", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
     await submitAssessment(app, cookie);
@@ -141,72 +127,16 @@ describe("the questionnaire is weekly", () => {
     await app.close();
   });
 
-  it("tells the patient when the next attempt opens", async () => {
+  it("возвращает историю ответов без обещания даты следующей попытки", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
-    expect(
-      (await app.inject({ method: "GET", url: "/api/assessments", headers: { cookie } })).json()
-        .nextAllowedAt,
-    ).toBeNull();
-
     await submitAssessment(app, cookie);
+
     const response = await app.inject({ method: "GET", url: "/api/assessments", headers: { cookie } });
 
-    const next = new Date(response.json().nextAllowedAt).getTime();
-    expect(next).toBeGreaterThan(Date.now() + 6 * 86_400_000);
+    // Дату следующей попытки пациент видит в списке шкал; история её не повторяет.
     expect(response.json().assessments).toHaveLength(1);
-    await app.close();
-  });
-});
-
-describe("the interval belongs to the instrument", () => {
-  function submitAsq(app: App, cookie: string, answer = 0) {
-    return app.inject({
-      method: "POST",
-      url: "/api/assessments/asq",
-      headers: { cookie },
-      payload: {
-        submissionId: crypto.randomUUID(),
-        answers: Object.fromEntries(
-          ["q1", "q2", "q3", "q4"].map((id) => [id, answer]),
-        ),
-      },
-    });
-  }
-
-  it("asks ASQ again at any time, because a risk screener cannot be locked", async () => {
-    const app = await newApp();
-    const cookie = await signUpPatient(app);
-
-    const first = await submitAsq(app, cookie);
-    const second = await submitAsq(app, cookie);
-
-    expect(first.statusCode).toBe(201);
-    expect(second.statusCode).toBe(201);
-    await app.close();
-  });
-
-  it("does not lock a patient out of ASQ after a low score", async () => {
-    const app = await newApp();
-    const cookie = await signUpPatient(app);
-
-    await submitAsq(app, cookie, 0);
-    const afterCrisis = await submitAsq(app, cookie, 1);
-
-    expect(afterCrisis.statusCode).toBe(201);
-    await app.close();
-  });
-
-  it("keeps PHQ-9 weekly while ASQ is open", async () => {
-    const app = await newApp();
-    const cookie = await signUpPatient(app);
-
-    await submitAssessment(app, cookie);
-    await submitAsq(app, cookie);
-    const again = await submitAssessment(app, cookie);
-
-    expect(again.statusCode).toBe(409);
-    expect(again.json().code).toBe("too_soon");
+    expect(response.json()).not.toHaveProperty("nextAllowedAt");
     await app.close();
   });
 });

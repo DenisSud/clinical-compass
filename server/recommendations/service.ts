@@ -11,7 +11,7 @@ export type RecommendationContext = {
 
 export type RecommendationResult = {
   cards: TherapyCard[];
-  /** Everything we cannot answer yet. Shown to the doctor verbatim. */
+  /** Всё, на что мы пока не можем ответить. Показывается врачу дословно. */
   missing: string[];
 };
 
@@ -19,9 +19,10 @@ const NO_SMPC = "Нет ни одного текста ОХЛП — карточ
 const NO_GUIDELINE = "Нет клинических рекомендаций — основание «первая линия» нечем подтвердить";
 
 /**
- * Builds cards from the corpus we actually have. No model here: this is the floor
- * the model has to beat, and it is honest about the holes. Every card names its
- * source; when a source is absent, the hole is listed instead of filled with a guess.
+ * Строит карточки из корпуса, который у нас действительно есть. Модели здесь нет: это тот
+ * уровень, который модели предстоит превзойти, и он честно говорит о пробелах. Каждая
+ * карточка называет свой источник; когда источника нет, пробел перечисляется, а не
+ * заполняется догадкой.
  */
 export function recommendations(
   context: RecommendationContext,
@@ -55,13 +56,19 @@ export function recommendations(
     if (document.sections.dosing.trim() === "") {
       cardMissing.push("В ОХЛП не указано дозирование");
     }
-    // The ОХЛП forbids this drug in renal and hepatic impairment, epilepsy and on MAOIs.
-    // We hold none of those facts about the patient, so the card cannot clear it.
+    // ОХЛП запрещает этот препарат при почечной и печёночной недостаточности, эпилепсии и на МАО.
+    // Мы не держим об этом пациенте ни одного из этих фактов, поэтому карточка не может его снять.
     cardMissing.push(
       "Нет сведений о сопутствующих заболеваниях, функции почек и печени — противопоказания не проверены",
     );
+    // Неизвестная динамика значит две разные вещи: измерений нет вовсе или они есть, но ни одно
+    // не с суммой (UKU). Врач должен понять, чего именно не хватает (SPEC S10).
     if (context.trend === "unknown") {
-      cardMissing.push("Нет предыдущих измерений — динамику оценить не на чем");
+      cardMissing.push(
+        context.hasAssessment
+          ? "Нет ни одной отправки шкалы с общей суммой — динамику оценить не на чем"
+          : "Нет предыдущих измерений — динамику оценить не на чем",
+      );
     }
     if (context.trend === "worsening") {
       cardMissing.push("Состояние ухудшается — нужен разбор сигнала до смены терапии");
@@ -76,7 +83,7 @@ export function recommendations(
     };
   });
 
-  // A card without a basis is not a recommendation, it is a slogan.
+  // Карточка без основания это не рекомендация, а лозунг.
   const grounded = cards.filter((card) => card.basis !== "");
   const ungrounded = cards.filter((card) => card.basis === "");
   for (const card of ungrounded) {

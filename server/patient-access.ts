@@ -8,7 +8,7 @@ export type PatientLookup =
   | { ok: true; patient: PatientRow }
   | { ok: false; status: 404 | 403 };
 
-/** A doctor may only reach their own patients; the two refusals stay distinct. */
+/** Врач может дойти только до своих пациентов; два отказа остаются разными. */
 export async function loadPatientForDoctor(
   app: FastifyInstance,
   doctorId: string,

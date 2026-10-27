@@ -28,8 +28,8 @@ async function boundPair(app: App) {
   return { doctorCookie, patientCookie, patientId: me.json().profile.id as string };
 }
 
-describe("the wellbeing diary", () => {
-  it("accepts a score with a comment", async () => {
+describe("дневник самочувствия", () => {
+  it("принимает оценку с комментарием", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -40,7 +40,7 @@ describe("the wellbeing diary", () => {
     await app.close();
   });
 
-  it("accepts a score without a comment", async () => {
+  it("принимает оценку без комментария", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -51,7 +51,7 @@ describe("the wellbeing diary", () => {
     await app.close();
   });
 
-  it("refuses a score outside 1..10", async () => {
+  it("отказывает в оценке вне 1..10", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -62,7 +62,7 @@ describe("the wellbeing diary", () => {
     await app.close();
   });
 
-  it("does not write the same submission twice", async () => {
+  it("не пишет одну и ту же отправку дважды", async () => {
     const app = await newApp();
     const cookie = await signUpPatient(app);
 
@@ -75,7 +75,7 @@ describe("the wellbeing diary", () => {
     await app.close();
   });
 
-  it("keeps a doctor out of the diary route", async () => {
+  it("не пускает врача на маршрут дневника", async () => {
     const app = await newApp();
     const cookie = await signUpDoctor(app);
 
@@ -83,7 +83,7 @@ describe("the wellbeing diary", () => {
     await app.close();
   });
 
-  it("shows the patient only their own entries", async () => {
+  it("показывает пациенту только его записи", async () => {
     const app = await newApp();
     const mine = await signUpPatient(app);
     const theirs = await signUpPatient(app, { email: "other@example.com", password: "other password" });
@@ -98,7 +98,7 @@ describe("the wellbeing diary", () => {
     await app.close();
   });
 
-  it("shows the doctor their patient's entries, newest first", async () => {
+  it("показывает врачу записи его пациента, начиная с новых", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
@@ -115,7 +115,7 @@ describe("the wellbeing diary", () => {
     await app.close();
   });
 
-  it("keeps another doctor out", async () => {
+  it("не пускает другого врача", async () => {
     const app = await newApp();
     const { patientId } = await boundPair(app);
     const stranger = await signUpDoctor(app, { email: "other@example.com", password: "other password" });

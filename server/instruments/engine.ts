@@ -1,19 +1,18 @@
-import type { Instrument, InstrumentBand } from "./schema.js";
+import { optionsOf, type Instrument, type InstrumentBand } from "./schema.js";
 
 export class InvalidAnswers extends Error {}
 
 export type Score = { total: number; band: InstrumentBand };
 
 /**
- * Sum scoring with band lookup. Bands must cover the whole range: a score that
- * falls outside every band is a broken instrument, not a zero.
+ * Суммарная оценка с поиском полосы. Полосы должны покрывать весь диапазон: сумма,
+ * не попавшая ни в одну полосу, это сломанный инструмент, а не ноль.
  */
 export function score(instrument: Instrument, answers: Record<string, number>): Score {
-  const allowed = new Set(instrument.options.map((option) => option.value));
-
   for (const item of instrument.items) {
     const value = answers[item.id];
     if (value === undefined) throw new InvalidAnswers(`пункт ${item.id} без ответа`);
+    const allowed = new Set(optionsOf(instrument, item).map((option) => option.value));
     if (!allowed.has(value)) throw new InvalidAnswers(`пункт ${item.id}: недопустимое значение`);
   }
 
@@ -29,7 +28,7 @@ export function score(instrument: Instrument, answers: Record<string, number>): 
   return { total, band };
 }
 
-/** True when a critical item (item 9 of the PHQ-9) carries a non-zero answer. */
+/** True, когда критический пункт (пункт 9 PHQ-9) несёт ненулевой ответ. */
 export function criticalItems(instrument: Instrument, answers: Record<string, number>): string[] {
   return instrument.items
     .filter((item) => item.critical && (answers[item.id] ?? 0) > 0)

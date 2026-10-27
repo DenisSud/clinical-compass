@@ -5,6 +5,13 @@ export const doctors = sqliteTable("doctors", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   name: text("name"),
+  /**
+   * Специальность врача задаёт этап пациента: у терапевта скрининг, у психиатра
+   * терапия (Q49). Это поле врача, а не вторая роль.
+   */
+  specialty: text("specialty", { enum: ["therapist", "psychiatrist"] })
+    .notNull()
+    .default("therapist"),
   bindingCode: text("binding_code").unique(),
   bindingCodeExpiresAt: text("binding_code_expires_at"),
   createdAt: text("created_at").notNull(),
@@ -19,7 +26,20 @@ export const patients = sqliteTable(
     name: text("name"),
     doctorId: text("doctor_id").references(() => doctors.id, { onDelete: "set null" }),
     boundAt: text("bound_at"),
+    /**
+     * Этап пациента, а не оценка тяжести. Выводится из специальности ведущего врача
+     * при привязке (SPEC S3, Q49) и выбирает набор опросников из
+     * content/instrument-statuses.json. Пациенту не показывается.
+     */
+    status: text("status", { enum: ["screening", "treatment"] })
+      .notNull()
+      .default("screening"),
     createdAt: text("created_at").notNull(),
+    /**
+     * Согласие на напоминание о приёме по почте (SPEC S24, Q49). Хранится как
+     * предпочтение пациента: отправки в продукте пока нет, и поле об этом не врёт.
+     */
+    remindByEmail: integer("remind_by_email", { mode: "boolean" }).notNull().default(false),
   },
   (table) => [index("idx_patients_doctor_id").on(table.doctorId)],
 );
@@ -136,9 +156,9 @@ export const signals = sqliteTable(
 );
 
 /**
- * A rule the doctor wrote for one patient. Built-in rules always run and cannot be
- * switched off; these are additions. They are paused, never deleted — a signal may
- * still point at one.
+ * Правило, которое врач написал для одного пациента. Встроенные правила работают всегда,
+ * их нельзя выключить, эти идут в дополнение. Их ставят на паузу, но не удаляют: сигнал
+ * может на них ссылаться.
  */
 export const watchItems = sqliteTable(
   "watch_items",
@@ -241,6 +261,28 @@ export const prescriptions = sqliteTable(
     archivedAt: text("archived_at"),
   },
   (table) => [index("idx_prescriptions_patient").on(table.patientId, table.status)],
+);
+
+/**
+ * Приём, назначенный психиатром (SPEC S24, Q49). Отмена — дата в `cancelled_at`, а не
+ * удаление строки: история приёмов нужна врачу, а «следующий приём» — это единственная
+ * неудалённая и неотменённая запись в будущем.
+ */
+export const appointments = sqliteTable(
+  "appointments",
+  {
+    id: text("id").primaryKey(),
+    patientId: text("patient_id")
+      .notNull()
+      .references(() => patients.id, { onDelete: "cascade" }),
+    /** Ведущий врач на момент записи; NULL — врач удалён, приём остаётся. */
+    doctorId: text("doctor_id").references(() => doctors.id, { onDelete: "set null" }),
+    /** ISO-время с зоной: и «следующий приём», и сутки до него считаются от момента. */
+    scheduledAt: text("scheduled_at").notNull(),
+    createdAt: text("created_at").notNull(),
+    cancelledAt: text("cancelled_at"),
+  },
+  (table) => [index("idx_appointments_patient").on(table.patientId, table.scheduledAt)],
 );
 
 /**

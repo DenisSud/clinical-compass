@@ -19,8 +19,8 @@ async function boundPair(app: App) {
   return { doctorCookie, patientCookie, patientId: me.json().profile.id as string };
 }
 
-describe("messages", () => {
-  it("carries a question and an answer in order", async () => {
+describe("сообщения", () => {
+  it("проводит вопрос и ответ по порядку", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
 
@@ -46,7 +46,7 @@ describe("messages", () => {
     await app.close();
   });
 
-  it("shows the doctor the thread of their patient", async () => {
+  it("показывает врачу ленту его пациента", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     await app.inject({
@@ -66,7 +66,7 @@ describe("messages", () => {
     await app.close();
   });
 
-  it("refuses an empty message", async () => {
+  it("отказывает в пустом сообщении", async () => {
     const app = await newApp();
     const { patientCookie } = await boundPair(app);
 
@@ -81,7 +81,7 @@ describe("messages", () => {
     await app.close();
   });
 
-  it("keeps another doctor out of the thread", async () => {
+  it("не пускает другого врача в ленту", async () => {
     const app = await newApp();
     const { patientId } = await boundPair(app);
     const stranger = await signUpDoctor(app, { email: "other@example.com", password: "other password" });
@@ -96,7 +96,7 @@ describe("messages", () => {
     await app.close();
   });
 
-  it("keeps a patient from writing into someone else's thread", async () => {
+  it("не даёт пациенту писать в чужую ленту", async () => {
     const app = await newApp();
     const { patientId } = await boundPair(app);
     const other = await signUpPatient(app, { email: "other@example.com", password: "other password" });

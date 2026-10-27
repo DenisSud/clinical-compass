@@ -13,9 +13,9 @@ CREATE TABLE IF NOT EXISTS watch_items (
 
 CREATE INDEX IF NOT EXISTS idx_watch_patient ON watch_items(patient_id, status);
 
--- A signal raised by the doctor's own rule names that rule. Empty string rather than
--- NULL: SQLite treats NULLs as distinct in a unique index, and the dedupe below has to
--- work for the built-in rules too.
+-- Сигнал, поднятый правилом врача, называет это правило. Пустая строка вместо NULL:
+-- SQLite считает NULL-ы различными в уникальном индексе, а дедупликация ниже должна
+-- работать и для встроенных правил.
 ALTER TABLE signals ADD COLUMN watch_item_id TEXT NOT NULL DEFAULT '';
 
 DROP INDEX IF EXISTS idx_signals_source;

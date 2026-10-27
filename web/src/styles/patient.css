@@ -1,14 +1,14 @@
 /*
- * Patient surface: «Сегодня» (`_2`), «Дневник» (`_1`) and the parts of the shell that
- * only the patient page uses. Colour, radius and shadow decisions live in tokens.css:
- * the export's 8 px radii and 2 px borders (system §1.5) are not taken.
+ * Поверхность пациента: «Сегодня» (`_2`), «Дневник» (`_1`) и те части каркаса, которые
+ * использует только страница пациента. Решения о цвете, радиусе и тени живут в tokens.css:
+ * радиусы 8 px и границы 2 px из экспорта (system §1.5) не взяты.
  */
 
 /*
- * The export gives the patient card 20 px inside, a 17/700 heading and 24 px between
- * cards (system §2.4). 20 px is written as a literal: the spacing scale goes 16 → 24 and
- * the export's value sits between them. Scoped to the patient page: the doctor's cabinet
- * keeps its own denser rhythm, and the export itself has four card languages, not one.
+ * В экспорте карточка пациента имеет 20 px внутри, заголовок 17/700 и 24 px между
+ * карточками (system §2.4). 20 px записано литералом: шкала отступов идёт 16 → 24, и
+ * значение из экспорта стоит между ними. В границах страницы пациента: кабинет врача
+ * держит свой более плотный ритм, а в самом экспорте четыре языка карточек, а не один.
  */
 .page--patient .card {
   padding: 20px;
@@ -19,8 +19,9 @@
   margin-bottom: 0;
 }
 
-/* The patient column stacks cards; the card margin is the rhythm, so the generic 16 px
-   stack gap would double it to 40 px. Lists inside a card bring their own rhythm. */
+/* Колонка пациента складывает карточки; отступ карточки это ритм, поэтому общий зазор
+ * стека 16 px удвоил бы его до 40 px. Списки внутри карточки приносят свой ритм.
+ */
 .page--patient .stack {
   gap: 0;
 }
@@ -31,16 +32,16 @@
 }
 
 /*
- * A heading that opens a block under another block inside one card («Прошлые ответы»
- * below the questionnaire, «Переписка» below the doctor). The base `.section-title` only
- * knows what follows it; the 24 px above is the same step the cards keep between each
- * other, so two blocks in one card read like two cards.
+ * Заголовок, который открывает блок под другим блоком внутри одной карточки («Прошлые ответы»
+ * под опросником, «Переписка» под врачом). Базовый `.section-title` знает только то, что за ним
+ * идёт; 24 px сверху это тот же шаг, который карточки держат между собой,
+ * поэтому два блока в одной карточке читаются как две карточки.
  */
 .page--patient .section-title--spaced {
   margin-top: var(--space-5);
 }
 
-/* One form field for both patient forms: full width, 44 px floor, the same hairline. */
+/* Одно поле для обеих пациентских форм: на всю ширину, минимум 44 px, та же линия. */
 .field {
   display: block;
   width: 100%;
@@ -56,9 +57,9 @@
 }
 
 /*
- * The binding form: the code is spelled in the mono face the doctor reads it off, and the
- * field keeps the 44 px floor like every other target (§3.9). 12 px under the
- * instruction — one step of the scale below the paragraph above it.
+ * Форма привязки: код набран моно-шрифтом, с которого врач его читает, и
+ * поле сохраняет минимум 44 px, как любая другая цель (§3.9). 12 px под
+ * инструкцией: одна ступень шкалы ниже абзаца над ней.
  */
 .bind-card__form {
   margin-top: var(--space-3);
@@ -84,10 +85,10 @@
 }
 
 /* ---------- «Сегодня»: назначения на сегодня ----------
- * The export's intake row is «название + время справа» (system §2.3), but the patient
- * side has no prescription client yet — the time of a dose is not in PatientCheckinItem,
- * so no «08:00» is invented here (migration §3.5, separate ticket). What is taken: one
- * row per intake with a rule between them, and the two answers side by side under it.
+ * Строка приёма в экспорте это «название + время справа» (system §2.3), но на пациентской
+ * стороне ещё нет клиента назначений: время приёма нет в PatientCheckinItem,
+ * поэтому «08:00» здесь не выдумывается (migration §3.5, отдельный тикет). Взято: одна
+ * строка на приём с линией между ними и два ответа рядом под ней.
  */
 .intake {
   margin: 0;
@@ -169,7 +170,7 @@
   margin-top: var(--space-3);
 }
 
-/* Ten 44 px targets in a row do not fit a 360 px phone; 5 x 2 keeps the thumb honest (§3.9). */
+/* Десять целей по 44 px не влезают в строку на телефоне 360 px; 5 x 2 держит палец в честных условиях (§3.9). */
 .diary-scale {
   display: grid;
   grid-template-columns: repeat(10, minmax(0, 1fr));
@@ -183,15 +184,16 @@
   }
 }
 
-/* At 320 px an 8 px gap leaves each target 1 px under 44; the gap gives way, not the target. */
+/* На 320 px зазор 8 px оставляет каждой цели 1 px до 44; уступает зазор, а не цель. */
 @media (max-width: 360px) {
   .diary-scale {
     gap: 4px;
   }
 }
 
-/* The chosen day value is marked by frame, weight and a mint grouping tint — the tint
-   means «выбрано», not «хорошо» (tokens.css, rule 5). */
+/* Выбранное значение дня отмечено рамкой, весом и мятной заливкой группы: заливка
+ * значит «выбрано», а не «хорошо» (tokens.css, правило 5).
+ */
 .diary-scale__option {
   min-height: 44px;
   padding: 0 var(--space-1);
@@ -211,11 +213,11 @@
 }
 
 /* ---------- «Дневник»: записи ----------
- * One card, a rule between entries, the date on the left and the patient's own answer on
- * the right (migration §1.1). The answer keeps body size: it is the patient's own raw
- * value, not an assessment, and must not become the loudest element (§2.2). Rows are 16 px
- * inside like the intakes on «Сегодня», so the two lists on the patient side share one
- * rhythm inside a card.
+ * Одна карточка, линия между записями, дата слева и собственный ответ пациента
+ * справа (migration §1.1). Ответ сохраняет основной размер: это собственное сырое
+ * значение пациента, а не оценка, и он не должен становиться самым громким элементом (§2.2). Строки по 16 px
+ * внутри, как приёмы на «Сегодня», поэтому два списка на пациентской стороне делят один
+ * ритм внутри карточки.
  */
 .diary-entries {
   margin: 0;
@@ -261,8 +263,8 @@
   margin: var(--space-1) 0 0;
 }
 
-/* The way into «Мои данные» from «Сегодня»: one calm line and a quiet button — no counter,
-   no signal tone (§2.2: incompleteness is not risk). */
+/* Вход в «Мои данные» с «Сегодня»: одна спокойная строка и тихая кнопка, без счётчика
+   и без тона сигнала (§2.2: неполнота это не риск). */
 .facts-invite {
   display: grid;
   justify-items: start;
@@ -270,91 +272,91 @@
 }
 
 /* ---------- «Опросник»: девять пунктов ----------
- * Typography and rhythm from the export's question screen (system §2.7): the question is
- * 17/700, the answers 15, 8 px between them, «Вопрос N из 9» at 13 in the muted tone.
- * The export puts the counter under the answers and shows one question per screen; here
- * it opens each block, because all nine items share one page and the counter is what says
- * where in the list the patient is (§3.6). Between blocks a hairline, not a gap: nine
- * identical blocks read as a list, not as nine separate cards (§3.2).
+ * Типографика и ритм с экрана вопроса из экспорта (system §2.7): вопрос
+ * 17/700, ответы 15, 8 px между ними, «Вопрос N из 9» на 13 в приглушённом тоне.
+ * В экспорте счётчик стоит под ответами и один вопрос на экран; здесь
+ * он открывает каждый блок, потому что все девять пунктов делят одну страницу, а счётчик это то, что говорит,
+ * где в списке находится пациент (§3.6). Между блоками линия, а не зазор: девять
+ * одинаковых блоков читаются как список, а не как девять отдельных карточек (§3.2).
  */
-.phq9 {
+.instrument {
   margin: 0;
 }
 
-.phq9__items {
+.instrument__items {
   margin: var(--space-3) 0 0;
   padding: 0;
   list-style: none;
 }
 
-.phq9__item + .phq9__item {
+.instrument__item + .instrument__item {
   margin-top: var(--space-5);
   padding-top: var(--space-4);
   border-top: var(--border-width) solid var(--border-hairline);
 }
 
-.phq9__counter {
+.instrument__counter {
   margin: 0;
   font-size: var(--text-small);
   color: var(--text-muted);
 }
 
-.phq9__question {
+.instrument__question {
   margin: var(--space-1) 0 var(--space-2);
   font-size: var(--text-h3);
   font-weight: var(--fw-bold);
   color: var(--text-strong);
 }
 
-.phq9__answers {
+.instrument__answers {
   display: grid;
   gap: var(--space-2);
 }
 
 /*
- * The chosen row is marked on the row, not only in the 13 px circle (system §2.7): while
- * scrolling nine items a filled dot is too small a sign of «which of the four». The tint
- * means «выбрано», not «хорошо» — the same language the day scale uses
- * (`.diary-scale__option[aria-pressed="true"]`), not a score and not a band (§2.2). The
- * radio stays native and stays the only source of the state; the marker repeats it. Every
- * row carries a transparent 2 px left border, so the text does not jump by 2 px sideways
- * when the answer changes.
+ * Выбранная строка отмечена на строке, а не только в кружке 13 px (system §2.7): при
+ * прокрутке девяти пунктов залитая точка слишком малый признак «который из четырёх». Заливка
+ * значит «выбрано», а не «хорошо», тот же язык, что у шкалы дня
+ * (`.diary-scale__option[aria-pressed="true"]`), не оценка и не полоса (§2.2).
+ * Радиокнопка остаётся нативной и остаётся единственным источником состояния; метка повторяет его. Каждая
+ * строка несёт прозрачную левую границу 2 px, поэтому текст не прыгает на 2 px вбок,
+ * когда ответ меняется.
  *
- * Scoped to the questionnaire: «Мои данные» draws its own rows with a frame around them
- * and the same marker inside it (facts.css, `.facts .choice`), so the marker is written
- * once per form rather than once for every `.choice` on both. Where `:has()` is not
- * supported the row loses only the tint and the marker; the radio still carries the state
- * on its own.
+ * В границах опросника: «Мои данные» рисует свои строки с рамкой вокруг них
+ * и той же меткой внутри (facts.css, `.facts .choice`), поэтому метка написана
+ * один раз на форму, а не один раз на каждый `.choice` в обеих. Где `:has()` не
+ * поддерживается, строка теряет только заливку и метку; состояние всё равно несёт
+ * радиокнопка.
  */
-.phq9 .choice {
+.instrument .choice {
   border-left: var(--border-width-strong) solid transparent;
 }
 
-.phq9 .choice:has(input:checked) {
+.instrument .choice:has(input:checked) {
   border-left-color: var(--action-primary);
   background: var(--surface-muted);
 }
 
-.phq9__submit {
+.instrument__submit {
   width: 100%;
   margin-top: var(--space-4);
 }
 
-.phq9__progress {
+.instrument__progress {
   margin: var(--space-2) 0 0;
 }
 
-.phq9__source {
+.instrument__source {
   margin: var(--space-3) 0 0;
   font-size: var(--text-small);
   color: var(--text-muted);
 }
 
 /* ---------- «Опросник»: прошлые ответы ----------
- * A date and the questionnaire's name on the summary row, «вопрос — выбранный вариант»
- * inside, one answer per row with a hairline between (migration §1.5). Only the answers:
- * no total, no band, no comparison between two entries — a patient assessment carries
- * neither `total` nor `band`, and the screen may not draw one itself (§2.2).
+ * Дата и название опросника в строке сводки, внутри «вопрос — выбранный вариант»,
+ * по одному ответу в строке с линией между ними (migration §1.5). Только ответы:
+ * ни суммы, ни полосы, ни сравнения двух записей: пациентская оценка несёт
+ * ни `total`, ни `band`, и экран не может нарисовать их сам (§2.2).
  */
 .past-answers {
   margin: 0;
@@ -388,15 +390,15 @@
 }
 
 /* ---------- «План»: подтверждённые пункты ----------
- * Every row here is a decision the doctor has already made: `/api/plan` returns `active`
- * items only (`server/routes/plan.ts:115`), so there is no draft to hide, no state word to
- * read and no action to take. The kind is a caption above the title and the explanation
- * sits under it — the shape the doctor's plan row already has (doctor.css, `.plan-item`),
- * so one plan is not drawn in two layouts.
+ * Каждая строка здесь это решение, которое врач уже принял: `/api/plan` возвращает только
+ * `active` (`server/routes/plan.ts:115`), поэтому здесь нет черновика, который надо прятать, нет слова
+ * о состоянии, которое надо читать, и нет действия. Вид это подпись над названием, а пояснение
+ * стоит под ним: та форма, которую строка плана врача уже имеет (doctor.css, `.plan-item`),
+ * поэтому один план не рисуется двумя раскладками.
  *
- * The patient card used to put a 3 px --signal-done bar on every row. That tone means
- * «выполнено», a finished action (tokens.css), and a plan item is not one — the intake
- * list one tab away spends it on «Выполнил». Rows keep the diary's 16 px and a hairline.
+ * Раньше карточка пациента ставила полосу 3 px --signal-done на каждую строку. Этот тон значит
+ * «выполнено», завершённое действие (tokens.css), а пункт плана не оно: список приёмов
+ * на соседней вкладке тратит его на «Выполнил». Строки сохраняют 16 px дневника и линию.
  */
 .plan-entries {
   margin: 0;
@@ -442,4 +444,37 @@
   font-size: var(--text-small);
   line-height: var(--lh-dense);
   color: var(--color-body);
+}
+
+/* ---------- Список опросников ----------
+ * Набор выбирает врач по статусу, пациент выбирает только из назначенного. Строка, а не
+ * карточка: это список дел, и он должен читаться как список. Название и действие в одной
+ * строке — на телефоне кнопка переносится под название, но не отрывается от него.
+ */
+.instrument-list {
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.instrument-list__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-top: var(--border-width) solid var(--border-hairline);
+}
+
+.instrument-list__row:last-child {
+  border-bottom: var(--border-width) solid var(--border-hairline);
+}
+
+.instrument-list__title {
+  font-size: var(--text-body);
+}
+
+.instrument-list__wait {
+  font-size: var(--text-small);
+  color: var(--text-muted);
 }

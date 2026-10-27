@@ -19,7 +19,7 @@ export function DiaryForm({ onSaved }: { onSaved: () => void }) {
         submissionId: crypto.randomUUID(),
         value,
         comment: comment.trim() === "" ? undefined : comment.trim(),
-        // the patient's own calendar day, so a late evening entry stays theirs
+        // календарный день самого пациента, поэтому поздняя вечерняя запись остаётся его
         entryDate: new Date().toLocaleDateString("sv-SE"),
       });
       setComment("");

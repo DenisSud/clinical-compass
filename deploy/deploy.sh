@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Deploy the demo stand: sync the tree to pc, rebuild, restart the unit.
-# Code lives in /home/denis/apps/clinical-compass there; the unit is
-# deploy/clinical-compass.service in ~/.config/systemd/user (same content).
-# npm ci needs a toolchain for better-sqlite3 and its install scripts approved
-# (npm 11 blocks them by default), hence the nix shell below.
+# Выкатывает демо-стенд: синхронизирует дерево на pc, пересобирает, перезапускает юнит.
+# Код там лежит в /home/denis/apps/clinical-compass; юнит это
+# deploy/clinical-compass.service в ~/.config/systemd/user (то же содержимое).
+# npm ci требует инструментов для better-sqlite3 и разрешённых install-скриптов
+# (npm 11 блокирует их по умолчанию), отсюда nix shell ниже.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 HOST="${HOST:-pc}"
@@ -19,4 +19,4 @@ ssh "$HOST" "cd $APP && nix shell nixpkgs#gcc nixpkgs#gnumake nixpkgs#python3 -c
   && npm run build >/dev/null \
   && systemctl --user daemon-reload && systemctl --user restart clinical-compass.service"
 
-echo "deployed: http://192.168.1.20:8110 (public: https://compas.sudakov.site)"
+echo "выкачено: http://192.168.1.20:8110 (публично: https://compas.sudakov.site)"

@@ -1,7 +1,7 @@
 /*
- * Layout only: structure, hierarchy, responsiveness. Colour and decoration are
- * kept to the minimum DESIGN.md §2 allows, so that clinical severity wins over
- * anything decorative on the same screen.
+ * Только раскладка: структура, иерархия, отзывчивость. Цвет и украшения сведены
+ * к минимуму, который разрешает DESIGN.md §2, чтобы клиническая тяжесть побеждала
+ * любую декоративность на том же экране.
  */
 
 * {
@@ -43,15 +43,15 @@ th {
   overflow-wrap: anywhere;
 }
 
-/* ---------- app shell ----------
+/* ---------- каркас приложения ----------
  *
- * Two shells, one stylesheet. The control points are the ones the references were
- * drawn on (issues #30, #31): phone 375, tablet 768, desktop 1440. Nothing here
- * may scroll sideways at 375 px (WCAG 2.2 §1.4.10 reflow).
+ * Два каркаса, одна таблица стилей. Контрольные точки те, на которых рисовали
+ * референсы (issues #30, #31): телефон 375, планшет 768, настольный 1440. Ничто здесь
+ * не должно прокручиваться вбок на 375 px (WCAG 2.2 §1.4.10 reflow).
  *
- * Doctor: a wide screen, list and card side by side (DESIGN.md §3.10, #30 §4.4).
- * Patient: one narrow column that stays narrow on a desktop, so the line length and
- * the 44 px targets (DESIGN.md §3.9) do not change with the device.
+ * Врач: широкий экран, список и карточка рядом (DESIGN.md §3.10, #30 §4.4).
+ * Пациент: одна узкая колонка, которая остаётся узкой и на настольном экране, поэтому длина строки и
+ * цели 44 px (DESIGN.md §3.9) не меняются с устройством.
  */
 
 .app {
@@ -59,13 +59,13 @@ th {
 }
 
 /*
- * One compact row for both roles: brand, address, quiet exit, hairline under it. The
- * export's patient header is a 144 px app bar (system §2.1) and its doctor header 96 px;
- * a phone cannot spend that on chrome, so the row is sticky and 52 px high instead. The
- * safe-area insets are added rather than absorbed — on a notched phone the row is taller
- * by the inset, because the alternative is the brand under the cutout (viewport-fit=cover
- * in web/index.html). The height here is content plus insets; the exit keeps its 44 px
- * target inside it (§3.9), so the row is 53 px, not 44.
+ * Одна компактная строка для обеих ролей: бренд, адрес, тихий выход, линия под ними.
+ * Шапка пациента в экспорте это полоса 144 px (system §2.1), шапка врача 96 px;
+ * телефон не может тратить это на обвязку, поэтому строка липкая и высотой 52 px. Безопасные
+ * отступы экрана прибавляются, а не поглощаются: на телефоне с вырезом строка выше
+ * на величину отступа, потому что альтернатива это бренд под вырезом (viewport-fit=cover
+ * в web/index.html). Высота здесь это содержимое плюс отступы; выход сохраняет свою цель
+ * 44 px внутри неё (§3.9), поэтому строка 53 px, а не 44.
  */
 .topbar {
   position: sticky;
@@ -107,8 +107,9 @@ th {
   white-space: nowrap;
 }
 
-/* On a phone the brand and the address share a column and the exit spans both lines:
-   the row stays one row of 53 px instead of growing a second line under the rule. */
+/* На телефоне бренд и адрес делят одну колонку, а выход занимает обе строки:
+ * строка остаётся одной строкой в 53 px, а не растит вторую под линией.
+ */
 @media (max-width: 520px) {
   .topbar {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -163,12 +164,12 @@ th {
   }
 }
 
-/* ---------- tabs ----------
- * A row with an underline marker, not a segmented plate on a grey inset: the plate read
- * as a switch between two values, and the marker of the export (system §2.3) reads as
- * «this is where you are». The selected tab is marked by the 2 px rule and 700 weight at
- * the same size as its neighbours — the export grows the selected label from 13 to
- * 15 px, which moves the row on every switch (system §4, item 14).
+/* ---------- вкладки ----------
+ * Строка с подчёркиванием-маркером, а не сегментированная плашка на серой вставке: плашка читалась
+ * как переключатель между двумя значениями, а маркер из экспорта (system §2.3) читается как
+ * «вы здесь». Выбранная вкладка отмечена линией 2 px и весом 700 при
+ * том же размере, что у соседей: в экспорте выбранная подпись растёт с 13 до
+ * 15 px, и это двигает строку при каждом переключении (system §4, пункт 14).
  */
 
 .tabs {
@@ -214,34 +215,34 @@ th {
 }
 
 /*
- * The tabs wrap onto a second row instead of scrolling (#48 revised #35). #35 chose the
- * scroller because the five patient tabs fitted a phone row exactly (329 of 333 px) and
- * wrapping left the fifth one alone on its own line. The sixth tab («Мои данные») turned
- * the scroller into a hiding place: «План» and «Врач» sat behind the edge, and the fade
- * over the selected tab's white plate read as the end of the row rather than as «there are
- * two more sections» (DESIGN.md §2.4, §3.7). Two rows of 44 px cost 88 px of height and
- * show every section; a row that fits stays one row (desktop, the patient card).
+ * Вкладки переносятся на вторую строку вместо прокрутки (#48 пересмотрел #35). #35 выбрал
+ * прокрутку, потому что пять пациентских вкладок ровно влезали в телефонную строку (329 из 333 px), а
+ * перенос оставлял пятую одну на своей строке. Шестая вкладка («Мои данные») превратила
+ * прокрутку в тайник: «План» и «Врач» стояли за краем, а градиент
+ * над белой плашкой выбранной вкладки читался как конец строки, а не как «там есть
+ * ещё два раздела» (DESIGN.md §2.4, §3.7). Две строки по 44 px стоят 88 px высоты и
+ * показывают каждый раздел; строка, которая влезает, остаётся одной строкой (настольный экран, карточка пациента).
  */
 @media (max-width: 520px) {
   .tabs {
     column-gap: var(--space-3);
   }
 
-  /* Never shrink below the label: a tab is read, not truncated. */
+  /* Никогда не сжимать ниже подписи: вкладку читают, а не обрезают. */
   .tab {
     flex: 0 0 auto;
   }
 }
 
 /*
- * The fade is drawn by the component only when the row is measured wider than its box
- * (see Tabs in ui.tsx), so it always covers clipped content and never dims a tab that is
- * entirely on screen. It is an alpha ramp, not a colour: it takes no palette value.
+ * Градиент рисует компонент и только когда строка измерена шире своего бокса
+ * (см. Tabs в ui.tsx), поэтому он всегда закрывает обрезанное и никогда не затемняет вкладку,
+ * целиком видимую на экране. Это альфа-рампа, а не цвет: она не берёт значение палитры.
  *
- * Since #48 a row wraps, so the fade no longer fires for six patient tabs; what is left
- * for it is the row that cannot wrap at all — a single label wider than the row at a
- * phone with 200–250 % zoom. There the label is cut and the fade is the only honest
- * sign of it.
+ * С #48 строка переносится, поэтому для шести пациентских вкладок градиент больше не срабатывает; ему
+ * осталась строка, которая вообще не может переноситься: одна подпись шире строки на
+ * телефоне с масштабом 200–250 %. Там подпись обрезана, и градиент единственный честный
+ * признак этого.
  */
 .tabs--overflow {
   -webkit-mask-image: linear-gradient(
@@ -256,7 +257,7 @@ th {
   );
 }
 
-/* ---------- blocks ---------- */
+/* ---------- блоки ---------- */
 
 .card {
   padding: 16px;
@@ -325,10 +326,10 @@ th {
   gap: 8px;
 }
 
-/* ---------- buttons ----------
- * 44 px is the floor everywhere, not only on a phone: DESIGN.md §3.9 is a rule about
- * the target, and signal-semantics.md §7.8 closes the disagreement with WCAG 2.5.8
- * in one direction.
+/* ---------- кнопки ----------
+ * 44 px это минимум везде, не только на телефоне: DESIGN.md §3.9 это правило о
+ * цели, а signal-semantics.md §7.8 закрывает расхождение с WCAG 2.5.8
+ * в одну сторону.
  */
 
 .button {
@@ -367,7 +368,7 @@ th {
   cursor: not-allowed;
 }
 
-/* One answer of the PHQ-9: the radio is 13 px, the label around it is the target. */
+/* Один ответ PHQ-9: радиокнопка 13 px, а цель это подпись вокруг неё. */
 .choice {
   display: flex;
   align-items: center;
@@ -379,7 +380,7 @@ th {
   cursor: pointer;
 }
 
-/* Any bare disclosure header is a target too. */
+/* Любой заголовок раскрытия без оформления тоже цель. */
 .details-summary {
   display: flex;
   align-items: center;
@@ -388,16 +389,15 @@ th {
 }
 
 
-/* ---------- messages ----------
+/* ---------- сообщения ----------
  *
- * One thread for both roles (system §2.15). The export signs the author inside the
- * bubble as a caption and puts the patient left on white and the doctor left on light
- * blue — two languages for one dialogue, and the doctor's bubble is not on its own
- * side. Here the side carries the author: own messages sit right on --surface-inset,
- * the counterpart's left on --surface-muted, so the caption says who in words and the
- * place says it again without colour. 640 px is the export's measure for a bubble; it
- * keeps the line readable inside the doctor's 1120 px column and is wider than the
- * patient's 560 px page, so on a phone the bubble is the column.
+ * Одна лента для обеих ролей (system §2.15). В экспорте автор подписан подписью внутри
+ * пузыря, пациент слева на белом, врач слева на светло-голубом: два языка
+ * для одного разговора, и пузырь врача не на своей стороне. Здесь сторону несёт автор: свои
+ * сообщения справа на --surface-inset, сообщения собеседника слева на --surface-muted,
+ * поэтому подпись говорит, кто это, словами, а место говорит это ещё раз без цвета.
+ * 640 px это мера пузыря из экспорта; она сохраняет строку читаемой внутри колонки врача
+ * в 1120 px и шире страницы пациента в 560 px, поэтому на телефоне пузырь это колонка.
  */
 
 .thread__list {
@@ -418,15 +418,15 @@ th {
 }
 
 /*
- * The hairline sits 12 px from the bubble above and 12 px from the one below (list gap
- * plus padding): it separates two messages, it is not a border of either.
+ * Линия стоит в 12 px от пузыря выше и в 12 px от пузыря ниже (отступ списка
+ * плюс padding): она разделяет два сообщения, она не граница ни одного из них.
  */
 .thread__item + .thread__item {
   padding-top: var(--space-3);
   border-top: var(--border-width) solid var(--border-hairline);
 }
 
-/* min-width 0 and the cap together keep one long word from widening the page at 375 px. */
+/* min-width 0 и ограничение вместе не дают одному длинному слову расширить страницу на 375 px. */
 .thread__bubble {
   min-width: 0;
   max-width: min(640px, 100%);
@@ -439,7 +439,7 @@ th {
   background: var(--surface-inset);
 }
 
-/* The author and the date: 12 px caps, muted, the export's label-sm with our type scale. */
+/* Автор и дата: 12 px капсом, приглушённо, label-sm из экспорта на нашей шкале. */
 .thread__meta {
   margin: 0 0 var(--space-1);
   font-size: var(--text-micro);
@@ -463,8 +463,9 @@ th {
   margin-top: var(--space-4);
 }
 
-/* 44 px floor for the field as well as the button (DESIGN.md §3.9); vertical resize
-   only, so a drag cannot push the page sideways on a phone. */
+/* Пол 44 px и для поля, и для кнопки (DESIGN.md §3.9); изменение размера по вертикали
+ * только, поэтому перетаскивание не может толкнуть страницу вбок на телефоне.
+ */
 .thread__field {
   width: 100%;
   min-height: 44px;

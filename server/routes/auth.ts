@@ -1,7 +1,12 @@
 import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyPluginAsync } from "fastify";
-import { credentialsSchema, type Credentials, type MeResponse } from "../../shared/contracts.js";
+import {
+  credentialsSchema,
+  doctorSignupSchema,
+  type Credentials,
+  type MeResponse,
+} from "../../shared/contracts.js";
 import { hashPassword, verifyPassword } from "../auth/password.js";
 import { clearSessionCookie, endSession, startSession } from "../auth/session.js";
 import { doctors, patients } from "../db/schema.js";
@@ -19,10 +24,23 @@ function isUniqueViolation(error: unknown): boolean {
 
 const BAD_CREDENTIALS = "Проверьте email и пароль";
 
+const DOCTOR_SIGNUP_FAILED = "Проверьте email, пароль и специальность: «терапевт» или «психиатр»";
+
+/**
+ * Регистрация врача вместе со специальностью: она задаёт этап его пациентов, и
+ * отдельного переключателя этапа нет (Q49). Неизвестная или пропущенная специальность —
+ * отказ, а не тихо выбранный терапевт: это клиническое решение, принятое за врача.
+ */
+function readDoctorSignup(body: unknown) {
+  const parsed = doctorSignupSchema.safeParse(body);
+  return parsed.success ? parsed.data : null;
+}
+
 export const authRoutes: FastifyPluginAsync = async (app) => {
   app.post("/auth/doctor/signup", async (request, reply) => {
-    const credentials = readCredentials(request.body);
-    if (!credentials) return fail(reply, 400, "invalid_request", BAD_CREDENTIALS);
+    const signup = readDoctorSignup(request.body);
+    if (!signup) return fail(reply, 400, "invalid_request", DOCTOR_SIGNUP_FAILED);
+    const { specialty, ...credentials } = signup;
 
     try {
       const [doctor] = await app.conn.db
@@ -31,6 +49,7 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
           id: randomUUID(),
           email: credentials.email,
           passwordHash: await hashPassword(credentials.password),
+          specialty,
           createdAt: new Date().toISOString(),
         })
         .returning();

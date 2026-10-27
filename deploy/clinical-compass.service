@@ -1,8 +1,8 @@
-# Clinical Compass demo: patient + doctor on one Fastify process.
-# Deployed on pc as a user unit (denis), proxies from pi's Caddy:
+# Демо Clinical Compass: пациент и врач в одном процессе Fastify.
+# Развёрнуто на pc как пользовательский юнит (denis), проксируется Caddy с pi:
 # compas.sudakov.site -> 192.168.1.20:8110.
 [Unit]
-Description=Clinical Compass demo (patient + doctor)
+Description=Clinical Compass — демо: пациент и врач
 After=network-online.target
 
 [Service]

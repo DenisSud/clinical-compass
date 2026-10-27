@@ -1,4 +1,4 @@
--- A signal raised by a registry rule names that rule, so the card can show which rule
--- fired and where it came from. Empty string for the instrument-band signal and for
--- the doctor's own rules: neither points at a rule file.
+-- Сигнал, поднятый правилом реестра, называет это правило, чтобы карточка показала,
+-- какое правило сработало и откуда оно. Пустая строка для сигнала по полосе шкалы и для
+-- правил врача: ни то, ни другое не указывает на файл правила.
 ALTER TABLE signals ADD COLUMN rule_id TEXT NOT NULL DEFAULT '';
