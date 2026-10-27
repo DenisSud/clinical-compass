@@ -6,7 +6,7 @@ import { requireAuth, requireRole } from "../auth/guard.js";
 import { doctors } from "../db/schema.js";
 import { unauthorized } from "../http/errors.js";
 
-/** No 0/O/1/I: the code is read aloud and written down by hand. */
+/** Без 0/O/1/I: код читают вслух и переписывают от руки. */
 const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const CODE_LENGTH = 6;
 const CODE_TTL_MS = 7 * 24 * 60 * 60 * 1000;

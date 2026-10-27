@@ -11,7 +11,7 @@ export type RecommendationContext = {
 
 export type RecommendationResult = {
   cards: TherapyCard[];
-  /** Everything we cannot answer yet. Shown to the doctor verbatim. */
+  /** Всё, на что мы пока не можем ответить. Показывается врачу дословно. */
   missing: string[];
 };
 

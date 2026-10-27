@@ -27,7 +27,7 @@ export function statusForSpecialty(specialty: DoctorSpecialty): PatientStatusId 
   return specialty === "psychiatrist" ? "treatment" : "screening";
 }
 
-/** A status that is not in the list above is a typo in the database, not a fourth status. */
+/** Статус, которого нет в списке выше, это опечатка в базе, а не четвёртый статус. */
 export class UnknownStatus extends Error {}
 
 const statusInstrumentSchema = z.strictObject({
@@ -42,10 +42,10 @@ const statusInstrumentSchema = z.strictObject({
 
 const patientStatusSchema = z.strictObject({
   id: z.enum(PATIENT_STATUS_IDS),
-  /** What the doctor reads on the card. Never shown to the patient. */
+  /** То, что врач читает на карточке. Пациенту не показывается никогда. */
   label: z.string().min(1),
   instruments: z.array(statusInstrumentSchema).min(1),
-  /** Same honesty marker as a rule source: ours until the clinical material arrives. */
+  /** Тот же маркер честности, что у источника правила: наше, пока не пришёл клинический материал. */
   source: ruleSourceSchema,
 });
 
@@ -95,14 +95,14 @@ export function parseStatusesFile(value: unknown): Map<PatientStatusId, PatientS
   return loaded;
 }
 
-/** Reads the status file once. A malformed file fails loudly instead of emptying a screen. */
+/** Читает файл статусов один раз. Сломанный файл падает громко вместо того, чтобы опустошить экран. */
 export function statuses(): Map<PatientStatusId, PatientStatus> {
   if (cache) return cache;
   cache = parseStatusesFile(JSON.parse(readFileSync(FILE, "utf8")));
   return cache;
 }
 
-/** Throws for a status the file does not describe: an unknown status must not read as an empty set. */
+/** Бросает на статусе, которого файл не описывает: неизвестный статус не должен читаться как пустой набор. */
 export function patientStatus(id: string): PatientStatus {
   const found = statuses().get(id as PatientStatusId);
   if (!found) throw new UnknownStatus(`неизвестный статус пациента: ${id}`);
@@ -117,7 +117,7 @@ export function statusLabel(id: string): string {
   return patientStatus(id).label;
 }
 
-/** Test seam: drops the cache so a test can reload a file it just wrote. */
+/** Шов для тестов: сбрасывает кеш, чтобы тест перечитал только что записанный файл. */
 export function resetStatusesForTests(): void {
   cache = null;
 }

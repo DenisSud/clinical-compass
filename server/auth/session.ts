@@ -49,7 +49,7 @@ export async function startSession(
   setSessionCookie(reply, token);
 }
 
-/** Resolves the session cookie to an identity, extending both row and cookie when the session is old. */
+/** Превращает cookie сессии в личность, продлевая и строку, и cookie, когда сессия старая. */
 export async function readSession(
   conn: Db,
   request: FastifyRequest,

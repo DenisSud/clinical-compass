@@ -29,7 +29,7 @@ export async function activeWatchItems(app: FastifyInstance, patientId: string):
   return rows.map(toWatchItem);
 }
 
-/** Runs the doctor's rules against one new event and stores whatever fired. */
+/** Прогоняет правила врача по одному новому событию и сохраняет то, что сработало. */
 export async function raiseWatchSignals(
   app: FastifyInstance,
   input: {

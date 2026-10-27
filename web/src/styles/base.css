@@ -228,7 +228,7 @@ th {
     column-gap: var(--space-3);
   }
 
-  /* Never shrink below the label: a tab is read, not truncated. */
+  /* Никогда не сжимать ниже подписи: вкладку читают, а не обрезают. */
   .tab {
     flex: 0 0 auto;
   }
@@ -257,7 +257,7 @@ th {
   );
 }
 
-/* ---------- blocks ---------- */
+/* ---------- блоки ---------- */
 
 .card {
   padding: 16px;
@@ -368,7 +368,7 @@ th {
   cursor: not-allowed;
 }
 
-/* One answer of the PHQ-9: the radio is 13 px, the label around it is the target. */
+/* Один ответ PHQ-9: радиокнопка 13 px, а цель это подпись вокруг неё. */
 .choice {
   display: flex;
   align-items: center;
@@ -380,7 +380,7 @@ th {
   cursor: pointer;
 }
 
-/* Any bare disclosure header is a target too. */
+/* Любой заголовок раскрытия без оформления тоже цель. */
 .details-summary {
   display: flex;
   align-items: center;
@@ -426,7 +426,7 @@ th {
   border-top: var(--border-width) solid var(--border-hairline);
 }
 
-/* min-width 0 and the cap together keep one long word from widening the page at 375 px. */
+/* min-width 0 и ограничение вместе не дают одному длинному слову расширить страницу на 375 px. */
 .thread__bubble {
   min-width: 0;
   max-width: min(640px, 100%);
@@ -439,7 +439,7 @@ th {
   background: var(--surface-inset);
 }
 
-/* The author and the date: 12 px caps, muted, the export's label-sm with our type scale. */
+/* Автор и дата: 12 px капсом, приглушённо, label-sm из экспорта на нашей шкале. */
 .thread__meta {
   margin: 0 0 var(--space-1);
   font-size: var(--text-micro);

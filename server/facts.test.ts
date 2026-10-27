@@ -22,7 +22,7 @@ async function boundPair(app: App) {
   return { doctorCookie, patientCookie, patientId: me.json().profile.id as string };
 }
 
-/** Inline inject like the rest of the suite: the helper's return type does not narrow. */
+/** Вставка inject на месте, как и в остальных тестах: тип возврата помощника не сужается. */
 const putFacts = (app: App, cookie: string, payload: Record<string, unknown>) =>
   app.inject({ method: "PUT", url: "/api/facts", headers: { cookie }, payload }) as unknown as Promise<{
     statusCode: number;

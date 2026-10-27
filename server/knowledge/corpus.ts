@@ -47,7 +47,7 @@ const DIRECTORY = import.meta.dirname;
 
 let cache: KnowledgeDocument[] | null = null;
 
-/** Reads every *.json here. A malformed file fails loudly: a broken source is worse than none. */
+/** Читает каждый *.json здесь. Сломанный файл падает громко: испорченный источник хуже, чем никакого. */
 export function corpus(): KnowledgeDocument[] {
   if (cache) return cache;
 

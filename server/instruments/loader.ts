@@ -7,7 +7,7 @@ const DIRECTORY = import.meta.dirname;
 
 let cache: Map<string, Instrument> | null = null;
 
-/** Reads every *.json next to this file. A malformed file fails loudly at startup. */
+/** Читает каждый *.json рядом с этим файлом. Сломанный файл падает громко при старте. */
 export function instruments(): Map<string, Instrument> {
   if (cache) return cache;
 
@@ -62,7 +62,7 @@ export function repeatAfterHours(status: string, instrumentId: string): number |
   return entry ? entry.repeatAfterHours : null;
 }
 
-/** Never returns an instrument outside the patient's status: the patient routes resolve through here. */
+/** Никогда не возвращает инструмент вне статуса пациента: пациентские маршруты получают его здесь. */
 export function patientInstrument(status: string, id: string): Instrument | undefined {
   return patientInstruments(status).find((candidate) => candidate.id === id);
 }

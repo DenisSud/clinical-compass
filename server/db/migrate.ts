@@ -5,7 +5,7 @@ import type { Database } from "better-sqlite3";
 
 const migrationsDir = join(dirname(fileURLToPath(import.meta.url)), "migrations");
 
-/** Applies every .sql file in migrations/ that has not been applied yet. Safe to call repeatedly. */
+/** Применяет каждый .sql из migrations/, который ещё не применён. Можно вызывать повторно. */
 export function runMigrations(sqlite: Database): void {
   sqlite.exec(
     "CREATE TABLE IF NOT EXISTS _migrations (name TEXT PRIMARY KEY, applied_at TEXT NOT NULL)",

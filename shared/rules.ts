@@ -21,7 +21,7 @@ export type RuleSeverity = z.infer<typeof ruleSeveritySchema>;
  */
 export const ruleSourceSchema = z.strictObject({
   kind: z.enum(["guideline", "ohlp", "ours"]),
-  /** Path to the document plus a section, e.g. `docs/…/ohlp-aviandr.md#4.3`. */
+  /** Путь к документу вместе с разделом, например `docs/…/ohlp-aviandr.md#4.3`. */
   ref: z.string().min(1),
   quote: z.string().min(1).optional(),
   status: z.enum(["placeholder", "confirmed"]),
@@ -104,7 +104,7 @@ export const ruleSchema = z.strictObject({
   severity: ruleSeveritySchema,
   output: z.strictObject({
     title: z.string().min(1),
-    /** Template: `{name}` is filled from the checks that matched, joined by `; `. */
+    /** Шаблон: `{name}` заполняется совпавшими проверками, соединёнными через `; `. */
     detail: z.string().min(1),
   }),
   source: ruleSourceSchema,

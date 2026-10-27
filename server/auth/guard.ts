@@ -10,7 +10,7 @@ import { readSession, type Auth, type Role } from "./session.js";
  */
 const PSYCHIATRIST_ONLY = "Это действие доступно только психиатру";
 
-/** Rejects anonymous callers, and callers holding a session for the other role. */
+/** Отклоняет анонимные запросы и запросы с сессией другой роли. */
 export function requireRole(role: Role) {
   return async (request: FastifyRequest, reply: FastifyReply): Promise<void> => {
     const auth = await readSession(request.server.conn, request, reply);
@@ -28,7 +28,7 @@ export function requireRole(role: Role) {
   };
 }
 
-/** Reads what requireRole() stored. Throws when a handler is mounted without the guard. */
+/** Читает то, что сохранил requireRole(). Бросает, когда обработчик смонтирован без проверки. */
 export function requireAuth(request: FastifyRequest): Auth {
   if (!request.auth) throw new Error("requireRole() must run before this handler");
   return request.auth;

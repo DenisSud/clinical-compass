@@ -129,7 +129,7 @@ export const assessmentAnswerSchema = z.object({
   label: z.string(),
 });
 
-/** The patient's own view: answers only, no score and no band. */
+/** Собственный взгляд пациента: только ответы, без суммы и без полосы. */
 export const patientAssessmentSchema = z.object({
   id: z.string(),
   instrumentId: z.string(),
@@ -140,7 +140,7 @@ export const patientAssessmentSchema = z.object({
 
 export type PatientAssessment = z.infer<typeof patientAssessmentSchema>;
 
-/** The doctor's view: the same answers, scored. */
+/** Взгляд врача: те же ответы, посчитанные. */
 export const doctorAssessmentSchema = z.object({
   id: z.string(),
   instrumentId: z.string(),
@@ -149,7 +149,7 @@ export const doctorAssessmentSchema = z.object({
   total: z.number(),
   band: z.object({ id: z.string(), label: z.string() }),
   criticalItems: z.array(z.string()),
-  /** True when the stored instrument description is no longer available. */
+  /** True, когда сохранённое описание инструмента больше недоступно. */
   instrumentMissing: z.boolean().optional(),
 });
 
@@ -175,7 +175,7 @@ export const diaryEntrySchema = z.object({
 
 export type DiaryEntry = z.infer<typeof diaryEntrySchema>;
 
-/** The questionnaire as the patient receives it: no bands, no critical flags. */
+/** Опросник в том виде, в каком его получает пациент: без полос, без признаков критического пункта. */
 /** Вариант ответа: у HADS и UKU он свой у каждого пункта, у PHQ-9 общий на шкалу. */
 const answerOptionViewSchema = z.object({ value: z.number(), label: z.string() });
 
@@ -234,7 +234,7 @@ export const signalSchema = z.object({
   createdAt: z.string(),
   takenAt: z.string().nullable(),
   closedAt: z.string().nullable(),
-  /** Set when the signal came from a rule the doctor wrote, not from the built-in set. */
+  /** Заполняется, когда сигнал пришёл из правила, написанного врачом, а не из встроенного набора. */
   watchItemId: z.string().nullable(),
   /**
    * Правило реестра за карточкой. Null для сигнала по полосе шкалы и для правил
@@ -323,7 +323,7 @@ export const checkinSubmitSchema = z.object({
     .optional(),
 });
 
-/** One prescription as the patient sees it today. */
+/** Одно назначение в том виде, в каком его сегодня видит пациент. */
 export type PatientCheckinItem = {
   planItemId: string;
   title: string;
@@ -599,7 +599,7 @@ const watchBase = {
   severity: watchSeveritySchema,
 };
 
-/** What the doctor is watching, with the parameters that make it checkable. */
+/** Что врач держит под наблюдением, вместе с параметрами, которые делают это проверяемым. */
 export const watchCreateSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("diary_below"), threshold: z.number().int().min(1).max(10), ...watchBase }),
   z.object({ kind: z.literal("diary_drop"), points: z.number().int().min(1).max(9), ...watchBase }),

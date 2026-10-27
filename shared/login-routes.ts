@@ -1,6 +1,6 @@
 import type { Role } from "./contracts.js";
 
-/** The address names the role; neither screen asks the visitor to choose one. */
+/** Адрес называет роль; ни один экран не просит посетителя выбрать её. */
 export const LOGIN_PATH: Record<Role, string> = {
   patient: "/login/patient",
   doctor: "/login/doctor",

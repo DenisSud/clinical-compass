@@ -1,4 +1,4 @@
-/* ---------- disclosure (invite a patient) ---------- */
+/* ---------- раскрытие (пригласить пациента) ---------- */
 
 .disclosure {
   margin-bottom: 16px;
@@ -52,8 +52,8 @@
   list-style: none;
 }
 
-/* One block per severity level, so a folded «Ещё N» sits under the third card of its
- * own level and never under a different one (signal-semantics.md #32 §3). */
+/* Один блок на уровень тяжести, поэтому сложенное «Ещё N» стоит под третьей карточкой
+ * своего уровня и никогда под чужим (signal-semantics.md #32 §3). */
 .signal-groups {
   display: grid;
   gap: var(--space-5);
@@ -93,12 +93,12 @@
   background: var(--surface-card);
 }
 
-/* High — 4 px neutral bar and an outline triangle. */
+/* Высокий: нейтральная полоса 4 px и контурный треугольник. */
 .signal--high {
   border-left: var(--signal-bar-high) solid var(--signal-bar);
 }
 
-/* Medium — no bar at all: thickness is not the channel that separates it (#32 §1.1, §7.2). */
+/* Средний: полосы нет вообще, толщина не тот канал, который его отделяет (#32 §1.1, §7.2). */
 .signal--medium {
   border-left: var(--border-width) solid var(--border-divider);
 }
@@ -147,7 +147,7 @@
   color: var(--signal-medium);
 }
 
-/* The mark inherits the level colour through currentColor, so a level is set once. */
+/* Метка наследует цвет уровня через currentColor, поэтому уровень задаётся один раз. */
 .signal__mark {
   flex: none;
   display: block;
@@ -164,7 +164,7 @@
   stroke-width: 2;
 }
 
-/* The exclamation inside a filled triangle is a cut-out, not a second colour. */
+/* Восклицательный знак внутри залитого треугольника это вырез, а не второй цвет. */
 .signal__mark-cut {
   fill: var(--text-invert);
 }
@@ -231,7 +231,7 @@
   color: var(--text-muted);
 }
 
-/* Colour is forced away here; the word, the shape and the bar width are what is left. */
+/* Цвет здесь отключён принудительно; остаются слово, форма и ширина полосы. */
 @media (forced-colors: active) {
   .signal {
     border-color: CanvasText;
@@ -258,8 +258,8 @@
   color: var(--text-muted);
 }
 
-/* Blocks inside the card are 12 px apart; the title and «кто и когда» are one block
- * with a 4 px gap (DESIGN.md §3.6). */
+/* Блоки внутри карточки стоят в 12 px друг от друга; название и «кто и когда» это один
+ * блок с зазором 4 px (DESIGN.md §3.6). */
 .signal__detail {
   margin: 12px 0 0;
   font-size: 14px;
@@ -291,8 +291,8 @@
   font-weight: var(--fw-bold);
 }
 
-/* A placeholder source is italic, so «источник ещё не подтверждён» cannot pass for a
- * source taken from the guidelines. */
+/* Источник-заглушка выделен курсивом, чтобы «источник ещё не подтверждён» не сошёл за
+ * источник, взятый из рекомендаций. */
 .signal__rule-line--placeholder {
   font-style: italic;
 }
@@ -385,7 +385,7 @@
   cursor: pointer;
 }
 
-/* After the shared rule on purpose: same specificity, so the level wins the last word. */
+/* Стоит после общего правила намеренно: та же специфичность, поэтому уровень говорит последним. */
 .signal-more--high > summary {
   color: var(--signal-high);
 }
@@ -462,8 +462,8 @@
   font-size: var(--text-body);
 }
 
-/* «активно» / «на паузе» — the word is the first channel of the rule's state, the inset
- * surface of a paused row the second; a paused rule must never look like a working one. */
+/* «активно» / «на паузе»: слово это первый канал состояния правила, вставная
+ * поверхность строки на паузе второй; правило на паузе не должно выглядеть работающим. */
 .watch-item__status {
   font-size: var(--text-micro);
   font-weight: var(--fw-bold);
@@ -672,7 +672,7 @@
   font-size: var(--text-body);
 }
 
-/* Only the name of the open row is bold: the row is what changed, not the whole list. */
+/* Жирное только имя открытой строки: изменилась строка, а не весь список. */
 .patient-list__item[aria-current="true"] .patient-list__name {
   font-weight: var(--fw-bold);
 }
@@ -812,7 +812,7 @@
   color: var(--signal-critical);
 }
 
-/* No answer is not a miss: an outline, no fill, the muted tone, and a dash. */
+/* Отсутствие ответа не пропуск: контур, без заливки, приглушённый тон и прочерк. */
 .adherence-tile--no_data {
   border-color: var(--border-divider);
   background: none;
@@ -820,14 +820,14 @@
   font-weight: var(--fw-regular);
 }
 
-/* Colour is forced away here; the glyph in the tile is what is left to tell states apart. */
+/* Цвет здесь отключён принудительно; остаётся глиф в плитке, по нему и различаются состояния. */
 @media (forced-colors: active) {
   .adherence-tile {
     border-color: CanvasText;
   }
 }
 
-/* The date and the state in words, for a reader that gets no glyph and no tooltip. */
+/* Дата и состояние словами, для читателя, который не получает ни глифа, ни подсказки. */
 .adherence-tile__state {
   position: absolute;
   width: 1px;
@@ -840,7 +840,7 @@
   border: 0;
 }
 
-/* The legend repeats the same shapes at label size, so the words and the grid share one code. */
+/* Легенда повторяет те же формы размером с подпись, поэтому слова и сетка говорят на одном языке. */
 .adherence-tile--legend {
   min-height: 0;
   width: 16px;
@@ -849,7 +849,7 @@
   font-size: 11px;
 }
 
-/* Counts, never percentages: a share would name a denominator the doctor did not choose. */
+/* Числа, никогда проценты: доля назвала бы знаменатель, которого врач не выбирал. */
 .adherence__legend {
   display: flex;
   flex-wrap: wrap;
@@ -920,18 +920,18 @@
   background: var(--surface-card);
 }
 
-/* Confirmed: the 4 px bar the panel already had, in the «выполнено» tone. It is the
- * second channel of the state after the word, and it survives forced-colors. */
+/* Подтверждено: полоса 4 px, которая в панели уже была, в тоне «выполнено». Это
+ * второй канал состояния после слова, и он выживает в forced-colors. */
 .plan-item--active {
   border-left: var(--signal-bar-high) solid var(--signal-done);
 }
 
-/* Draft carries no bar: an unconfirmed item must not look like the working plan. */
+/* У черновика полосы нет: неподтверждённый пункт не должен выглядеть как работающий план. */
 .plan-item--draft {
   border-left: var(--border-width) solid var(--border-divider);
 }
 
-/* Archived is quieter in surface, never in contrast: the text still has to be read. */
+/* Архивный пункт тише поверхностью, но не контрастом: текст всё равно должен читаться. */
 .plan-item--archived {
   border-left: var(--border-width) solid var(--border-divider);
   background: var(--surface-inset);
@@ -965,7 +965,7 @@
     justify-content: flex-end;
   }
 
-  /* The question and its reason belong to the whole row, under both columns. */
+  /* Вопрос и его причина принадлежат всей строке, под обеими колонками. */
   .plan-item .confirm,
   .plan-item > .notice {
     grid-column: 1 / -1;
@@ -979,7 +979,7 @@
   gap: var(--space-1) var(--space-3);
 }
 
-/* The kind: a caption above the title, in the same caps the export gives its label. */
+/* Вид: подпись над названием, тем же капсом, каким экспорт даёт свою метку. */
 .plan-item__kind {
   font-size: var(--text-micro);
   font-weight: var(--fw-bold);
@@ -994,8 +994,8 @@
   overflow-wrap: anywhere;
 }
 
-/* «справа» is the end of the heading line: the state is read with the title it belongs
- * to, not with the buttons it happens to sit next to (§3.2). */
+/* «справа» это конец строки заголовка: состояние читается вместе с названием, которому
+ * принадлежит, а не с кнопками, рядом с которыми оказалось (§3.2). */
 .plan-item__status {
   margin-left: auto;
   font-size: var(--text-small);
@@ -1003,7 +1003,7 @@
   color: var(--text-strong);
 }
 
-/* History is not a state of the action: an archived item's state steps down to muted. */
+/* История это не состояние действия: у архивного пункта состояние уходит в приглушённый тон. */
 .plan-item--archived .plan-item__status {
   color: var(--text-muted);
 }
@@ -1044,7 +1044,7 @@
   border: 0;
 }
 
-/* The legend spans the whole group, so it sits above the radios like a field label. */
+/* Заголовок группы занимает всю группу, поэтому стоит над радиокнопками как подпись поля. */
 .plan-form__kinds .choice:has(input:checked) {
   background: var(--surface-muted);
   font-weight: var(--fw-bold);
@@ -1082,7 +1082,7 @@
   justify-self: start;
 }
 
-/* The grid gap is the rhythm here, so the hint's own top margin would double it. */
+/* Здесь ритм задаёт зазор сетки, поэтому собственный верхний отступ подсказки удвоил бы его. */
 .plan-form > .hint {
   margin: 0;
 }
@@ -1177,7 +1177,7 @@
   line-height: var(--lh-dense);
 }
 
-/* The comment explains the mark, it does not compete with it: one tone down. */
+/* Комментарий объясняет отметку и не соревнуется с ней: на тон ниже. */
 .diary-log__comment {
   margin: var(--space-1) 0 0;
   font-size: var(--text-body);

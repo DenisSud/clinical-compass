@@ -59,7 +59,7 @@ export function signalClassName(signal: Pick<Signal, "severity" | "status">): st
   return signal.status === "closed" ? "signal signal--closed" : `signal signal--${signal.severity}`;
 }
 
-/** Word plus shape — the two channels that survive greyscale and forced-colors. */
+/** Слово плюс форма: два канала, которые выживают в оттенках серого и в forced-colors. */
 export function SignalSeverity({
   severity,
   closed = false,
@@ -117,7 +117,7 @@ function describeRule(
   };
 }
 
-/** The rule as one sentence — the read-only card in `PatientDetail` has no room for labels. */
+/** Правило одной фразой: карточке только для чтения в `PatientDetail` негде разместить подписи. */
 export function SignalRule({
   signal,
 }: {
@@ -173,7 +173,7 @@ export function SignalRulePanel({
   );
 }
 
-/** Severity first, newest second — the order the doctor reads, not the order the server sent (§3.7). */
+/** Сначала тяжесть, потом новизна: порядок, в котором читает врач, а не в котором прислал сервер (§3.7). */
 export function sortSignals<T extends Signal>(signals: T[]): T[] {
   return [...signals].sort(
     (left, right) =>

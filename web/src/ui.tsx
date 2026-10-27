@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from "react";
 
-/** Every network read is loading, failed or ready. Failed never renders as empty (DESIGN.md §2.5). */
+/** Каждое чтение по сети это loading, failed или ready. Failed никогда не рисуется как пустота (DESIGN.md §2.5). */
 export type Load<T> = { status: "loading" } | { status: "failed" } | { status: "ready"; data: T };
 
 export function loading<T>(): Load<T> {
   return { status: "loading" };
 }
 
-/** Applies a request's three states to a state setter, so no call site can drop the failure case. */
+/** Применяет три состояния запроса к установщику состояния, чтобы ни одно место вызова не потеряло отказ. */
 export function track<T>(apply: (state: Load<T>) => void, request: Promise<T>): void {
   apply({ status: "loading" });
   request

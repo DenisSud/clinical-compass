@@ -17,7 +17,7 @@ const phq9 = instrument("phq-9");
 if (!phq9) throw new Error("phq-9 missing");
 const phq9Form = phq9;
 
-/** Conditions that belong to a submission, so their rules must sit in `SIGNAL_RULES`. */
+/** Условия, которые принадлежат отправке, поэтому их правила должны быть в `SIGNAL_RULES`. */
 const SCALE_OR_DIARY_FACTS = new Set([
   "assessment.criticalItem",
   "assessment.totalIncrease",

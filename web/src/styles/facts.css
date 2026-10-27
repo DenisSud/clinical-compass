@@ -63,7 +63,7 @@
   color: var(--text-muted);
 }
 
-/* The question at 17/700: the export's headline-md is 18, our scale has 17 (§3.6). */
+/* Вопрос 17/700: headline-md из экспорта это 18, в нашей шкале 17 (§3.6). */
 .fact__question {
   display: block;
   margin-top: var(--space-1);
@@ -101,8 +101,8 @@
   background: var(--surface-card);
 }
 
-/* The tint means «выбрано», not «хорошо» — the language of the day scale, not a signal
-   level (§2.2). */
+/* Заливка значит «выбрано», а не «хорошо»: это язык шкалы дня, а не уровень
+   сигнала (§2.2). */
 .facts .choice:has(input:checked) {
   border-left-color: var(--action-primary);
   background: var(--surface-muted);
@@ -173,7 +173,7 @@
   width: 100%;
 }
 
-/* Incompleteness, not risk: a neutral surface and ordinary text, no signal tones. */
+/* Неполнота, а не риск: нейтральная поверхность и обычный текст, без тонов сигнала. */
 .facts-gaps {
   margin-top: var(--space-5);
   padding: var(--space-3) var(--space-4) var(--space-4);

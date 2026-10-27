@@ -34,7 +34,7 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long", year: "numeric" });
 }
 
-/** A closed signal keeps only the word: no bar, no level tone (signal-semantics.md §6). */
+/** Закрытый сигнал сохраняет только слово: ни полосы, ни тона уровня (signal-semantics.md §6). */
 function patientSignalClassName(signal: Pick<Signal, "severity" | "status">): string {
   return signal.status === "closed"
     ? "patient-signal patient-signal--closed"

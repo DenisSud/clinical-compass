@@ -29,7 +29,7 @@ const FACT_KEYS: (keyof PatientFacts)[] = [
 
 const NOT_YOURS = "Этот пациент ведёт другой врач";
 
-/** An absent row and a row of nulls mean the same thing: nothing was asked yet. */
+/** Отсутствующая строка и строка из null значат одно: спрашивать ещё не начинали. */
 /**
  * Каких фактов ещё нет. Это список полноты, а не вердикт: врачу нужно знать, о чём
  * не спрашивали, пациент имеет право видеть то же самое о себе, и ни один из них
@@ -181,7 +181,7 @@ export const factsRoutes: FastifyPluginAsync = async (app) => {
     return toView(row);
   });
 
-  /** The doctor reads the same list; what they do with it is their decision, not ours. */
+  /** Врач читает тот же список; что с ним делать, решает он, а не мы. */
   app.get<{ Params: { id: string } }>(
     "/patients/:id/facts",
     { preHandler: requireRole("doctor") },

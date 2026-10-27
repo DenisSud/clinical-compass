@@ -27,7 +27,7 @@ function shiftDate(date: string, days: number): string {
   return parsed.toISOString().slice(0, 10);
 }
 
-/** Inclusive list of dates from `from` to `to`. */
+/** Включающий список дат от `from` до `to`. */
 function dateRange(from: string, to: string): string[] {
   const dates: string[] = [];
   for (let date = from; date <= to; date = shiftDate(date, 1)) dates.push(date);

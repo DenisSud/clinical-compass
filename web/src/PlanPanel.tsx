@@ -151,7 +151,7 @@ export function PlanPanel({
               </div>
               {item.details && <p className="plan-item__details">{item.details}</p>}
 
-              {/* An archived item is history: it keeps its text and its state, no actions. */}
+              {/* Архивный пункт это история: он сохраняет свой текст и состояние, действий нет. */}
               {canEdit && item.status !== "archived" && archiving !== item.id && (
                 <div className="plan-item__actions">
                   {item.status === "draft" && (

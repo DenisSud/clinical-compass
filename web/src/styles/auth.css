@@ -24,7 +24,7 @@
   border: var(--border-width) solid var(--border-divider);
 }
 
-/* The doctor's frame is tighter and colder: the screen exists for decisions. */
+/* Рамка врача теснее и холоднее: экран существует для решений. */
 .auth--doctor .auth-card {
   max-width: 400px;
   border-top: 3px solid var(--brand-navy);
@@ -147,7 +147,7 @@
   text-decoration: underline;
 }
 
-/* The other door: one quiet line, not a segmented control and not two equal buttons. */
+/* Другая дверь: одна тихая строка, а не сегментированный переключатель и не две равные кнопки. */
 .auth-role {
   margin-top: var(--space-4);
   padding-top: var(--space-2);

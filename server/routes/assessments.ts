@@ -69,7 +69,7 @@ function answerList(instrument: Instrument, answers: Record<string, number>) {
   }));
 }
 
-/** What the patient sees: their own answers, without a score or a band. */
+/** Что видит пациент: свои ответы, без суммы и без полосы. */
 function toPatientAssessment(
   instrument: Instrument,
   row: typeof assessments.$inferSelect,
@@ -83,7 +83,7 @@ function toPatientAssessment(
   };
 }
 
-/** What the doctor sees: the same answers plus the score and its band. */
+/** Что видит врач: те же ответы плюс сумму и её полосу. */
 function toDoctorAssessment(
   instrument: Instrument,
   row: typeof assessments.$inferSelect,
@@ -243,7 +243,7 @@ async function insertAssessment(
   return row;
 }
 
-/** A stored answer whose instrument description is gone still belongs in the history. */
+/** Сохранённый ответ, описание инструмента которого пропало, всё равно принадлежит истории. */
 function degradedPatientAssessment(row: typeof assessments.$inferSelect): PatientAssessment {
   const answers = JSON.parse(row.answers) as Record<string, number>;
   return {
@@ -273,7 +273,7 @@ function degradedDoctorAssessment(row: typeof assessments.$inferSelect): DoctorA
   };
 }
 
-/** The patient's view: no bands, no critical flags, no score. The status itself never leaves here. */
+/** Взгляд пациента: ни полос, ни признаков критического пункта, ни суммы. Сам статус отсюда не уходит. */
 function toInstrumentView(instrument: Instrument) {
   return instrumentViewSchema.parse({
     id: instrument.id,

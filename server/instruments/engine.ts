@@ -28,7 +28,7 @@ export function score(instrument: Instrument, answers: Record<string, number>): 
   return { total, band };
 }
 
-/** True when a critical item (item 9 of the PHQ-9) carries a non-zero answer. */
+/** True, когда критический пункт (пункт 9 PHQ-9) несёт ненулевой ответ. */
 export function criticalItems(instrument: Instrument, answers: Record<string, number>): string[] {
   return instrument.items
     .filter((item) => item.critical && (answers[item.id] ?? 0) > 0)

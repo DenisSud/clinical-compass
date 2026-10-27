@@ -52,7 +52,7 @@ export const instrumentSchema = z.object({
    * в понедельник (DESIGN.md §2.1).
    */
   repeatAfterHours: z.number().int().nonnegative().default(168),
-  /** Which band is worth a signal. Clinical policy about this instrument, so it lives in the data. */
+  /** Какая полоса стоит сигнала. Клиническая политика об этом инструменте, поэтому живёт в данных. */
   alert: z
     .object({
       bandId: z.string().min(1),

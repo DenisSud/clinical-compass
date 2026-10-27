@@ -194,10 +194,10 @@ export function signalsForFacts(patientFacts: PatientFacts): SignalDraft[] {
   });
 }
 
-/** A missed intake the card may name: when it was planned, and what the patient said. */
+/** Пропущенный приём, который карточка может назвать: когда он был запланирован и что сказал пациент. */
 export type MissedDose = { scheduledAt: string; reason: string | null };
 
-/** How many missed intakes the card names; the rest stay in the count above. */
+/** Сколько пропущенных приёмов карточка называет; остальные остаются в числе выше. */
 const MAX_LISTED_SKIPS = 3;
 
 function formatSlot(scheduledAt: string): string {
@@ -218,7 +218,7 @@ function formatSlot(scheduledAt: string): string {
  * упоминании в тексте исходника (issue #45).
  */
 export function signalsForAdherence(input: {
-  /** Missed intakes in a row up to now, oldest first. */
+  /** Пропущенные приёмы подряд до текущего момента, начиная с самого раннего. */
   skipped: readonly MissedDose[];
   drugName: string;
   doseValue: number;

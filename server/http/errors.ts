@@ -1,7 +1,7 @@
 import type { FastifyReply } from "fastify";
 import { apiErrorSchema } from "../../shared/contracts.js";
 
-/** Sends the one error shape every route uses. */
+/** Отправляет ту единственную форму ошибки, которую использует каждый маршрут. */
 export function fail(reply: FastifyReply, status: number, code: string, message: string) {
   return reply.code(status).send(apiErrorSchema.parse({ code, message }));
 }

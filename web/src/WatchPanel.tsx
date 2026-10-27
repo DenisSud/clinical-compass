@@ -13,7 +13,7 @@ const KIND_LABEL: Record<WatchKind, string> = {
 
 const SEVERITY_LABEL = { medium: "средняя", high: "высокая", critical: "критичная" } as const;
 
-/** A paused rule must say so: an inset surface alone does not tell the doctor it is off. */
+/** Правило на паузе обязано это сказать: вставная поверхность сама по себе не говорит врачу, что оно выключено. */
 const STATUS_LABEL: Record<WatchItem["status"], string> = {
   active: "активно",
   paused: "на паузе",

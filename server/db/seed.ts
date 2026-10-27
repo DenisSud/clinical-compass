@@ -51,7 +51,7 @@ for (const demo of DEMO_PATIENTS) {
   console.log(`created patient ${demo.email}`);
 }
 
-/** Demo history so the doctor's card has dynamics instead of empty tables. */
+/** Демо-история, чтобы в карточке врача была динамика, а не пустые таблицы. */
 const WATCH: Record<
   string,
   { kind: string; title: string; severity: string; params: Record<string, unknown> }[]

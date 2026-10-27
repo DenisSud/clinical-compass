@@ -9,7 +9,7 @@ import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
 import { toWatchItem } from "../watch-service.js";
 
-/** Everything but the label goes into params; the label lives in its own columns. */
+/** Всё, кроме подписи, уходит в params; подпись живёт в своих колонках. */
 function paramsOf(input: { kind: string } & Record<string, unknown>): Record<string, unknown> {
   const { kind: _kind, title: _title, severity: _severity, ...rest } = input;
   return rest;

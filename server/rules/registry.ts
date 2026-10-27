@@ -11,7 +11,7 @@ import type { PatientFacts } from "../../shared/contracts.js";
 
 const DEFAULT_DIRECTORY = join(import.meta.dirname, "..", "..", "content", "rules");
 
-/** A rule file that does not meet the schema, or a template that names nothing. */
+/** Файл правила, не прошедший схему, или шаблон, который ничего не называет. */
 export class InvalidRule extends Error {}
 
 /**
@@ -68,13 +68,13 @@ function loadRules(directory: string): Rule[] {
 
 let cache: Rule[] | null = null;
 
-/** All registered rules, sorted by id so two runs list them in the same order. */
+/** Все зарегистрированные правила, отсортированные по идентификатору, чтобы два прогона дали один порядок. */
 export function listRules(): Rule[] {
   cache ??= loadRules(DEFAULT_DIRECTORY);
   return cache;
 }
 
-/** The stored signal's rule, or undefined once the file behind it is gone. */
+/** Правило сохранённого сигнала, или undefined, когда файл за ним пропал. */
 export function findRule(id: string): Rule | undefined {
   return listRules().find((rule) => rule.id === id);
 }

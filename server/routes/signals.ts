@@ -34,7 +34,7 @@ export function toSignal(row: typeof signals.$inferSelect): Signal {
   };
 }
 
-/** Writes signals for a submission. The unique index makes a retry a no-op. */
+/** Пишет сигналы для отправки. Уникальный индекс превращает повтор в пустое действие. */
 export async function saveSignals(
   app: Parameters<FastifyPluginAsync>[0],
   input: {

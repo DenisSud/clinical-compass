@@ -27,7 +27,7 @@ export function toPatientProfile(row: PatientRow, doctor: DoctorRow | undefined)
   };
 }
 
-/** The doctor's view of a patient: the status is a working label, the label comes from the status file. */
+/** Взгляд врача на пациента: статус это рабочая метка, а сама метка приходит из файла статусов. */
 export function toPatientSummary(row: PatientRow): PatientSummary {
   return {
     id: row.id,

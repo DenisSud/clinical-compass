@@ -41,7 +41,7 @@
   margin-top: var(--space-5);
 }
 
-/* One form field for both patient forms: full width, 44 px floor, the same hairline. */
+/* Одно поле для обеих пациентских форм: на всю ширину, минимум 44 px, та же линия. */
 .field {
   display: block;
   width: 100%;
@@ -170,7 +170,7 @@
   margin-top: var(--space-3);
 }
 
-/* Ten 44 px targets in a row do not fit a 360 px phone; 5 x 2 keeps the thumb honest (§3.9). */
+/* Десять целей по 44 px не влезают в строку на телефоне 360 px; 5 x 2 держит палец в честных условиях (§3.9). */
 .diary-scale {
   display: grid;
   grid-template-columns: repeat(10, minmax(0, 1fr));
@@ -184,7 +184,7 @@
   }
 }
 
-/* At 320 px an 8 px gap leaves each target 1 px under 44; the gap gives way, not the target. */
+/* На 320 px зазор 8 px оставляет каждой цели 1 px до 44; уступает зазор, а не цель. */
 @media (max-width: 360px) {
   .diary-scale {
     gap: 4px;
@@ -263,8 +263,8 @@
   margin: var(--space-1) 0 0;
 }
 
-/* The way into «Мои данные» from «Сегодня»: one calm line and a quiet button — no counter,
-   no signal tone (§2.2: incompleteness is not risk). */
+/* Вход в «Мои данные» с «Сегодня»: одна спокойная строка и тихая кнопка, без счётчика
+   и без тона сигнала (§2.2: неполнота это не риск). */
 .facts-invite {
   display: grid;
   justify-items: start;
