@@ -10,17 +10,18 @@ import { PATIENT_STATUS_IDS, UnknownStatus } from "./statuses.js";
 
 describe("the patient's set", () => {
   it("comes from the status, not from a list in code", () => {
-    expect(patientInstruments("screening").map((item) => item.id)).toEqual(["phq-9", "asq"]);
+    expect(patientInstruments("screening").map((item) => item.id)).toEqual(["phq-9"]);
     expect(patientInstruments("treatment").map((item) => item.id)).toEqual([
-      "gad-7",
-      "phq-9",
+      "hads-anxiety",
+      "hads-depression",
       "asq",
     ]);
   });
 
   it("keeps a questionnaire out of a status that does not assign it", () => {
-    expect(patientInstrument("screening", "gad-7")).toBeUndefined();
-    expect(patientInstrument("treatment", "gad-7")?.id).toBe("gad-7");
+    expect(patientInstrument("screening", "hads-anxiety")).toBeUndefined();
+    expect(patientInstrument("screening", "asq")).toBeUndefined();
+    expect(patientInstrument("treatment", "hads-anxiety")?.id).toBe("hads-anxiety");
   });
 
   it("refuses an unknown status instead of returning an empty set", () => {
@@ -33,7 +34,9 @@ describe("the patient's set", () => {
 
   it("prefers the status interval over the instrument's own", () => {
     expect(instrument("phq-9")?.repeatAfterHours).toBe(168);
-    expect(repeatAfterHours("worsening", "phq-9")).toBe(168);
+    // PHQ-9 — скрининг на входе: в терапии и ухудшении его нет, динамику ведут другие шкалы.
+    expect(patientInstrument("treatment", "phq-9")).toBeUndefined();
+    expect(repeatAfterHours("worsening", "hads-anxiety")).toBe(72);
     expect(repeatAfterHours("worsening", "asq")).toBe(0);
   });
 

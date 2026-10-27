@@ -19,7 +19,7 @@ import {
 } from "../instruments/loader.js";
 import { runDecisionQuestions } from "../decisions/service.js";
 import { statusOf } from "../patient-status.js";
-import type { Instrument } from "../instruments/schema.js";
+import { optionsOf, type Instrument } from "../instruments/schema.js";
 import { fail, forbidden, notFound } from "../http/errors.js";
 import { loadPatientForDoctor } from "../patient-access.js";
 import { signalsForAssessment } from "../rules/signals.js";
@@ -28,9 +28,10 @@ import { saveSignals } from "./signals.js";
 
 /**
  * The interval belongs to the assignment, not to the route: the status file says how
- * often a questionnaire opens for this patient (monthly PHQ-9 in treatment, weekly
- * when the doctor marks worsening), and ASQ is not locked at all. A suicide-risk
- * screener that answers «спросите через неделю» is a safety problem, not a rate limit.
+ * often a questionnaire opens for this patient, and ASQ is not locked at all. A
+ * suicide-risk screener that answers «спросите через неделю» is a safety problem, not
+ * a rate limit. Сегодня в файле везде неделя, кроме GAD-7 в ухудшении (трое суток);
+ * менять период — правка файла, а не маршрута.
  */
 const HOUR_MS = 60 * 60 * 1000;
 
@@ -38,7 +39,7 @@ function formatDay(iso: string): string {
   return new Date(iso).toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
 }
 
-/** The questionnaire is weekly: the next attempt opens seven days after the last one. */
+/** Когда шкалу можно пройти снова: период берётся из статуса, по умолчанию — из шкалы. */
 async function nextAttemptAt(
   app: Parameters<FastifyPluginAsync>[0],
   patientId: string,
@@ -65,7 +66,7 @@ function answerList(instrument: Instrument, answers: Record<string, number>) {
     itemId: item.id,
     text: item.text,
     value: answers[item.id] ?? 0,
-    label: instrument.options.find((option) => option.value === answers[item.id])?.label ?? "",
+    label: optionsOf(instrument, item).find((option) => option.value === answers[item.id])?.label ?? "",
   }));
 }
 
@@ -202,8 +203,12 @@ function toInstrumentView(instrument: Instrument) {
     id: instrument.id,
     title: instrument.title,
     intro: instrument.intro,
-    options: instrument.options,
-    items: instrument.items.map((item) => ({ id: item.id, text: item.text })),
+    options: instrument.options ?? [],
+    items: instrument.items.map((item) => ({
+      id: item.id,
+      text: item.text,
+      ...(item.options ? { options: item.options } : {}),
+    })),
     sourceNote: instrument.source.note,
   });
 }
@@ -215,11 +220,25 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
    * registry: the doctor decides the set, not the patient (issue #68).
    */
   app.get("/instruments", { preHandler: requireRole("patient") }, async (request) => {
-    const status = await statusOf(app, requireAuth(request).userId);
+    const patientId = requireAuth(request).userId;
+    const status = await statusOf(app, patientId);
+    const instruments = patientInstruments(status);
 
-    return instrumentListResponseSchema.parse({
-      instruments: patientInstruments(status).map(toInstrumentView),
-    });
+    // Когда шкалу можно пройти снова — часть списка: иначе пациент заполняет девять
+    // пунктов, чтобы узнать на отправке, что рано (DESIGN.md §3.4).
+    const instrumentsWithAvailability = await Promise.all(
+      instruments.map(async (instrument) => ({
+        ...toInstrumentView(instrument),
+        nextAttemptAt: await nextAttemptAt(
+          app,
+          patientId,
+          instrument,
+          repeatAfterHours(status, instrument.id) ?? instrument.repeatAfterHours,
+        ),
+      })),
+    );
+
+    return instrumentListResponseSchema.parse({ instruments: instrumentsWithAvailability });
   });
 
   app.get<{ Params: { id: string } }>(
@@ -288,7 +307,7 @@ export const assessmentRoutes: FastifyPluginAsync = async (app) => {
           reply,
           409,
           "too_soon",
-          `Этот опросник проходят не чаще раза в неделю. Следующий раз — ${formatDay(nextAllowedAt)}`,
+          `Этот опросник пока нельзя пройти. Следующий раз — ${formatDay(nextAllowedAt)}`,
         );
       }
 

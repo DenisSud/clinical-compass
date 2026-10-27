@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { InvalidAnswers, criticalItems, score } from "./engine.js";
 import { instrument } from "./loader.js";
-import type { Instrument } from "./schema.js";
+import { optionsOf, type Instrument } from "./schema.js";
 
 const phq9 = instrument("phq-9");
-const gad7 = instrument("gad-7");
+const hadsAnxiety = instrument("hads-anxiety");
+const hadsDepression = instrument("hads-depression");
 const asq = instrument("asq");
 
 function answers(value: number, overrides: Record<string, number> = {}) {
@@ -19,8 +20,15 @@ function answersOf(source: Instrument, value: number, overrides: Record<string, 
   return { ...filled, ...overrides };
 }
 
+function maxScore(source: Instrument): number {
+  return source.items.reduce(
+    (sum, item) => sum + Math.max(...optionsOf(source, item).map((option) => option.value)),
+    0,
+  );
+}
+
 function expectBandsCoverEverything(source: Instrument) {
-  const max = source.items.length * Math.max(...source.options.map((option) => option.value));
+  const max = maxScore(source);
   for (let total = 0; total <= max; total += 1) {
     const band = source.bands.find((candidate) => total >= candidate.min && total <= candidate.max);
     expect(band, `${source.id}: score ${total} fell outside every band`).toBeDefined();
@@ -79,42 +87,55 @@ describe("criticalItems", () => {
   });
 });
 
-describe("GAD-7", () => {
-  it("loads seven items with four gradations", () => {
-    expect(gad7?.items).toHaveLength(7);
-    expect(gad7?.options.map((option) => option.value)).toEqual([0, 1, 2, 3]);
+describe("HADS", () => {
+  it("is two parts of seven items, each with its own wording of the answers", () => {
+    expect(hadsAnxiety?.items).toHaveLength(7);
+    expect(hadsDepression?.items).toHaveLength(7);
+    expect(optionsOf(hadsAnxiety!, hadsAnxiety!.items[0]!)).toHaveLength(4);
+    expect(optionsOf(hadsAnxiety!, hadsAnxiety!.items[0]!)[0]?.label).not.toBe(
+      optionsOf(hadsAnxiety!, hadsAnxiety!.items[1]!)[0]?.label,
+    );
   });
 
   it("covers every possible total with a band", () => {
-    expectBandsCoverEverything(gad7!);
+    expectBandsCoverEverything(hadsAnxiety!);
+    expectBandsCoverEverything(hadsDepression!);
   });
 
-  it("sums the answers and lands in the band", () => {
-    expect(score(gad7!, answersOf(gad7!, 2)).total).toBe(14);
-    expect(score(gad7!, answersOf(gad7!, 2)).band.id).toBe("moderate");
-    expect(score(gad7!, answersOf(gad7!, 3)).band.id).toBe("severe");
+  it("counts the reversed items by their own values", () => {
+    // Пункт 4 тревоги: «определенно, это так» стоит 0, «совсем не могу» — 3.
+    const calm = Object.fromEntries(
+      hadsAnxiety!.items.map((item) => [
+        item.id,
+        Math.min(...optionsOf(hadsAnxiety!, item).map((option) => option.value)),
+      ]),
+    );
+    expect(score(hadsAnxiety!, calm).total).toBe(0);
   });
 
-  it("treats a zero as the minimal band instead of dropping it", () => {
-    expect(score(gad7!, answersOf(gad7!, 0))).toEqual({
-      total: 0,
-      band: expect.objectContaining({ id: "minimal" }),
-    });
+  it("gives each part its own total instead of one number for both", () => {
+    const anxiety = score(hadsAnxiety!, answersOf(hadsAnxiety!, 3));
+    const depression = score(hadsDepression!, answersOf(hadsDepression!, 1));
+
+    expect(anxiety.total).toBe(21);
+    expect(anxiety.band.id).toBe("clinical");
+    expect(depression.total).toBe(7);
+    expect(depression.band.id).toBe("normal");
   });
 
-  it("refuses a value outside the scale", () => {
-    expect(() => score(gad7!, answersOf(gad7!, 0, { q4: 4 }))).toThrow(InvalidAnswers);
+  it("refuses a value outside the item's own answers", () => {
+    expect(() => score(hadsAnxiety!, answersOf(hadsAnxiety!, 0, { a4: 4 }))).toThrow(InvalidAnswers);
   });
 
-  it("has no critical item: anxiety does not carry a suicide item", () => {
-    expect(criticalItems(gad7!, answersOf(gad7!, 3))).toEqual([]);
+  it("has no critical item: the scale does not ask about suicide", () => {
+    expect(criticalItems(hadsAnxiety!, answersOf(hadsAnxiety!, 3))).toEqual([]);
   });
 });
 
 describe("ASQ", () => {
   it("loads four yes-or-no questions", () => {
     expect(asq?.items).toHaveLength(4);
-    expect(asq?.options.map((option) => option.value)).toEqual([0, 1]);
+    expect(optionsOf(asq!, asq!.items[0]!).map((option) => option.value)).toEqual([0, 1]);
   });
 
   it("asks questions instead of drawing conclusions", () => {

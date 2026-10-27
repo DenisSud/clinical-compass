@@ -22,6 +22,9 @@ export function InstrumentForm({
 
   const loadInstrument = useCallback(() => {
     setError(null);
+    // Ответы принадлежат шкале: у ASQ и PHQ-9 совпадают id пунктов (q1…q4), и без сброса
+    // «нет» из ASQ стало бы «совсем не беспокоило» в PHQ-9, а «да» — критическим пунктом.
+    setAnswers({});
     fetchInstrument(instrumentId)
       .then((response) => setInstrument(response.instrument))
       .catch(() => setError("Не удалось загрузить опросник — повторите попытку."));
@@ -77,7 +80,7 @@ export function InstrumentForm({
             </p>
             <p className="instrument__question">{item.text}</p>
             <div className="instrument__answers">
-              {instrument.options.map((option) => (
+              {(item.options ?? instrument.options).map((option) => (
                 <label key={option.value} className="choice">
                   <input
                     type="radio"

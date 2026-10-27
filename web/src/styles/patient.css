@@ -472,3 +472,8 @@
 .instrument-list__title {
   font-size: var(--text-body);
 }
+
+.instrument-list__wait {
+  font-size: var(--text-small);
+  color: var(--text-muted);
+}

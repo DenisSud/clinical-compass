@@ -1,4 +1,6 @@
+import { and, eq, ne } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
+import { signals } from "../db/schema.js";
 import type { SignalDraft } from "../rules/signals.js";
 import { saveSignals } from "../routes/signals.js";
 import { factsFor } from "./facts.js";
@@ -20,14 +22,27 @@ export type DecisionEvent = {
  *
  * Сигнал получает только вердикт «да». Отказ не создаёт карточку: врач не должен получать
  * шум о том, что данных ещё нет. Отказы видны в площадке.
+ *
+ * Открытая карточка не повторяется на следующем событии: вопрос отвечает по всей картине, и
+ * запись дневника не делает тот же вывод новым. Дедупликация в базе привязана к событию,
+ * поэтому здесь проверяется вид: пока карточка не разобрана, второй такой же нет.
  */
 export async function runDecisionQuestions(
   app: FastifyInstance,
   event: DecisionEvent,
 ): Promise<void> {
   const facts = await factsFor(app, event.patientId, event.now);
+  const open = new Set(
+    (
+      await app.conn.db
+        .select({ kind: signals.kind })
+        .from(signals)
+        .where(and(eq(signals.patientId, event.patientId), ne(signals.status, "closed")))
+    ).map((row) => row.kind),
+  );
+
   const drafts: SignalDraft[] = answerQuestions(listQuestions(), facts)
-    .filter((answer) => answer.verdict === "yes")
+    .filter((answer) => answer.verdict === "yes" && !open.has(`decision:${answer.questionId}`))
     .map((answer) => ({
       kind: `decision:${answer.questionId}`,
       severity: answer.severity as SignalDraft["severity"],

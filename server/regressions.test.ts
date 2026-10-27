@@ -59,18 +59,18 @@ describe("signal wording follows the instrument", () => {
     await app.close();
   });
 
-  it("names the questionnaire, so «10 из 21» cannot be read as PHQ-9", async () => {
+  it("names the questionnaire, so «14 из 21» cannot be read as PHQ-9", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     await setPatientStatus(app, doctorCookie, patientId, "treatment");
 
     await app.inject({
       method: "POST",
-      url: "/api/assessments/gad-7",
+      url: "/api/assessments/hads-anxiety",
       headers: { cookie: patientCookie },
       payload: {
-        submissionId: "gad7-band-test",
-        answers: Object.fromEntries(Array.from({ length: 7 }, (_, index) => [`q${index + 1}`, 2])),
+        submissionId: "hads-band-test",
+        answers: Object.fromEntries(Array.from({ length: 7 }, (_, index) => [`a${index + 1}`, 2])),
       },
     });
 
@@ -79,7 +79,7 @@ describe("signal wording follows the instrument", () => {
       .json()
       .signals.find((signal: { kind: string }) => signal.kind === "severe_total");
 
-    expect(total.title).toBe("GAD-7: умеренные проявления — 14 из 21");
+    expect(total.title).toBe("HADS-Т: клинически выраженная — 14 из 21");
     await app.close();
   });
 

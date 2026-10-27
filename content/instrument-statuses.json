@@ -7,10 +7,6 @@
         {
           "id": "phq-9",
           "repeatAfterHours": 168
-        },
-        {
-          "id": "asq",
-          "repeatAfterHours": 0
         }
       ],
       "source": {
@@ -24,11 +20,11 @@
       "label": "Терапия",
       "instruments": [
         {
-          "id": "gad-7",
+          "id": "hads-anxiety",
           "repeatAfterHours": 168
         },
         {
-          "id": "phq-9",
+          "id": "hads-depression",
           "repeatAfterHours": 168
         },
         {
@@ -47,12 +43,12 @@
       "label": "Ухудшение",
       "instruments": [
         {
-          "id": "gad-7",
+          "id": "hads-anxiety",
           "repeatAfterHours": 72
         },
         {
-          "id": "phq-9",
-          "repeatAfterHours": 168
+          "id": "hads-depression",
+          "repeatAfterHours": 72
         },
         {
           "id": "asq",

@@ -46,8 +46,8 @@ export function patientInstruments(status: string): Instrument[] {
 
 /**
  * How soon the instrument opens again in this status. The assignment wins over the
- * instrument's own interval: the same questionnaire is monthly in treatment and
- * weekly when the doctor marks the patient as worsening.
+ * instrument's own interval, so the status file can shorten or drop the wait without
+ * touching the scale's file.
  *
  * Null means the status does not assign it. The submission route never sees null —
  * it resolves the instrument through the status first — but the history listing does,

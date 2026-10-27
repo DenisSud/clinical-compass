@@ -4,7 +4,7 @@ import type {
   Message,
   PatientAssessment,
   PatientFactsView,
-  InstrumentView,
+  PatientInstrumentView,
   PatientProfile,
   PlanItem,
 } from "../../shared/contracts";
@@ -68,7 +68,7 @@ export function PatientHome({
   const [plan, setPlan] = useState<Load<PlanItem[]>>(loading());
   const [messages, setMessages] = useState<Load<Message[]>>(loading());
   const [facts, setFacts] = useState<Load<PatientFactsView>>(loading());
-  const [instruments, setInstruments] = useState<Load<InstrumentView[]>>(loading());
+  const [instruments, setInstruments] = useState<Load<PatientInstrumentView[]>>(loading());
   /** Какой опросник открыт прямо сейчас; null — список. */
   const [openInstrumentId, setOpenInstrumentId] = useState<string | null>(null);
   const [answersSaved, setAnswersSaved] = useState(false);
@@ -284,15 +284,25 @@ export function PatientHome({
               {instruments.data.map((instrument) => (
                 <li key={instrument.id} className="instrument-list__row">
                   <span className="instrument-list__title">{instrument.title}</span>
-                  <Button
-                    variant="primary"
-                    onClick={() => {
-                      setAnswersSaved(false);
-                      setOpenInstrumentId(instrument.id);
-                    }}
-                  >
-                    Пройти
-                  </Button>
+                  {instrument.nextAttemptAt === null ? (
+                    <Button
+                      variant="primary"
+                      onClick={() => {
+                        setAnswersSaved(false);
+                        setOpenInstrumentId(instrument.id);
+                      }}
+                    >
+                      Пройти
+                    </Button>
+                  ) : (
+                    <span className="instrument-list__wait">
+                      Следующий раз —{" "}
+                      {new Date(instrument.nextAttemptAt).toLocaleDateString("ru-RU", {
+                        day: "numeric",
+                        month: "long",
+                      })}
+                    </span>
+                  )}
                 </li>
               ))}
             </ul>
@@ -300,6 +310,7 @@ export function PatientHome({
 
           {openInstrumentId !== null && (
             <InstrumentForm
+              key={openInstrumentId}
               instrumentId={openInstrumentId}
               onSaved={() => {
                 setOpenInstrumentId(null);

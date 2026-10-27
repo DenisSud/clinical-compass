@@ -195,6 +195,14 @@ describe("reading assessments", () => {
   });
 });
 
+/** HADS-тревога нумерует пункты a1…a7, ASQ четыре — q1…q4; у каждого свой набор ответов. */
+function hadsAnswers(value: number, overrides: Record<string, number> = {}) {
+  return {
+    ...Object.fromEntries(Array.from({ length: 7 }, (_, index) => [`a${index + 1}`, value])),
+    ...overrides,
+  };
+}
+
 /** GAD-7 has seven items and ASQ four; both number them q1… and answer on one scale. */
 function items(count: number, value: number, overrides: Record<string, number> = {}) {
   return {
@@ -204,12 +212,17 @@ function items(count: number, value: number, overrides: Record<string, number> =
 }
 
 describe("the patient's set past PHQ-9", () => {
-  it("takes a GAD-7 submission and keeps the score away from the patient", async () => {
+  it("takes a HADS submission and keeps the score away from the patient", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     await setPatientStatus(app, doctorCookie, patientId, "treatment");
 
-    const response = await submit(app, patientCookie, { submissionId: "g-1", answers: items(7, 2) }, "gad-7");
+    const response = await submit(
+      app,
+      patientCookie,
+      { submissionId: "h-1", answers: hadsAnswers(2) },
+      "hads-anxiety",
+    );
 
     expect(response.statusCode).toBe(201);
     expect(response.json().assessment.answers).toHaveLength(7);
@@ -218,11 +231,16 @@ describe("the patient's set past PHQ-9", () => {
     await app.close();
   });
 
-  it("shows the doctor the GAD-7 total and its band", async () => {
+  it("shows the doctor the HADS total and its band", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
     await setPatientStatus(app, doctorCookie, patientId, "treatment");
-    await submit(app, patientCookie, { submissionId: "g-1", answers: items(7, 2) }, "gad-7");
+    await submit(
+      app,
+      patientCookie,
+      { submissionId: "h-1", answers: hadsAnswers(2) },
+      "hads-anxiety",
+    );
 
     const response = await app.inject({
       method: "GET",
@@ -231,15 +249,16 @@ describe("the patient's set past PHQ-9", () => {
     });
 
     const [assessment] = response.json().assessments;
-    expect(assessment.instrumentId).toBe("gad-7");
+    expect(assessment.instrumentId).toBe("hads-anxiety");
     expect(assessment.total).toBe(14);
-    expect(assessment.band.label).toBe("Умеренные проявления");
+    expect(assessment.band.label).toBe("Клинически выраженная");
     await app.close();
   });
 
   it("takes an ASQ submission and marks the positive question for the doctor", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    await setPatientStatus(app, doctorCookie, patientId, "treatment");
     const submitted = await submit(
       app,
       patientCookie,
@@ -261,11 +280,17 @@ describe("the patient's set past PHQ-9", () => {
   it("keeps the PHQ-9 critical item raising a signal with three instruments in play", async () => {
     const app = await newApp();
     const { doctorCookie, patientCookie, patientId } = await boundPair(app);
-    await setPatientStatus(app, doctorCookie, patientId, "treatment");
 
-    await submit(app, patientCookie, { submissionId: "a-1", answers: items(4, 0) }, "asq");
-    await submit(app, patientCookie, { submissionId: "g-1", answers: items(7, 0) }, "gad-7");
+    // PHQ-9 — только скрининг, ASQ и HADS — терапия: история из трёх шкал набирается сменой статуса.
     await submit(app, patientCookie, { submissionId: "p-1", answers: answers(0, { q9: 1 }) });
+    await setPatientStatus(app, doctorCookie, patientId, "treatment");
+    await submit(app, patientCookie, { submissionId: "a-1", answers: items(4, 0) }, "asq");
+    await submit(
+      app,
+      patientCookie,
+      { submissionId: "h-1", answers: hadsAnswers(0) },
+      "hads-anxiety",
+    );
 
     const signals = await app.inject({
       method: "GET",

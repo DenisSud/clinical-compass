@@ -9,6 +9,11 @@ const itemSchema = z.object({
   id: z.string().min(1),
   text: z.string().min(1),
   critical: z.boolean().default(false),
+  /**
+   * Свои варианты ответа у пункта: в HADS формулировки разные в каждом пункте, и общей
+   * шкалы «0–3» у него нет. У PHQ-9 и ASQ варианты общие, поэтому им хватает поля ниже.
+   */
+  options: z.array(optionSchema).min(2).optional(),
 });
 
 const bandSchema = z.object({
@@ -32,7 +37,7 @@ export const instrumentSchema = z.object({
    */
   shortTitle: z.string().min(1).optional(),
   intro: z.string().min(1),
-  options: z.array(optionSchema).min(2),
+  options: z.array(optionSchema).min(2).optional(),
   items: z.array(itemSchema).min(1),
   bands: z.array(bandSchema).min(1),
   /**
@@ -61,6 +66,16 @@ export const instrumentSchema = z.object({
     note: z.string().default(""),
   }),
 });
+
+/** Варианты ответа пункта: свои, если заданы, иначе общие для шкалы. */
+export function optionsOf(
+  instrument: Pick<z.infer<typeof instrumentSchema>, "options">,
+  item: Pick<z.infer<typeof itemSchema>, "options" | "id">,
+): z.infer<typeof optionSchema>[] {
+  const options = item.options ?? instrument.options;
+  if (!options) throw new Error(`у пункта ${item.id} нет вариантов ответа`);
+  return options;
+}
 
 export type Instrument = z.infer<typeof instrumentSchema>;
 export type InstrumentItem = z.infer<typeof itemSchema>;

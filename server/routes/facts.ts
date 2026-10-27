@@ -161,7 +161,8 @@ export const factsRoutes: FastifyPluginAsync = async (app) => {
     const drafts = signalsForFacts(toFacts(row));
 
     // Факты пациента меняют ответы вопросов так же, как шкала: пересчёт по событию,
-    // а не по кнопке «обновить» (Q44).
+    // а не по кнопке «обновить» (Q44). Карточку вопроса дедуплицирует сам шлюз по виду,
+    // поэтому постоянный sourceId здесь не съедает второй ответ.
     await runDecisionQuestions(app, { patientId, sourceType: "facts", sourceId: patientId });
 
     /*

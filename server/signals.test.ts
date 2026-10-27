@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newApp, signUpDoctor, signUpPatient, type App } from "./test-support.js";
+import { newApp, setPatientStatus, signUpDoctor, signUpPatient, type App } from "./test-support.js";
 
 function answers(value: number, overrides: Record<string, number> = {}) {
   return {
@@ -117,19 +117,23 @@ describe("what raises a signal", () => {
 
   it("does not compare one questionnaire with another", async () => {
     const app = await newApp();
-    const { doctorCookie, patientCookie } = await boundPair(app);
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
 
-    // ASQ: один утвердительный ответ, сумма 1. PHQ-9 следом: сумма 6.
+    // PHQ-9 на входе: шесть баллов. В терапии следом HADS-тревога: один балл.
     // Числа рядом, но шкалы разные — сравнение выдало бы «ухудшение на 5»
     // у пациента, состояние которого не изменилось.
-    const asq = await app.inject({
-      method: "POST",
-      url: "/api/assessments/asq",
-      headers: { cookie: patientCookie },
-      payload: { submissionId: crypto.randomUUID(), answers: { q1: 1, q2: 0, q3: 0, q4: 0 } },
-    });
-    expect(asq.statusCode).toBe(201);
     await submit(app, patientCookie, 0, { q1: 3, q2: 3 });
+    await setPatientStatus(app, doctorCookie, patientId, "treatment");
+    const hads = await app.inject({
+      method: "POST",
+      url: "/api/assessments/hads-anxiety",
+      headers: { cookie: patientCookie },
+      payload: {
+        submissionId: crypto.randomUUID(),
+        answers: { a1: 1, a2: 0, a3: 0, a4: 0, a5: 0, a6: 0, a7: 0 },
+      },
+    });
+    expect(hads.statusCode).toBe(201);
 
     const kinds = (await listSignals(app, doctorCookie)).json().signals.map((s: { kind: string }) => s.kind);
     expect(kinds).not.toContain("worsening");
@@ -306,7 +310,8 @@ describe("ASQ does not multiply one answer into two findings", () => {
 
   it("raises the critical signal and not a total-score signal on top of it", async () => {
     const app = await newApp();
-    const { doctorCookie, patientCookie } = await boundPair(app);
+    const { doctorCookie, patientCookie, patientId } = await boundPair(app);
+    await setPatientStatus(app, doctorCookie, patientId, "treatment");
 
     await submitAsq(app, patientCookie, 1);
 

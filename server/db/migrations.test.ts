@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 const migrationsDir = fileURLToPath(new URL("./migrations", import.meta.url));
 
 /** Миграция, которая делает СКФ дробной (#52). Файлы до неё — состояние «как было». */
-const EGFR_MIGRATION = "0014_patient_status.sql";
+const EGFR_MIGRATION = "0013_egfr_fractional.sql";
 
 const files = readdirSync(migrationsDir)
   .filter((file) => file.endsWith(".sql"))
@@ -25,10 +25,35 @@ function egfrOf(sqlite: Database.Database): unknown {
   ).egfr;
 }
 
-describe("миграция 0013: СКФ перестаёт быть целой", () => {
+describe("миграция 0014: статус пациента", () => {
   it("файл на месте и идёт последним", () => {
+    expect(files.filter((file) => file.endsWith(".sql")).at(-1)).toBe("0014_patient_status.sql");
+  });
+
+  it("даёт существующему пациенту скрининг и не пускает чужой статус", () => {
+    const sqlite = new Database(":memory:");
+    for (const file of files) {
+      if (file === "0014_patient_status.sql") continue;
+      apply(sqlite, file);
+    }
+    sqlite
+      .prepare("INSERT INTO patients (id, email, password_hash, created_at) VALUES ('p1', 'a@b.c', 'x', '2026-10-27')")
+      .run();
+
+    apply(sqlite, "0014_patient_status.sql");
+
+    const status = sqlite.prepare("SELECT status FROM patients WHERE id = 'p1'").get() as { status: string };
+    expect(status.status).toBe("screening");
+    expect(() =>
+      sqlite.prepare("UPDATE patients SET status = 'remission' WHERE id = 'p1'").run(),
+    ).toThrow(/CHECK/);
+    sqlite.close();
+  });
+});
+
+describe("миграция 0013: СКФ перестаёт быть целой", () => {
+  it("файл на месте", () => {
     expect(files).toContain(EGFR_MIGRATION);
-    expect(files.at(-1)).toBe(EGFR_MIGRATION);
   });
 
   it("сохраняет старые значения и принимает 59.6", () => {

@@ -12,6 +12,7 @@ import type {
   Signal,
   DoctorAssessment,
   InstrumentView,
+  PatientInstrumentView,
   PatientAssessment,
   HealthResponse,
   BindingCodeResponse,
@@ -134,9 +135,9 @@ export function fetchHealth(): Promise<HealthResponse> {
   return request<HealthResponse>("/api/health");
 }
 
-/** Что назначено этому пациенту. Набор решает статус, а не экран (issue #68). */
-export function fetchMyInstruments(): Promise<{ instruments: InstrumentView[] }> {
-  return request<{ instruments: InstrumentView[] }>("/api/instruments");
+/** Что назначено этому пациенту и когда это можно пройти. Набор решает статус (#68). */
+export function fetchMyInstruments(): Promise<{ instruments: PatientInstrumentView[] }> {
+  return request<{ instruments: PatientInstrumentView[] }>("/api/instruments");
 }
 
 export function fetchInstrument(id: string): Promise<{ instrument: InstrumentView }> {

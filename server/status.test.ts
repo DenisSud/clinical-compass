@@ -22,6 +22,11 @@ async function boundPair() {
   return { app, doctorCookie, patientCookie, patientId: me.json().profile.id as string };
 }
 
+/** HADS-тревога: семь пунктов a1…a7, у каждого свои варианты ответа со значением 1. */
+function hadsAnswers(value: number): Record<string, number> {
+  return Object.fromEntries(Array.from({ length: 7 }, (_, index) => [`a${index + 1}`, value]));
+}
+
 function instrumentIds(body: { instruments: { id: string }[] }): string[] {
   return body.instruments.map((instrument) => instrument.id);
 }
@@ -37,7 +42,7 @@ describe("the patient's questionnaire set", () => {
     });
 
     expect(response.statusCode).toBe(200);
-    expect(instrumentIds(response.json())).toEqual(["phq-9", "asq"]);
+    expect(instrumentIds(response.json())).toEqual(["phq-9"]);
     await app.close();
   });
 
@@ -57,7 +62,7 @@ describe("the patient's questionnaire set", () => {
       headers: { cookie: patientCookie },
     });
 
-    expect(instrumentIds(response.json())).toEqual(["gad-7", "phq-9", "asq"]);
+    expect(instrumentIds(response.json())).toEqual(["hads-anxiety", "hads-depression", "asq"]);
     await app.close();
   });
 
@@ -66,7 +71,7 @@ describe("the patient's questionnaire set", () => {
 
     const response = await app.inject({
       method: "GET",
-      url: "/api/instruments/gad-7",
+      url: "/api/instruments/hads-anxiety",
       headers: { cookie: patientCookie },
     });
 
@@ -76,16 +81,78 @@ describe("the patient's questionnaire set", () => {
 
   it("refuses a submission of an instrument outside the status", async () => {
     const { app, patientCookie } = await boundPair();
-    const answers = Object.fromEntries(Array.from({ length: 7 }, (_, index) => [`q${index + 1}`, 1]));
+    const answers = hadsAnswers(1);
 
     const response = await app.inject({
       method: "POST",
-      url: "/api/assessments/gad-7",
+      url: "/api/assessments/hads-anxiety",
       headers: { cookie: patientCookie },
       payload: { submissionId: "outside", answers },
     });
 
     expect(response.statusCode).toBe(404);
+    await app.close();
+  });
+
+  it("says when a questionnaire opens again, and only for the one already passed", async () => {
+    const { app, doctorCookie, patientCookie, patientId } = await boundPair();
+    await app.inject({
+      method: "PATCH",
+      url: `/api/patients/${patientId}/status`,
+      headers: { cookie: doctorCookie },
+      payload: { status: "treatment" },
+    });
+    const answers = hadsAnswers(1);
+    await app.inject({
+      method: "POST",
+      url: "/api/assessments/hads-anxiety",
+      headers: { cookie: patientCookie },
+      payload: { submissionId: "one", answers },
+    });
+
+    const list = await app.inject({
+      method: "GET",
+      url: "/api/instruments",
+      headers: { cookie: patientCookie },
+    });
+    const byId = new Map(
+      (list.json().instruments as { id: string; nextAttemptAt: string | null }[]).map((item) => [
+        item.id,
+        item.nextAttemptAt,
+      ]),
+    );
+
+    expect(byId.get("hads-anxiety")).toMatch(/^20\d\d-/);
+    expect(byId.get("asq")).toBeNull();
+    await app.close();
+  });
+
+  it("does not promise a week when the status asks for three days", async () => {
+    const { app, doctorCookie, patientCookie, patientId } = await boundPair();
+    await app.inject({
+      method: "PATCH",
+      url: `/api/patients/${patientId}/status`,
+      headers: { cookie: doctorCookie },
+      payload: { status: "worsening" },
+    });
+    const answers = hadsAnswers(1);
+    await app.inject({
+      method: "POST",
+      url: "/api/assessments/hads-anxiety",
+      headers: { cookie: patientCookie },
+      payload: { submissionId: "one", answers },
+    });
+
+    const second = await app.inject({
+      method: "POST",
+      url: "/api/assessments/hads-anxiety",
+      headers: { cookie: patientCookie },
+      payload: { submissionId: "two", answers },
+    });
+
+    expect(second.statusCode).toBe(409);
+    expect(second.json().message).toMatch(/Следующий раз/);
+    expect(second.json().message).not.toMatch(/неделю/);
     await app.close();
   });
 

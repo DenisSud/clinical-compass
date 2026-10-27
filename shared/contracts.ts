@@ -166,20 +166,36 @@ export const diaryEntrySchema = z.object({
 export type DiaryEntry = z.infer<typeof diaryEntrySchema>;
 
 /** The questionnaire as the patient receives it: no bands, no critical flags. */
+/** Вариант ответа: у HADS он свой у каждого пункта, у PHQ-9 и ASQ общий на шкалу. */
+const answerOptionViewSchema = z.object({ value: z.number(), label: z.string() });
+
 export const instrumentViewSchema = z.object({
   id: z.string(),
   title: z.string(),
   intro: z.string(),
-  options: z.array(z.object({ value: z.number(), label: z.string() })),
-  items: z.array(z.object({ id: z.string(), text: z.string() })),
+  options: z.array(answerOptionViewSchema),
+  items: z.array(
+    z.object({
+      id: z.string(),
+      text: z.string(),
+      options: z.array(answerOptionViewSchema).optional(),
+    }),
+  ),
   sourceNote: z.string(),
 });
 
 export type InstrumentView = z.infer<typeof instrumentViewSchema>;
 
 /** Порядок — из файла статуса: пациент видит назначенное, а не весь реестр. */
+/** В списке у шкалы есть дата, когда её можно пройти: у формы её нет, там нечего ждать. */
+export const patientInstrumentViewSchema = instrumentViewSchema.extend({
+  nextAttemptAt: z.string().nullable(),
+});
+
+export type PatientInstrumentView = z.infer<typeof patientInstrumentViewSchema>;
+
 export const instrumentListResponseSchema = z.object({
-  instruments: z.array(instrumentViewSchema),
+  instruments: z.array(patientInstrumentViewSchema),
 });
 
 export type InstrumentListResponse = z.infer<typeof instrumentListResponseSchema>;

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, like } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 import { assessments, doseEvents, prescriptions, signals } from "../db/schema.js";
 import {
@@ -13,6 +13,7 @@ import { newApp, signUpPatient, type App } from "../test-support.js";
 import { runDecisionQuestions } from "./service.js";
 
 const DECISION_KIND = "decision:worsening-with-missed-doses";
+const ANY_DECISION_KIND = "decision:";
 
 /** Прошлая отправка PHQ-9 и текущая: рост на 9 баллов — условие любого вопроса об ухудшении. */
 async function seedWorsening(app: App, patientId: string) {
@@ -95,11 +96,36 @@ async function seedAdherence(app: App, patientId: string, skipped: number) {
   );
 }
 
-async function decisionSignals(app: App, patientId: string) {
+/** kind = "decision:" вернёт все карточки вопросов: так проверяется и отказ, и дедупликация. */
+async function decisionSignals(app: App, patientId: string, kind = DECISION_KIND) {
+  const matches =
+    kind === ANY_DECISION_KIND ? like(signals.kind, "decision:%") : eq(signals.kind, kind);
   return app.conn.db
     .select()
     .from(signals)
-    .where(and(eq(signals.patientId, patientId), eq(signals.kind, DECISION_KIND)));
+    .where(and(eq(signals.patientId, patientId), matches));
+}
+
+/** Действующее назначение без единой отметки: приёмов не было в системе, а не «ноль пропусков». */
+async function seedUnmarkedPrescription(app: App, patientId: string): Promise<void> {
+  const today = wallClockDay(new Date());
+  await app.conn.db.insert(prescriptions).values({
+    id: randomUUID(),
+    patientId,
+    drugId: null,
+    drugName: "Авиандр",
+    doseValue: 20,
+    doseUnit: "мг",
+    timesPerDay: 1,
+    timesOfDay: JSON.stringify(["08:00"]),
+    startsOn: shiftDay(today, -6),
+    endsOn: null,
+    status: "active",
+    createdAt: new Date().toISOString(),
+    confirmedAt: new Date().toISOString(),
+    confirmedBy: null,
+    archivedAt: null,
+  });
 }
 
 describe("questions on an event", () => {
@@ -131,6 +157,38 @@ describe("questions on an event", () => {
     await runDecisionQuestions(app, { patientId, sourceType: "assessment", sourceId: "now" });
 
     expect(await decisionSignals(app, patientId)).toHaveLength(0);
+    await app.close();
+  });
+
+  it("refuses while the last dose is unmarked instead of calling it zero misses", async () => {
+    const app = await newApp();
+    const cookie = await signUpPatient(app);
+    const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie } });
+    const patientId = me.json().profile.id as string;
+
+    await seedWorsening(app, patientId);
+    await seedUnmarkedPrescription(app, patientId);
+
+    await runDecisionQuestions(app, { patientId, sourceType: "assessment", sourceId: "now" });
+
+    expect(await decisionSignals(app, patientId, ANY_DECISION_KIND)).toHaveLength(0);
+    await app.close();
+  });
+
+  it("keeps one open card when another event recomputes the same answer", async () => {
+    const app = await newApp();
+    const cookie = await signUpPatient(app);
+    const me = await app.inject({ method: "GET", url: "/api/me", headers: { cookie } });
+    const patientId = me.json().profile.id as string;
+
+    await seedWorsening(app, patientId);
+    await seedAdherence(app, patientId, 3);
+
+    await runDecisionQuestions(app, { patientId, sourceType: "assessment", sourceId: "now" });
+    await runDecisionQuestions(app, { patientId, sourceType: "diary", sourceId: "2026-10-27" });
+    await runDecisionQuestions(app, { patientId, sourceType: "dose", sourceId: "slot-1" });
+
+    expect(await decisionSignals(app, patientId, ANY_DECISION_KIND)).toHaveLength(1);
     await app.close();
   });
 
