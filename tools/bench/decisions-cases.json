@@ -1,0 +1,268 @@
+{
+  "cases": [
+    {
+      "name": "ухудшение при трёх пропусках",
+      "total": 18,
+      "previousTotal": 9,
+      "consecutiveMissedDoses": 3,
+      "expect": [
+        "yes",
+        "no"
+      ],
+      "note": ""
+    },
+    {
+      "name": "ухудшение на границе порога",
+      "total": 14,
+      "previousTotal": 9,
+      "consecutiveMissedDoses": 3,
+      "expect": [
+        "yes",
+        "no"
+      ],
+      "note": "ровно +5"
+    },
+    {
+      "name": "рост на 4 балла",
+      "total": 13,
+      "previousTotal": 9,
+      "consecutiveMissedDoses": 3,
+      "expect": [
+        "no",
+        "no"
+      ],
+      "note": "порог не достигнут"
+    },
+    {
+      "name": "ухудшение без пропусков",
+      "total": 18,
+      "previousTotal": 9,
+      "consecutiveMissedDoses": 0,
+      "expect": [
+        "no",
+        "yes"
+      ],
+      "note": ""
+    },
+    {
+      "name": "ухудшение, один пропуск",
+      "total": 18,
+      "previousTotal": 9,
+      "consecutiveMissedDoses": 1,
+      "expect": [
+        "no",
+        "no"
+      ],
+      "note": "ни туда, ни туда"
+    },
+    {
+      "name": "нет прошлой отправки",
+      "total": 18,
+      "previousTotal": null,
+      "consecutiveMissedDoses": 3,
+      "expect": [
+        "insufficient",
+        "insufficient"
+      ],
+      "note": ""
+    },
+    {
+      "name": "нет отметок приёма",
+      "total": 18,
+      "previousTotal": 9,
+      "consecutiveMissedDoses": null,
+      "expect": [
+        "insufficient",
+        "insufficient"
+      ],
+      "note": ""
+    },
+    {
+      "name": "нет ни прошлой шкалы, ни отметок",
+      "total": 18,
+      "previousTotal": null,
+      "consecutiveMissedDoses": null,
+      "expect": [
+        "insufficient",
+        "insufficient"
+      ],
+      "note": ""
+    },
+    {
+      "name": "сумма не изменилась",
+      "total": 9,
+      "previousTotal": 9,
+      "consecutiveMissedDoses": 3,
+      "expect": [
+        "no",
+        "no"
+      ],
+      "note": ""
+    },
+    {
+      "name": "сумма упала",
+      "total": 6,
+      "previousTotal": 9,
+      "consecutiveMissedDoses": 3,
+      "expect": [
+        "no",
+        "no"
+      ],
+      "note": ""
+    },
+    {
+      "name": "ухудшение при четырёх пропусках",
+      "total": 20,
+      "previousTotal": 10,
+      "consecutiveMissedDoses": 4,
+      "expect": [
+        "yes",
+        "no"
+      ],
+      "note": ""
+    },
+    {
+      "name": "сильный рост без пропусков",
+      "total": 22,
+      "previousTotal": 8,
+      "consecutiveMissedDoses": 0,
+      "expect": [
+        "no",
+        "yes"
+      ],
+      "note": ""
+    },
+    {
+      "name": "рост на 5 без пропусков",
+      "total": 12,
+      "previousTotal": 7,
+      "consecutiveMissedDoses": 0,
+      "expect": [
+        "no",
+        "yes"
+      ],
+      "note": ""
+    },
+    {
+      "name": "рост на 5, пропусков 0",
+      "total": 26,
+      "previousTotal": 21,
+      "consecutiveMissedDoses": 0,
+      "expect": [
+        "no",
+        "yes"
+      ],
+      "note": ""
+    },
+    {
+      "name": "рост на 5, пропусков 2",
+      "total": 26,
+      "previousTotal": 21,
+      "consecutiveMissedDoses": 2,
+      "expect": [
+        "no",
+        "no"
+      ],
+      "note": ""
+    },
+    {
+      "name": "пропусков много, роста нет",
+      "total": 8,
+      "previousTotal": 8,
+      "consecutiveMissedDoses": 5,
+      "expect": [
+        "no",
+        "no"
+      ],
+      "note": ""
+    },
+    {
+      "name": "рост на 1, пропусков 3",
+      "total": 10,
+      "previousTotal": 9,
+      "consecutiveMissedDoses": 3,
+      "expect": [
+        "no",
+        "no"
+      ],
+      "note": ""
+    },
+    {
+      "name": "нулевая прошлая сумма",
+      "total": 9,
+      "previousTotal": 0,
+      "consecutiveMissedDoses": 3,
+      "expect": [
+        "yes",
+        "no"
+      ],
+      "note": ""
+    },
+    {
+      "name": "максимум шкалы",
+      "total": 27,
+      "previousTotal": 20,
+      "consecutiveMissedDoses": 3,
+      "expect": [
+        "yes",
+        "no"
+      ],
+      "note": ""
+    },
+    {
+      "name": "обе суммы низкие",
+      "total": 3,
+      "previousTotal": 3,
+      "consecutiveMissedDoses": 0,
+      "expect": [
+        "no",
+        "no"
+      ],
+      "note": ""
+    },
+    {
+      "name": "рост при 3 пропусках и 0 прошлом",
+      "total": 21,
+      "previousTotal": 0,
+      "consecutiveMissedDoses": 3,
+      "expect": [
+        "yes",
+        "no"
+      ],
+      "note": ""
+    },
+    {
+      "name": "нет данных приёма, рост есть",
+      "total": 15,
+      "previousTotal": 5,
+      "consecutiveMissedDoses": null,
+      "expect": [
+        "insufficient",
+        "insufficient"
+      ],
+      "note": ""
+    },
+    {
+      "name": "нет прошлой отправки, пропусков 0",
+      "total": 15,
+      "previousTotal": null,
+      "consecutiveMissedDoses": 0,
+      "expect": [
+        "insufficient",
+        "insufficient"
+      ],
+      "note": ""
+    },
+    {
+      "name": "рост на 20 без пропусков",
+      "total": 27,
+      "previousTotal": 7,
+      "consecutiveMissedDoses": 0,
+      "expect": [
+        "no",
+        "yes"
+      ],
+      "note": ""
+    }
+  ]
+}

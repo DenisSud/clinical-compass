@@ -12,7 +12,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.server.json --noEmit",
     "db:migrate": "tsx server/db/migrate-cli.ts",
     "db:seed": "tsx server/db/seed.ts",
-    "play": "tsx tools/logic-playground.ts"
+    "play": "tsx tools/logic-playground.ts",
+    "bench": "tsx tools/bench-decisions.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.3",
