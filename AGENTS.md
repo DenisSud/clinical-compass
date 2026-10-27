@@ -20,6 +20,14 @@ Default five-role vocabulary; label string equals role name. See
 Single-context: `GLOSSARY.md` at the root plus ADRs in `docs/adr/`, created
 lazily. See `docs/agents/domain.md`.
 
+### Spec
+
+`SPEC.md` at the root is the normative state of the product: numbered
+requirements (`S*`), what is in and out of the MVP, and what must exist before
+clinical material from the clinician lands. `decisions.md` keeps the reasoning
+(`Q*`); the spec repeats no arguments. If code and spec disagree, fix the spec
+first.
+
 ### Логика решений: площадка и тестер
 
 Проверка логики идёт через `tools/logic-playground.ts` (`npm run play`), а не через
