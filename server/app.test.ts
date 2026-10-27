@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { buildApp } from "./app.js";
 
-describe("GET /api/health", () => {
+describe("проверка здоровья через API", () => {
   it("сообщает, что api и база здоровы", async () => {
     const app = await buildApp({ dbPath: ":memory:", logger: false });
 

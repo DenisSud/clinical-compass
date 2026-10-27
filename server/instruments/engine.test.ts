@@ -100,7 +100,7 @@ describe("критические пункты", () => {
   });
 });
 
-describe("HADS", () => {
+describe("шкала HADS", () => {
   it("это две части по семь пунктов, у каждой свои формулировки ответов", () => {
     expect(hadsAnxiety?.items).toHaveLength(7);
     expect(hadsDepression?.items).toHaveLength(7);
@@ -159,7 +159,7 @@ describe("HADS", () => {
   });
 });
 
-describe("UKU", () => {
+describe("шкала UKU", () => {
   it("это одна шкала из 48 пунктов, каждый от 0 до 3 своими словами", () => {
     expect(uku?.items).toHaveLength(48);
     for (const item of uku!.items) {
@@ -221,7 +221,7 @@ describe("UKU", () => {
   });
 });
 
-describe("HDRS-17", () => {
+describe("шкала HDRS-17", () => {
   it("заполняется врачом, а не пациентом", () => {
     expect(hdrs?.audience).toBe("doctor");
     expect(phq9?.audience).toBe("patient");

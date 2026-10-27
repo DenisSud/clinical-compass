@@ -1,15 +1,15 @@
-# Triage Labels
+# Метки разбора
 
-The skills speak in terms of five canonical triage roles. This file maps those roles to the actual label strings used in this repo's issue tracker.
+Навыки говорят о пяти канонических ролях разбора. Этот файл сопоставляет роли с метками, которые реально используются в трекере репозитория.
 
-| Label in mattpocock/skills | Label in our tracker | Meaning                                  |
-| -------------------------- | -------------------- | ---------------------------------------- |
-| `needs-triage`             | `needs-triage`       | Maintainer needs to evaluate this issue  |
-| `needs-info`               | `needs-info`         | Waiting on reporter for more information |
-| `ready-for-agent`          | `ready-for-agent`    | Fully specified, ready for an AFK agent  |
-| `ready-for-human`          | `ready-for-human`    | Requires human implementation            |
-| `wontfix`                  | `wontfix`            | Will not be actioned                     |
+| Метка в mattpocock/skills | Метка в нашем трекере | Значение                                      |
+| ------------------------- | --------------------- | --------------------------------------------- |
+| `needs-triage`            | `needs-triage`        | Сопровождающему нужно оценить задачу          |
+| `needs-info`              | `needs-info`          | Ждём от автора дополнительную информацию      |
+| `ready-for-agent`         | `ready-for-agent`     | Полностью описана, готова для агента без человека |
+| `ready-for-human`         | `ready-for-human`     | Требует реализации человеком                  |
+| `wontfix`                 | `wontfix`             | Не будем делать                               |
 
-When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
+Когда навык упоминает роль (например, «поставьте метку готовности для агента»), берите строку из этой таблицы.
 
-Edit the "Label in our tracker" column to match whatever vocabulary you actually use.
+Правьте столбец «Метка в нашем трекере» под свой словарь.
