@@ -19,4 +19,4 @@ ssh "$HOST" "cd $APP && nix shell nixpkgs#gcc nixpkgs#gnumake nixpkgs#python3 -c
   && npm run build >/dev/null \
   && systemctl --user daemon-reload && systemctl --user restart clinical-compass.service"
 
-echo "deployed: http://192.168.1.20:8110 (public: https://compas.sudakov.site)"
+echo "выкачено: http://192.168.1.20:8110 (публично: https://compas.sudakov.site)"
