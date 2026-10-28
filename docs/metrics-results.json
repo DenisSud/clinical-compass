@@ -1,0 +1,537 @@
+{
+  "meta": {
+    "startedAt": "2026-10-28T07:46:33.566Z",
+    "host": "linux x64",
+    "node": "v22.23.3",
+    "port": 3457,
+    "db": "/tmp/compass-metrics-3080.db"
+  },
+  "gaps": [
+    "Удобство врача (клики, время задачи) не измерено: нужен прогон на людях.",
+    "Метрика 2 кейса — извлечение из выписок разных шаблонов — не измеряется: извлечения в прототипе нет.",
+    "Нагрузочные числа сняты на loopback с SQLite в одном процессе; горизонтального масштабирования у прототипа нет.",
+    "RPO 0 доказан для подтверждённых записей на SIGKILL; репликации, бэкапов и шифрования в прототипе нет.",
+    "Русская валидация PHQ-9 не подтверждена (issue #1), поэтому числа не переносятся на клиническое применение.",
+    "Карточка отдаёт всю историю опросников без страниц: 5000 записей — 11 мс, но на большем объёме понадобится пагинация."
+  ],
+  "tests": {
+    "exitCode": 0,
+    "wallMs": 1600,
+    "testFiles": 15,
+    "testsPassed": 130,
+    "testsFailed": 0
+  },
+  "scenarios": [
+    {
+      "name": "Первичный приём: привязка и первый опросник",
+      "actions": 6,
+      "wallMs": 15,
+      "slowest": 6,
+      "serverErrors": 0,
+      "steps": [
+        {
+          "name": "врач: код привязки",
+          "status": 200,
+          "ms": 1.3
+        },
+        {
+          "name": "пациент: регистрация",
+          "status": 201,
+          "ms": 5.7
+        },
+        {
+          "name": "пациент: привязка по коду",
+          "status": 200,
+          "ms": 1.7
+        },
+        {
+          "name": "пациент: опросник",
+          "status": 200,
+          "ms": 2.8
+        },
+        {
+          "name": "пациент: отправка PHQ-9",
+          "status": 201,
+          "ms": 2.6
+        },
+        {
+          "name": "врач: карточка пациента",
+          "status": 200,
+          "ms": 1.3
+        }
+      ]
+    },
+    {
+      "name": "Критический ответ: сигнал и разбор",
+      "actions": 5,
+      "wallMs": 6,
+      "slowest": 2,
+      "serverErrors": 0,
+      "steps": [
+        {
+          "name": "пациент: PHQ-9 с критическим пунктом",
+          "status": 201,
+          "ms": 1.6
+        },
+        {
+          "name": "врач: список сигналов",
+          "status": 200,
+          "ms": 0.9
+        },
+        {
+          "name": "врач: взять в разбор",
+          "status": 200,
+          "ms": 1
+        },
+        {
+          "name": "врач: закрытие без результата (ждём 400)",
+          "status": 400,
+          "ms": 1.4
+        },
+        {
+          "name": "врач: закрытие с результатом",
+          "status": 200,
+          "ms": 1.1
+        }
+      ]
+    },
+    {
+      "name": "План и приверженность",
+      "actions": 5,
+      "wallMs": 5,
+      "slowest": 1,
+      "serverErrors": 0,
+      "steps": [
+        {
+          "name": "врач: назначение в план",
+          "status": 201,
+          "ms": 1.2
+        },
+        {
+          "name": "врач: подтверждение плана",
+          "status": 200,
+          "ms": 0.9
+        },
+        {
+          "name": "пациент: назначения на сегодня",
+          "status": 200,
+          "ms": 0.9
+        },
+        {
+          "name": "пациент: отметка «принял»",
+          "status": 200,
+          "ms": 1.4
+        },
+        {
+          "name": "врач: приверженность за неделю",
+          "status": 200,
+          "ms": 1
+        }
+      ]
+    },
+    {
+      "name": "Правило врача и дневник",
+      "actions": 4,
+      "wallMs": 5,
+      "slowest": 2,
+      "serverErrors": 0,
+      "steps": [
+        {
+          "name": "врач: своё правило (самочувствие ≤ 3)",
+          "status": 201,
+          "ms": 1.5
+        },
+        {
+          "name": "пациент: дневник, 1 из 10",
+          "status": 201,
+          "ms": 1.8
+        },
+        {
+          "name": "врач: дневник пациента",
+          "status": 200,
+          "ms": 0.7
+        },
+        {
+          "name": "врач: сигналы после правила",
+          "status": 200,
+          "ms": 0.6
+        }
+      ]
+    },
+    {
+      "name": "Канал связи: сообщение и ответ",
+      "actions": 4,
+      "wallMs": 3,
+      "slowest": 1,
+      "serverErrors": 0,
+      "steps": [
+        {
+          "name": "пациент: сообщение врачу",
+          "status": 201,
+          "ms": 1
+        },
+        {
+          "name": "врач: тред пациента",
+          "status": 200,
+          "ms": 0.6
+        },
+        {
+          "name": "врач: ответ",
+          "status": 201,
+          "ms": 0.9
+        },
+        {
+          "name": "пациент: тред",
+          "status": 200,
+          "ms": 0.6
+        }
+      ]
+    }
+  ],
+  "signalDelivery": {
+    "samples": [
+      2,
+      1.9,
+      2,
+      2.2,
+      2.1,
+      2.2,
+      2,
+      2.4,
+      1.9,
+      2,
+      2,
+      2
+    ],
+    "stats": {
+      "n": 12,
+      "p50": 1.9977820000000293,
+      "p95": 2.394661000000042,
+      "max": 2.394661000000042,
+      "mean": 2.0591574999999978
+    }
+  },
+  "idempotency": {
+    "repeats": 20,
+    "statuses": [
+      200,
+      201
+    ],
+    "assessmentsStored": 1,
+    "signalsStored": 2,
+    "latency": {
+      "n": 20,
+      "p50": 0.8580880000000661,
+      "p95": 1.3295570000000225,
+      "max": 1.382325000000037,
+      "mean": 0.9068128500000114
+    }
+  },
+  "reliability": {
+    "health": {
+      "n": 300,
+      "ok": 300
+    },
+    "reads": {
+      "n": 200,
+      "ok": 200,
+      "latency": {
+        "n": 200,
+        "p50": 0.44438799999988987,
+        "p95": 0.5440529999999626,
+        "max": 1.3675879999999552,
+        "mean": 0.4396563099999997
+      }
+    },
+    "malformed": {
+      "n": 100,
+      "cases": [
+        {
+          "label": "обрезанный JSON",
+          "method": "POST",
+          "path": "/assessments/phq-9",
+          "statuses": [
+            400
+          ]
+        },
+        {
+          "label": "пустой submissionId",
+          "method": "POST",
+          "path": "/assessments/phq-9",
+          "statuses": [
+            400
+          ]
+        },
+        {
+          "label": "значение вне шкалы",
+          "method": "POST",
+          "path": "/assessments/phq-9",
+          "statuses": [
+            400
+          ]
+        },
+        {
+          "label": "дневник: оценка 42",
+          "method": "POST",
+          "path": "/diary",
+          "statuses": [
+            400
+          ]
+        },
+        {
+          "label": "дневник: дата из 1999",
+          "method": "POST",
+          "path": "/diary",
+          "statuses": [
+            400
+          ]
+        },
+        {
+          "label": "отметка по чужому назначению",
+          "method": "POST",
+          "path": "/checkins",
+          "statuses": [
+            404
+          ]
+        },
+        {
+          "label": "пустое сообщение",
+          "method": "POST",
+          "path": "/messages",
+          "statuses": [
+            400
+          ]
+        },
+        {
+          "label": "несуществующий код",
+          "method": "POST",
+          "path": "/bind",
+          "statuses": [
+            404
+          ]
+        },
+        {
+          "label": "несуществующий пациент",
+          "method": "GET",
+          "path": "/patients/does-not-exist",
+          "statuses": [
+            401
+          ]
+        },
+        {
+          "label": "несуществующий сигнал",
+          "method": "POST",
+          "path": "/signals/does-not-exist/take",
+          "statuses": [
+            403
+          ]
+        }
+      ],
+      "serverErrors": 0
+    },
+    "total5xx": 0
+  },
+  "load": {
+    "workers": 16,
+    "requests": 1920,
+    "wallMs": 548,
+    "rps": 3503,
+    "latency": {
+      "n": 1920,
+      "p50": 3.527962000000116,
+      "p95": 8.897984999999835,
+      "max": 30.655786000000035,
+      "mean": 4.4692638244791665
+    },
+    "errors": 0,
+    "nonOk": 0
+  },
+  "restart": {
+    "before": {
+      "signals": 20,
+      "assessments": 10,
+      "diary": 10
+    },
+    "after": {
+      "signals": 20,
+      "assessments": 10,
+      "diary": 10
+    },
+    "lostSignals": 0,
+    "lostAssessments": 0,
+    "lostDiaryEntries": 0,
+    "readyMs": 359,
+    "restartMs": 360
+  },
+  "recommendations": {
+    "status": 200,
+    "cards": 1,
+    "withBasis": 1,
+    "withSource": 1,
+    "basisShare": 100,
+    "sourceShare": 100,
+    "missing": [
+      "Нет клинических рекомендаций — основание «первая линия» нечем подтвердить"
+    ],
+    "cardTitles": [
+      "АВИАНДР, 20 мг, таблетки, покрытые пленочной оболочкой"
+    ]
+  },
+  "isolation": {
+    "attempts": [
+      {
+        "who": "чужой врач",
+        "label": "карточка",
+        "method": "GET",
+        "path": "/patients/ffcd903c-4b6d-42ff-9b4f-313b5cdc30eb",
+        "status": 403,
+        "leaked": false
+      },
+      {
+        "who": "чужой врач",
+        "label": "опросники",
+        "method": "GET",
+        "path": "/patients/ffcd903c-4b6d-42ff-9b4f-313b5cdc30eb/assessments",
+        "status": 403,
+        "leaked": false
+      },
+      {
+        "who": "чужой врач",
+        "label": "дневник",
+        "method": "GET",
+        "path": "/patients/ffcd903c-4b6d-42ff-9b4f-313b5cdc30eb/diary",
+        "status": 403,
+        "leaked": false
+      },
+      {
+        "who": "чужой врач",
+        "label": "сообщения",
+        "method": "GET",
+        "path": "/patients/ffcd903c-4b6d-42ff-9b4f-313b5cdc30eb/messages",
+        "status": 403,
+        "leaked": false
+      },
+      {
+        "who": "чужой врач",
+        "label": "сигналы",
+        "method": "GET",
+        "path": "/patients/ffcd903c-4b6d-42ff-9b4f-313b5cdc30eb/signals",
+        "status": 403,
+        "leaked": false
+      },
+      {
+        "who": "чужой врач",
+        "label": "рекомендации",
+        "method": "GET",
+        "path": "/patients/ffcd903c-4b6d-42ff-9b4f-313b5cdc30eb/recommendations",
+        "status": 403,
+        "leaked": false
+      },
+      {
+        "who": "чужой врач",
+        "label": "запись в план",
+        "method": "POST",
+        "path": "/patients/ffcd903c-4b6d-42ff-9b4f-313b5cdc30eb/plan",
+        "status": 403,
+        "leaked": false
+      },
+      {
+        "who": "чужой врач",
+        "label": "отвязка",
+        "method": "POST",
+        "path": "/patients/ffcd903c-4b6d-42ff-9b4f-313b5cdc30eb/unbind",
+        "status": 403,
+        "leaked": false
+      },
+      {
+        "who": "чужой пациент",
+        "label": "список пациентов врача",
+        "method": "GET",
+        "path": "/patients",
+        "status": 403,
+        "leaked": false
+      },
+      {
+        "who": "чужой пациент",
+        "label": "сигналы врача",
+        "method": "GET",
+        "path": "/signals",
+        "status": 403,
+        "leaked": false
+      },
+      {
+        "who": "чужой пациент",
+        "label": "карточка другого пациента",
+        "method": "GET",
+        "path": "/patients/ffcd903c-4b6d-42ff-9b4f-313b5cdc30eb",
+        "status": 403,
+        "leaked": false
+      },
+      {
+        "who": "чужой пациент",
+        "label": "назначение другому пациенту",
+        "method": "POST",
+        "path": "/patients/ffcd903c-4b6d-42ff-9b4f-313b5cdc30eb/plan",
+        "status": 403,
+        "leaked": false
+      },
+      {
+        "who": "чужой пациент",
+        "label": "отметка по чужому назначению",
+        "method": "POST",
+        "path": "/checkins",
+        "status": 404,
+        "leaked": false
+      }
+    ],
+    "count": 13,
+    "leaks": 0
+  },
+  "dataVolume": {
+    "seeded": 5000,
+    "storedForPatient": 5000,
+    "emptyHistoryMs": {
+      "n": 20,
+      "p50": 0.4825580000001537,
+      "p95": 0.5240960000000996,
+      "max": 0.5410079999996924,
+      "mean": 0.4886969500000532
+    },
+    "fullHistoryMs": {
+      "n": 20,
+      "p50": 11.587406000000101,
+      "p95": 13.06864399999995,
+      "max": 16.768617000000177,
+      "mean": 11.846732900000006
+    },
+    "signalsListMs": {
+      "n": 20,
+      "p50": 0.4321850000001177,
+      "p95": 0.5950379999999313,
+      "max": 0.8379399999998896,
+      "mean": 0.45235305000003334
+    }
+  },
+  "instrumentAdditivity": {
+    "codeHashBefore": "b67f655d6fdd4f6d",
+    "codeHashAfter": "b67f655d6fdd4f6d",
+    "codeFiles": 55,
+    "codeChanged": false,
+    "filesAdded": 1,
+    "testExitCode": 0,
+    "testsPassed": 130,
+    "instrumentServed": 200,
+    "scoring": {
+      "submit": 201,
+      "stored": 1
+    }
+  },
+  "bundle": {
+    "exitCode": 0,
+    "available": true,
+    "files": 2,
+    "rawKb": 367,
+    "gzipKb": 107,
+    "htmlKb": 0.4
+  }
+}
