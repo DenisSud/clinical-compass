@@ -1,0 +1,316 @@
+{
+  "meta": {
+    "startedAt": "2026-10-28T07:55:26.368Z",
+    "host": "linux x64, node v24.21.0",
+    "gpu": "NVIDIA GeForce RTX 5070, 12227 MiB",
+    "d1": "d1:latest",
+    "llm": "qwen3.5:4b"
+  },
+  "cases": [
+    {
+      "id": "case-1",
+      "total": 1,
+      "previousTotal": null,
+      "gold": "critical",
+      "kinds": [
+        "critical_item"
+      ]
+    },
+    {
+      "id": "case-2",
+      "total": 0,
+      "previousTotal": 0,
+      "gold": "none",
+      "kinds": []
+    },
+    {
+      "id": "case-3",
+      "total": 3,
+      "previousTotal": 1,
+      "gold": "none",
+      "kinds": []
+    },
+    {
+      "id": "case-4",
+      "total": 2,
+      "previousTotal": 0,
+      "gold": "critical",
+      "kinds": [
+        "critical_item"
+      ]
+    },
+    {
+      "id": "case-5",
+      "total": 3,
+      "previousTotal": null,
+      "gold": "none",
+      "kinds": []
+    },
+    {
+      "id": "case-6",
+      "total": 1,
+      "previousTotal": 0,
+      "gold": "critical",
+      "kinds": [
+        "critical_item"
+      ]
+    },
+    {
+      "id": "case-7",
+      "total": 6,
+      "previousTotal": 4,
+      "gold": "critical",
+      "kinds": [
+        "critical_item"
+      ]
+    },
+    {
+      "id": "case-8",
+      "total": 5,
+      "previousTotal": 3,
+      "gold": "critical",
+      "kinds": [
+        "critical_item"
+      ]
+    },
+    {
+      "id": "case-9",
+      "total": 5,
+      "previousTotal": null,
+      "gold": "critical",
+      "kinds": [
+        "critical_item"
+      ]
+    },
+    {
+      "id": "case-10",
+      "total": 6,
+      "previousTotal": 4,
+      "gold": "critical",
+      "kinds": [
+        "critical_item"
+      ]
+    },
+    {
+      "id": "case-11",
+      "total": 2,
+      "previousTotal": 0,
+      "gold": "none",
+      "kinds": []
+    },
+    {
+      "id": "case-12",
+      "total": 18,
+      "previousTotal": 16,
+      "gold": "critical",
+      "kinds": [
+        "critical_item",
+        "severe_total"
+      ]
+    },
+    {
+      "id": "case-13",
+      "total": 20,
+      "previousTotal": null,
+      "gold": "critical",
+      "kinds": [
+        "critical_item",
+        "severe_total"
+      ]
+    },
+    {
+      "id": "case-14",
+      "total": 17,
+      "previousTotal": 15,
+      "gold": "critical",
+      "kinds": [
+        "critical_item",
+        "severe_total"
+      ]
+    },
+    {
+      "id": "case-15",
+      "total": 17,
+      "previousTotal": 15,
+      "gold": "critical",
+      "kinds": [
+        "critical_item",
+        "severe_total"
+      ]
+    },
+    {
+      "id": "case-16",
+      "total": 19,
+      "previousTotal": 13,
+      "gold": "critical",
+      "kinds": [
+        "critical_item",
+        "severe_total",
+        "worsening"
+      ]
+    },
+    {
+      "id": "case-17",
+      "total": 27,
+      "previousTotal": null,
+      "gold": "critical",
+      "kinds": [
+        "critical_item",
+        "severe_total"
+      ]
+    },
+    {
+      "id": "case-18",
+      "total": 25,
+      "previousTotal": 23,
+      "gold": "critical",
+      "kinds": [
+        "critical_item",
+        "severe_total"
+      ]
+    },
+    {
+      "id": "case-19",
+      "total": 26,
+      "previousTotal": 24,
+      "gold": "critical",
+      "kinds": [
+        "critical_item",
+        "severe_total"
+      ]
+    },
+    {
+      "id": "case-20",
+      "total": 27,
+      "previousTotal": 25,
+      "gold": "critical",
+      "kinds": [
+        "critical_item",
+        "severe_total"
+      ]
+    },
+    {
+      "id": "case-21",
+      "total": 4,
+      "previousTotal": null,
+      "gold": "critical",
+      "kinds": [
+        "critical_item"
+      ]
+    },
+    {
+      "id": "case-22",
+      "total": 9,
+      "previousTotal": 7,
+      "gold": "critical",
+      "kinds": [
+        "critical_item"
+      ]
+    },
+    {
+      "id": "case-23",
+      "total": 11,
+      "previousTotal": 9,
+      "gold": "critical",
+      "kinds": [
+        "critical_item"
+      ]
+    },
+    {
+      "id": "case-24",
+      "total": 5,
+      "previousTotal": 3,
+      "gold": "none",
+      "kinds": []
+    }
+  ],
+  "rules": {
+    "decisions": 480000,
+    "agreement": 24,
+    "latencyMs": {
+      "n": 480000,
+      "p50": 0,
+      "p95": 0,
+      "max": 1.82
+    },
+    "meanUs": 0.18,
+    "maxUs": 1820,
+    "throughputPerSec": 5709444,
+    "tokensPerDecision": 0
+  },
+  "d1": {
+    "decisions": 24,
+    "agreement": 16,
+    "unparsed": 0,
+    "latencyMs": {
+      "n": 23,
+      "p50": 29.69,
+      "p95": 88.67,
+      "max": 89.66
+    },
+    "firstCallMs": 80,
+    "throughputPerSec": 58,
+    "concurrency": 8,
+    "throughputWallMs": 414,
+    "sample": [
+      "no  70%",
+      "no  82%",
+      "no  61%",
+      "no  82%",
+      "yes  58%",
+      "no  80%"
+    ]
+  },
+  "llm": {
+    "decisions": 24,
+    "agreement": 17,
+    "criticalMissed": 7,
+    "criticalCases": 19,
+    "schemaValid": 24,
+    "latencyMs": {
+      "n": 23,
+      "p50": 172.77,
+      "p95": 184.85,
+      "max": 187.18
+    },
+    "firstCallMs": 228,
+    "throughputPerSec": 6.1,
+    "concurrency": 8,
+    "throughputWallMs": 3944,
+    "promptTokens": 9011,
+    "completionTokens": 288,
+    "tokensPerDecision": 387,
+    "mismatches": [
+      {
+        "case": "case-4",
+        "gold": "critical",
+        "got": "none"
+      },
+      {
+        "case": "case-7",
+        "gold": "critical",
+        "got": "none"
+      },
+      {
+        "case": "case-8",
+        "gold": "critical",
+        "got": "none"
+      },
+      {
+        "case": "case-9",
+        "gold": "critical",
+        "got": "none"
+      },
+      {
+        "case": "case-21",
+        "gold": "critical",
+        "got": "none"
+      },
+      {
+        "case": "case-22",
+        "gold": "critical",
+        "got": "none"
+      }
+    ]
+  }
+}
